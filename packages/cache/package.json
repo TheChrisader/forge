@@ -1,5 +1,5 @@
 {
-  "name": "@forge/core",
+  "name": "@forge/cache",
   "version": "0.1.0",
   "private": true,
   "main": "./dist/index.js",
@@ -10,13 +10,16 @@
     "clean": "rm -rf dist",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:connection": "tsx src/test-connection.ts"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
-    "zod": "^4.3.6"
+    "dotenv": "^16.4.1",
+    "ioredis": "^5.9.2"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@types/node": "^20.11.0",
+    "tsx": "^4.21.0"
   }
 }

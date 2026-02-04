@@ -24,7 +24,10 @@
     "db:reset": "pnpm --filter @forge/database db:reset",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "docker:ps": "docker-compose ps",
+    "test:queue": "pnpm --filter @forge/queue test:connection",
+    "test:cache": "pnpm --filter @forge/cache test:connection"
   },
   "keywords": [],
   "author": "",
