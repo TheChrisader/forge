@@ -17,7 +17,14 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\"",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "pnpm --filter @forge/database db:generate",
+    "db:migrate": "pnpm --filter @forge/database db:migrate",
+    "db:studio": "pnpm --filter @forge/database db:studio",
+    "db:reset": "pnpm --filter @forge/database db:reset",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
   },
   "keywords": [],
   "author": "",

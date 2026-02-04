@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  type      String?
+  
+  config    Json     @default("{}")
+  metadata  Json     @default("{}")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  
+  deployments Deployment[]
+  
+  @@index([name])
+  @@index([createdAt])
+}
+
+model Deployment {
+  id        String   @id @default(uuid())
+  projectId String
+  version   String
+  status    String   // pending, building, deploying, running, failed
+  
+  buildStartedAt    DateTime?
+  buildCompletedAt  DateTime?
+  buildImage        String?
+  buildLogs         String?
+  
+  deployStartedAt   DateTime?
+  deployCompletedAt DateTime?
+  
+  error     String?
+  
+  createdAt DateTime @default(now())
+  createdBy String?
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Container {
+  id           String   @id @default(uuid())
+  projectId    String
+  deploymentId String
+  
+  containerId  String   @unique // Docker container ID
+  image        String
+  status       String   // creating, running, stopped, error
+  
+  config       Json     @default("{}")
+  
+  healthStatus String?  // healthy, unhealthy, starting
+  healthChecks Int      @default(0)
+  healthFails  Int      @default(0)
+  
+  createdAt    DateTime @default(now())
+  startedAt    DateTime?
+  stoppedAt    DateTime?
+  
+  @@index([projectId])
+  @@index([deploymentId])
+  @@index([containerId])
+  @@index([status])
+}

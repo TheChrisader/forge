@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg17
+    container_name: forge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: forge_dev_password
+      POSTGRES_DB: forge
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./tools/scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge -d forge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - forge-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  forge-network:
+    driver: bridge
