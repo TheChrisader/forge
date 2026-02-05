@@ -10,10 +10,16 @@
     "clean": "rm -rf dist",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@forge/database": "workspace:*",
     "dotenv": "^17.2.3",
+    "reflect-metadata": "^0.2.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
