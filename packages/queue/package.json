@@ -11,9 +11,11 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "test:connection": "tsx src/test-connection.ts"
+    "test:connection": "tsx src/test-connection.ts",
+    "test:service": "tsx src/test-queue.ts"
   },
   "dependencies": {
+    "@forge/core": "workspace:*",
     "bullmq": "^5.67.2",
     "ioredis": "^5.9.2"
   },

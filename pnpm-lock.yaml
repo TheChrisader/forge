@@ -135,6 +135,9 @@ importers:
 
   packages/queue:
     dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
       bullmq:
         specifier: ^5.67.2
         version: 5.67.2

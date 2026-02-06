@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { createQueue, createWorker, getRedisConnection } from "./client";
-import { BuildJobData, BuildJobResult } from "./types";
+import { QueueService } from "./service";
+import type { BuildJobData, BuildJobResult } from "./types";
 import { QUEUE_NAMES } from "./queues";
 
 const config = {
@@ -15,24 +15,24 @@ async function testQueue(): Promise<void> {
   try {
     console.log("Testing Redis connection...");
 
-    const redis = getRedisConnection(config.redis);
-    const pong = await redis.ping();
-    console.log("✓ Redis ping:", pong);
+    const queueService = new QueueService(config);
+
+    const redis = queueService.getConnectionHealth();
+    console.log("✓ Redis connection established:", redis);
 
     console.log("\nTesting queue operations...");
-    const queue = createQueue<BuildJobData>(QUEUE_NAMES.BUILD, config);
 
-    const job = await queue.add("test-build", {
+    const jobId = await queueService.addJob<BuildJobData>(QUEUE_NAMES.BUILD, "test-build", {
       deploymentId: "test-deployment-123",
       projectId: "test-project-456",
       version: "1.0.0",
     });
-    console.log("✓ Added job to queue:", job.id);
+    console.log("✓ Added job to queue:", jobId);
 
-    const worker = createWorker<BuildJobData>(
+    const worker = queueService.registerWorker<BuildJobData, BuildJobResult>(
       QUEUE_NAMES.BUILD,
       async (job) => {
-        console.log("✓ Processing job:", job.id, job.data);
+        console.log("  → Processing job:", job.id, job.data);
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -43,28 +43,28 @@ async function testQueue(): Promise<void> {
         };
 
         return result;
-      },
-      config
+      }
     );
 
-    await new Promise((resolve) => {
-      worker.on("completed", (job, result) => {
-        console.log("✓ Job completed:", job.id);
-        console.log("✓ Result:", result);
-        resolve(result);
-      });
-
-      worker.on("failed", (job, error) => {
-        console.error("✗ Job failed:", job?.id, error);
-        resolve(null);
-      });
+    worker.onCompleted((job, result) => {
+      console.log(`  ✓ Job ${job.id} completed:`, result);
     });
 
-    await worker.close();
-    await queue.close();
+    worker.onFailed((job, error) => {
+      console.error(`  ✗ Job ${job?.id} failed:`, error.message);
+    });
+
+    worker.onProgress((job, progress) => {
+      console.log(`  → Job ${job.id} progress:`, progress);
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    await queueService.close();
 
     console.log("\n✓ All queue tests passed!");
-    process.exit(0);
+
+    setTimeout(() => process.exit(0), 100);
   } catch (error) {
     console.error("✗ Queue test failed:", error);
     process.exit(1);
