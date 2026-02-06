@@ -1,0 +1,185 @@
+import { z } from "zod";
+
+export const EnvironmentSchema = z.enum(["development", "production", "test", "staging"]);
+export type Environment = z.infer<typeof EnvironmentSchema>;
+
+export const LogLevelSchema = z.enum(["trace", "debug", "info", "warn", "error", "fatal"]);
+export type LogLevel = z.infer<typeof LogLevelSchema>;
+
+export const ServerConfigSchema = z.object({
+  port: z.number().int().positive().default(3000),
+  host: z.string().default("localhost"),
+  cors: z.object({
+    enabled: z.boolean().default(true),
+    origins: z.array(z.string()).default(["*"]),
+    credentials: z.boolean().default(true),
+  }),
+  rateLimit: z.object({
+    enabled: z.boolean().default(true),
+    max: z.number().int().positive().default(100),
+    windowMs: z.number().int().positive().default(60000),
+  }),
+});
+
+export const DatabaseConfigSchema = z.object({
+  url: z.string().url().or(z.string().startsWith("postgresql://")),
+  pool: z.object({
+    min: z.number().int().nonnegative().default(2),
+    max: z.number().int().positive().default(10),
+    idleTimeoutMillis: z.number().int().positive().default(30000),
+  }),
+  ssl: z.boolean().default(false),
+  logging: z.boolean().default(false),
+});
+
+export const RedisConfigSchema = z.object({
+  host: z.string().default("localhost"),
+  port: z.number().int().positive().default(6379),
+  password: z.string().optional(),
+  db: z.number().int().nonnegative().default(0),
+  keyPrefix: z.string().optional(),
+  maxRetriesPerRequest: z.number().int().nullable().default(null),
+  enableReadyCheck: z.boolean().default(false),
+});
+
+export const CacheConfigSchema = z.object({
+  provider: z.enum(["redis", "memory"]).default("redis"),
+  ttl: z.number().int().positive().default(3600),
+  maxEntries: z.number().int().positive().optional(),
+});
+
+export const QueueConfigSchema = z.object({
+  connection: z.object({
+    host: z.string().default("localhost"),
+    port: z.number().int().positive().default(6379),
+    password: z.string().optional(),
+    db: z.number().int().nonnegative().default(1),
+  }),
+  defaultJobOptions: z.object({
+    attempts: z.number().int().positive().default(3),
+    backoff: z.object({
+      type: z.enum(["exponential", "fixed"]).default("exponential"),
+      delay: z.number().int().positive().default(5000),
+    }),
+    removeOnComplete: z.number().int().nonnegative().default(10),
+    removeOnFail: z.number().int().nonnegative().default(50),
+  }),
+});
+
+export const DockerConfigSchema = z.object({
+  socketPath: z.string().default("/var/run/docker.sock"),
+  host: z.string().optional(),
+  port: z.number().int().positive().optional(),
+  network: z.object({
+    default: z.string().default("forge-network"),
+    driver: z.enum(["bridge", "host", "overlay"]).default("bridge"),
+  }),
+  registry: z
+    .object({
+      url: z.string().url().optional(),
+      username: z.string().optional(),
+      password: z.string().optional(),
+    })
+    .optional(),
+});
+
+export const StorageConfigSchema = z.object({
+  provider: z.enum(["local", "s3", "minio", "gcs", "azure"]).default("local"),
+  local: z
+    .object({
+      basePath: z.string().default("./data"),
+    })
+    .optional(),
+  s3: z
+    .object({
+      bucket: z.string(),
+      region: z.string(),
+      accessKeyId: z.string().optional(),
+      secretAccessKey: z.string().optional(),
+      endpoint: z.string().url().optional(),
+    })
+    .optional(),
+});
+
+export const ProxyConfigSchema = z.object({
+  provider: z.enum(["traefik", "caddy", "nginx", "custom"]).default("traefik"),
+  httpPort: z.number().int().positive().default(80),
+  httpsPort: z.number().int().positive().default(443),
+  domain: z.string().default("local.dev"),
+  ssl: z.object({
+    enabled: z.boolean().default(true),
+    autoGenerate: z.boolean().default(true),
+  }),
+});
+
+export const ObservabilityConfigSchema = z.object({
+  logs: z.object({
+    enabled: z.boolean().default(true),
+    level: LogLevelSchema.default("info"),
+    retention: z.string().default("30d"),
+    format: z.enum(["json", "pretty"]).default("json"),
+  }),
+  metrics: z.object({
+    enabled: z.boolean().default(true),
+    interval: z.number().int().positive().default(10000),
+    retention: z.string().default("90d"),
+  }),
+  tracing: z.object({
+    enabled: z.boolean().default(false),
+    samplingRate: z.number().min(0).max(1).default(0.1),
+    endpoint: z.string().url().optional(),
+  }),
+});
+
+export const SecurityConfigSchema = z.object({
+  secrets: z.object({
+    encryptionKey: z.string().min(32).optional(),
+    rotationDays: z.number().int().positive().default(90),
+  }),
+  jwt: z.object({
+    secret: z.string().min(32),
+    expiresIn: z.string().default("7d"),
+    issuer: z.string().default("forge"),
+  }),
+  rateLimit: z.object({
+    enabled: z.boolean().default(true),
+    max: z.number().int().positive().default(1000),
+    windowMs: z.number().int().positive().default(60000),
+  }),
+});
+
+export const FeaturesConfigSchema = z.object({
+  autoSSL: z.boolean().default(true),
+  imageScan: z.boolean().default(true),
+  multiUser: z.boolean().default(false),
+  plugins: z.boolean().default(true),
+  webSearch: z.boolean().default(false),
+  hotReload: z.boolean().default(true),
+});
+
+export const PathsConfigSchema = z.object({
+  data: z.string().default("./data"),
+  logs: z.string().default("./logs"),
+  builds: z.string().default("./builds"),
+  cache: z.string().default("./cache"),
+  plugins: z.string().default("./plugins"),
+  temp: z.string().default("./tmp"),
+});
+
+export const ConfigSchema = z.object({
+  nodeEnv: EnvironmentSchema.default("development"),
+  server: ServerConfigSchema,
+  database: DatabaseConfigSchema,
+  redis: RedisConfigSchema,
+  cache: CacheConfigSchema,
+  queue: QueueConfigSchema,
+  docker: DockerConfigSchema,
+  storage: StorageConfigSchema,
+  proxy: ProxyConfigSchema,
+  observability: ObservabilityConfigSchema,
+  security: SecurityConfigSchema,
+  features: FeaturesConfigSchema,
+  paths: PathsConfigSchema,
+});
+
+export type Config = z.infer<typeof ConfigSchema>;

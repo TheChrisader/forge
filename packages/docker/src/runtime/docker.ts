@@ -37,11 +37,10 @@ import {
   DockerConnectionError,
 } from "../errors";
 
-// Platform detection for cross-platform Docker socket paths
 const DEFAULT_SOCKET_PATHS = {
-  win32: "//./pipe/docker_engine", // Windows named pipe
-  darwin: "/var/run/docker.sock", // macOS Unix socket
-  linux: "/var/run/docker.sock", // Linux Unix socket
+  win32: "//./pipe/docker_engine",
+  darwin: "/var/run/docker.sock",
+  linux: "/var/run/docker.sock",
 } as const;
 
 function getDefaultSocketPath(): string {
@@ -56,14 +55,10 @@ export class DockerRuntime implements IContainerRuntime {
   private connectionOptions: DockerConnectionOptions;
 
   constructor(options?: DockerConnectionOptions) {
-    // Merge user options with platform defaults
     this.connectionOptions = this.normalizeOptions(options);
     this.docker = this.createDockerClient(this.connectionOptions);
   }
 
-  /**
-   * Normalize connection options with platform-aware defaults
-   */
   private normalizeOptions(options?: DockerConnectionOptions): DockerConnectionOptions {
     const mode = options?.mode || (options?.host ? "http" : "socket");
 
@@ -80,7 +75,6 @@ export class DockerRuntime implements IContainerRuntime {
       };
     }
 
-    // Socket mode (default)
     return {
       mode: "socket",
       socketPath: options?.socketPath || getDefaultSocketPath(),
@@ -88,9 +82,6 @@ export class DockerRuntime implements IContainerRuntime {
     };
   }
 
-  /**
-   * Create Dockerode client with normalized options
-   */
   private createDockerClient(options: DockerConnectionOptions): Docker {
     try {
       if (options.mode === "http" && options.host) {
@@ -105,7 +96,6 @@ export class DockerRuntime implements IContainerRuntime {
         });
       }
 
-      // Socket mode
       return new Docker({
         socketPath: options.socketPath || getDefaultSocketPath(),
         timeout: options.timeout,
@@ -123,9 +113,6 @@ export class DockerRuntime implements IContainerRuntime {
     }
   }
 
-  /**
-   * Health check - verify Docker daemon is accessible
-   */
   async healthCheck(): Promise<HealthCheckResult> {
     try {
       const info = await this.docker.info();
@@ -142,12 +129,9 @@ export class DockerRuntime implements IContainerRuntime {
     }
   }
 
-  /**
-   * Wait for container to become healthy
-   */
   async waitForHealthy(id: string, options?: WaitOptions): Promise<void> {
-    const timeout = options?.timeout || 120000; // 2 minutes default
-    const interval = options?.interval || 2000; // 2 seconds default
+    const timeout = options?.timeout || 120000;
+    const interval = options?.interval || 2000;
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {
@@ -169,15 +153,15 @@ export class DockerRuntime implements IContainerRuntime {
           });
         }
 
-        // Container running but no health check - treat as healthy
         if (info.state.running && !info.health) {
+          // maybe throw a warning? will need to also add the option
+          // to turn it off...
           return;
         }
       } catch (error) {
         if (error instanceof DockerRuntimeError) {
           throw error;
         }
-        // Continue waiting on transient errors
       }
 
       await this.sleep(interval);
@@ -186,12 +170,9 @@ export class DockerRuntime implements IContainerRuntime {
     throw new HealthCheckTimeoutError(id, timeout);
   }
 
-  /**
-   * Wait for container to reach specific state
-   */
   async waitForState(id: string, state: ContainerStatus, options?: WaitOptions): Promise<void> {
-    const timeout = options?.timeout || 60000; // 1 minute default
-    const interval = options?.interval || 1000; // 1 second default
+    const timeout = options?.timeout || 60000;
+    const interval = options?.interval || 1000;
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {
@@ -207,7 +188,6 @@ export class DockerRuntime implements IContainerRuntime {
           return;
         }
 
-        // Check for terminal states
         if (status === "dead" || status === "exited") {
           throw new ContainerNotRunningError(id, status);
         }
@@ -228,14 +208,10 @@ export class DockerRuntime implements IContainerRuntime {
     );
   }
 
-  /**
-   * Sleep utility for wait patterns
-   */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  // Container lifecycle
   async create(config: ContainerConfig): Promise<Container> {
     const createOptions: Docker.ContainerCreateOptions = {
       name: config.name,
@@ -422,18 +398,14 @@ export class DockerRuntime implements IContainerRuntime {
       since: options?.since ? Math.floor(new Date(options.since).getTime() / 1000) : undefined,
       until: options?.until ? Math.floor(new Date(options.until).getTime() / 1000) : undefined,
       timestamps: options?.timestamps ?? true,
-      tail: tailValue as any, // Type assertion for compatibility
+      tail: tailValue as any,
       follow: false,
     };
 
-    // When follow is false, container.logs returns a Buffer containing multiplexed data
     const logBuffer = await container.logs(logOptions);
 
-    // The buffer contains multiplexed frames: [header 8 bytes][payload][header 8 bytes][payload]...
-    // Header format: [1 byte stream type][3 bytes padding][4 bytes big-endian size]
     let offset = 0;
     while (offset < logBuffer.length) {
-      // Ensure we have at least 8 bytes for the header
       if (offset + 8 > logBuffer.length) break;
 
       const streamType = logBuffer[offset];
@@ -441,13 +413,11 @@ export class DockerRuntime implements IContainerRuntime {
       const payloadStart = offset + 8;
       const payloadEnd = payloadStart + payloadLength;
 
-      // Ensure we have the full payload
       if (payloadEnd > logBuffer.length) break;
 
       const payload = logBuffer.subarray(payloadStart, payloadEnd);
       const message = payload.toString("utf-8");
 
-      // Split by lines and yield each non-empty line
       const lines = message.split("\n").filter((line) => line.trim());
       for (const line of lines) {
         yield this.parseLogLine(line, options?.timestamps, streamType === 1 ? "stdout" : "stderr");
@@ -457,7 +427,11 @@ export class DockerRuntime implements IContainerRuntime {
     }
   }
 
-  private parseLogLine(line: string, includeTimestamp: boolean | undefined, stream: "stdout" | "stderr"): LogEntry {
+  private parseLogLine(
+    line: string,
+    includeTimestamp: boolean | undefined,
+    stream: "stdout" | "stderr"
+  ): LogEntry {
     let timestamp = new Date();
     let actualMessage = line;
 
@@ -478,7 +452,6 @@ export class DockerRuntime implements IContainerRuntime {
     const container = this.docker.getContainer(id);
 
     if (stream) {
-      // For streaming, return a promise that resolves with first stats
       const statsStream = await container.stats({ stream: true });
       return new Promise((resolve, reject) => {
         statsStream.once("data", (data: Buffer) => {
@@ -492,7 +465,6 @@ export class DockerRuntime implements IContainerRuntime {
       });
     }
 
-    // Non-streaming: use one-shot option
     const stats = await container.stats({ stream: false });
     return this.mapStats(stats as any);
   }
@@ -528,13 +500,12 @@ export class DockerRuntime implements IContainerRuntime {
             time: new Date(event.time * 1000),
           };
         } catch {
-          // Skip malformed events
+          // we don't need to bother with malformed events tbvh
         }
       }
     }
   }
 
-  // Network operations
   async createNetwork(config: NetworkConfig): Promise<Network> {
     const network = await this.docker.createNetwork({
       Name: config.name,
@@ -570,7 +541,6 @@ export class DockerRuntime implements IContainerRuntime {
     return networks.map((n) => this.mapNetworkInfo(n));
   }
 
-  // Volume operations
   async createVolume(config: VolumeConfig): Promise<Volume> {
     await this.docker.createVolume({
       Name: config.name,
@@ -579,7 +549,6 @@ export class DockerRuntime implements IContainerRuntime {
       DriverOpts: config.options,
     });
 
-    // createVolume returns VolumeCreateResponse, use the volume name to get info
     const volume = this.docker.getVolume(config.name);
     const info = await volume.inspect();
     return this.mapVolumeInfo(info);
@@ -605,7 +574,6 @@ export class DockerRuntime implements IContainerRuntime {
     return (result.Volumes || []).map((v) => this.mapVolumeInfo(v));
   }
 
-  // Image operations
   async pullImage(name: string, options?: PullOptions): Promise<void> {
     const tag = options?.tag || "latest";
     const imageName = `${name}:${tag}`;
@@ -644,10 +612,9 @@ export class DockerRuntime implements IContainerRuntime {
   async buildImage(_context: string, options?: BuildOptions): Promise<string> {
     const tarStream = require("tar-stream");
 
-    // Create tar stream from context
     const pack = tarStream.pack();
 
-    // This is a simplified version - in production, you'd use a proper tar library
+    // TODO: replace this implementation with a proper tar library
     // to recursively add files from the context directory
 
     return new Promise((resolve, reject) => {
@@ -655,7 +622,7 @@ export class DockerRuntime implements IContainerRuntime {
         pack,
         {
           dockerfile: options?.dockerfile || "Dockerfile",
-          t: options?.tags?.[0], // dockerode expects string for tag
+          t: options?.tags?.[0],
           labels: options?.labels,
           buildargs: options?.buildArgs,
           target: options?.target,
@@ -727,7 +694,6 @@ export class DockerRuntime implements IContainerRuntime {
     }));
   }
 
-  // Helper methods
   private buildPortBindings(
     ports?: Array<{
       containerPort: number;
