@@ -17,6 +17,7 @@
     "@fontsource/source-code-pro": "^5.1.1",
     "@fontsource/space-grotesk": "^5.1.1",
     "@forge/core": "workspace:*",
+    "@forge/types": "workspace:*",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-router": "^1.158.4",
     "class-variance-authority": "^0.7.1",

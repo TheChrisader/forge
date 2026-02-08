@@ -95,7 +95,7 @@ class RedisConnectionManager {
     const connections = Array.from(this.connections.entries());
 
     await Promise.all(
-      connections.map(async ([key, conn]) => {
+      connections.map(async ([, conn]) => {
         try {
           await conn.quit();
         } catch {}

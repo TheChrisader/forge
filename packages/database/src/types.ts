@@ -1,9 +1,15 @@
 import type { Project, Deployment, Container } from "./generated/client";
 
-// Re-export Prisma types
 export type { Project, Deployment, Container };
 
-// Custom types for operations
+export interface DatabaseConfig {
+  url: string;
+  pool?: {
+    min: number;
+    max: number;
+  };
+}
+
 export interface CreateProjectInput {
   name: string;
   type?: string;
@@ -34,4 +40,16 @@ export interface UpdateDeploymentInput {
   deployStartedAt?: Date;
   deployCompletedAt?: Date;
   error?: string;
+}
+
+export interface CreateContainerInput {
+  deploymentId: string;
+  name: string;
+  image: string;
+  status?: string;
+}
+
+export interface UpdateContainerInput {
+  name?: string;
+  status?: string;
 }
