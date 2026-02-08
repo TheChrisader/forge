@@ -1,0 +1,120 @@
+@import "@fontsource/source-code-pro/400.css" layer(base);
+@import "@fontsource/space-grotesk/400.css" layer(base);
+@import "@fontsource/space-grotesk/700.css" layer(base);
+@import "@fontsource/delius-swash-caps/400.css" layer(base);
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: hsl(240 15% 14%);
+  --foreground: hsl(0 0% 100%);
+  --card: hsl(236 13% 22%);
+  --card-foreground: hsl(0 0% 100%);
+  --popover: hsl(231 16% 33%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(0 82% 38%);
+  --primary-foreground: hsl(0 16% 94%);
+  --secondary: hsl(38 100% 59%);
+  --secondary-foreground: hsl(217 19% 26%);
+  --muted: hsl(0 0% 8%);
+  --muted-foreground: hsl(220 8% 46%);
+  --accent: hsl(238 30% 22%);
+  --accent-foreground: hsl(0 0% 89%);
+  --destructive: hsl(0 86% 61%);
+  --destructive-foreground: hsl(0 16% 94%);
+  --border: hsl(0 0% 0%);
+  --input: hsl(218 13% 84%);
+  --ring: hsl(238 82% 67%);
+  --chart-1: hsl(241 64% 58%);
+  --chart-2: hsl(227 43% 50%);
+  --chart-3: hsl(236 66% 46%);
+  --chart-4: hsl(244 55% 42%);
+  --chart-5: hsl(243 49% 35%);
+
+  --font-sans: "Source Code Pro", monospace;
+  --font-serif: "Space Grotesk", serif;
+  --font-mono: "Delius Swash Caps", serif;
+
+  --radius: 0.05rem;
+
+  --shadow-2xs: 12.5px 9.5px 0px -3.5px hsl(0 0% 0% / 0.47);
+  --shadow-xs: 12.5px 9.5px 0px -3.5px hsl(0 0% 0% / 0.47);
+  --shadow-sm:
+    12.5px 9.5px 0px -3.5px hsl(0 0% 0% / 0.93), 12.5px 1px 2px -4.5px hsl(0 0% 0% / 0.93);
+  --shadow: 12.5px 9.5px 0px -3.5px hsl(0 0% 0% / 0.93), 12.5px 1px 2px -4.5px hsl(0 0% 0% / 0.93);
+  --shadow-md:
+    12.5px 9.5px 0px -3.5px hsl(0 0% 0% / 0.93), 12.5px 2px 4px -4.5px hsl(0 0% 0% / 0.93);
+  --shadow-lg:
+    12.5px 9.5px 0px -3.5px hsl(0 0% 0% / 0.93), 12.5px 4px 6px -4.5px hsl(0 0% 0% / 0.93);
+  --shadow-xl:
+    12.5px 9.5px 0px -3.5px hsl(0 0% 0% / 0.93), 12.5px 8px 10px -4.5px hsl(0 0% 0% / 0.93);
+  --shadow-2xl: 12.5px 9.5px 0px -3.5px hsl(0 0% 0% / 2.33);
+
+  --tracking-normal: -0.025em;
+  --spacing: 0.16rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+  --tracking-normal: var(--tracking-normal);
+  --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    letter-spacing: var(--tracking-normal);
+  }
+}
