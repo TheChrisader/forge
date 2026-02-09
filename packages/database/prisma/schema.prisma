@@ -17,18 +17,20 @@ model Project {
   id        String   @id @default(uuid())
   name      String   @unique
   type      String?
-  
+  status    String   @default("inactive") // active, inactive, archived
+
   config    Json     @default("{}")
   metadata  Json     @default("{}")
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy String?
-  
+
   deployments Deployment[]
-  
+
   @@index([name])
   @@index([createdAt])
+  @@index([status])
 }
 
 model Deployment {
