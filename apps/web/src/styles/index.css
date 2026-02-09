@@ -6,7 +6,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* @custom-variant dark (&:is(.dark *)); */
 
 :root {
   --background: hsl(240 15% 14%);
@@ -117,4 +117,27 @@
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
   }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(220 8% 46%) hsl(240 15% 14%);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: hsl(240 15% 14%);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: hsl(220 8% 46%);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: hsl(238 82% 67%);
 }

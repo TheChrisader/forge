@@ -1,1 +1,1 @@
-
+export { DeploymentsPage } from "./DeploymentsPage";

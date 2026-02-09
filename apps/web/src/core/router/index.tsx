@@ -3,6 +3,7 @@ import { RootLayout } from "@/shared/components/layout";
 import { DashboardPage } from "@/features/dashboard";
 import { ProjectsPage, ProjectDetailPage } from "@/features/projects";
 import { ServicesPage } from "@/features/services";
+import { DeploymentsPage } from "@/features/deployments";
 import { LogsPage } from "@/features/logging";
 import { MetricsPage } from "@/features/metrics";
 import { SettingsPage } from "@/features/settings";
@@ -36,6 +37,12 @@ const servicesRoute = createRoute({
   component: ServicesPage,
 });
 
+const deploymentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/deployments",
+  component: DeploymentsPage,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/logs",
@@ -65,6 +72,7 @@ const routeTree = rootRoute.addChildren([
   projectsRoute,
   projectDetailRoute,
   servicesRoute,
+  deploymentsRoute,
   logsRoute,
   metricsRoute,
   settingsRoute,
