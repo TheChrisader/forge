@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist",
+    "clean": "shx rm -rf dist",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@forge/core": "workspace:*",
+    "@forge/types": "workspace:*",
     "bullmq": "^5.67.2",
     "ioredis": "^5.9.2"
   },

@@ -1,5 +1,5 @@
 {
-  "name": "@forge/cache",
+  "name": "@forge/proxy",
   "version": "0.1.0",
   "private": true,
   "main": "./dist/index.js",
@@ -10,16 +10,10 @@
     "clean": "shx rm -rf dist",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "typecheck": "tsc --noEmit",
-    "test:connection": "tsx src/test-connection.ts"
-  },
-  "dependencies": {
-    "dotenv": "^16.4.1",
-    "ioredis": "^5.9.2"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "@types/node": "^20.11.0",
-    "tsx": "^4.21.0"
+    "@types/node": "^25.2.0",
+    "typescript": "^5.9.3"
   }
 }

@@ -3,5 +3,10 @@ export const PLATFORM_VERSION = "0.1.0";
 
 export * from "./config";
 export * from "./container";
+export * from "./container/container";
+export * from "./container/interfaces";
+export * from "./container/keys";
+export * from "./services/interfaces";
+export * from "./plugins/interfaces";
 
 console.log(`${PLATFORM_NAME} v${PLATFORM_VERSION} - Core package loaded`);

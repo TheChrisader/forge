@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist",
+    "clean": "shx rm -rf dist",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit"
@@ -19,7 +19,6 @@
   "dependencies": {
     "@forge/database": "workspace:*",
     "@forge/docker": "workspace:*",
-    "@forge/queue": "workspace:*",
     "zod": "^4.3.6"
   }
 }

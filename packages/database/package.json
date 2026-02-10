@@ -5,9 +5,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
+    "prebuild": "shx rm -rf dist tsconfig.tsbuildinfo",
     "build": "tsc",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist",
+    "postbuild": "shx mkdir -p dist/generated && shx cp -r src/generated/client dist/generated/client",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",

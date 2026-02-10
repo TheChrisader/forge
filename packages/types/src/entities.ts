@@ -33,7 +33,7 @@ export type {
   JobOptions,
   JobStatus,
   JobInfo,
-} from "@forge/queue";
+} from "./jobs";
 
 export interface Service {
   id: string;

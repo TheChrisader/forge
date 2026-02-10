@@ -35,8 +35,8 @@ export const output = {
   },
 };
 
-export function formatRelativeTime(dateString: string): string {
-  return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+export function formatRelativeTime(date: Date): string {
+  return formatDistanceToNow(date, { addSuffix: true });
 }
 
 export function formatStatus(status: string): string {

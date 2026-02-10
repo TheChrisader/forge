@@ -8,9 +8,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "postbuild": "chmod +x dist/index.js || echo 'chmod failed - may need to set executable manually'",
+    "postbuild": "shx chmod +x dist/index.js || echo 'chmod failed - may need to set executable manually'",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist",
+    "clean": "shx rm -rf dist",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
