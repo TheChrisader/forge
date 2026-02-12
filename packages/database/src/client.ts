@@ -33,5 +33,6 @@ export async function closeDatabaseClient(): Promise<void> {
   }
 }
 
-// Export the client type for use in other packages
+// Export the client class and type for use in other packages
+export { PrismaClient, Prisma } from "./generated/client";
 export type DatabaseClient = PrismaClient;

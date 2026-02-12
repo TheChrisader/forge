@@ -25,8 +25,10 @@ model Project {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy String?
+  updatedBy String?
 
   deployments Deployment[]
+  containers    Container[]
 
   @@index([name])
   @@index([createdAt])
@@ -48,12 +50,14 @@ model Deployment {
   deployCompletedAt DateTime?
   
   error     String?
-  
+
   createdAt DateTime @default(now())
   createdBy String?
-  
+  updatedBy String?
+
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+  containers Container[]
+
   @@index([projectId])
   @@index([status])
   @@index([createdAt])
@@ -63,23 +67,37 @@ model Container {
   id           String   @id @default(uuid())
   projectId    String
   deploymentId String
-  
+
+  name         String?  // Human-readable container name (e.g., "app-container-1")
   containerId  String   @unique // Docker container ID
   image        String
   status       String   // creating, running, stopped, error
-  
+
   config       Json     @default("{}")
-  
+  ports        Json?    // Port mappings: [{containerPort: 80, hostPort: 8080, protocol: "tcp"}]
+  volumes      Json?    // Volume mounts: [{source: "/host/path", target: "/container/path"}]
+  network      String?   // Network name
+  env          Json?    // Environment variables: {NODE_ENV: "production", PORT: "8080"}
+
   healthStatus String?  // healthy, unhealthy, starting
   healthChecks Int      @default(0)
   healthFails  Int      @default(0)
-  
+
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   startedAt    DateTime?
   stoppedAt    DateTime?
-  
+  deletedAt    DateTime? // Soft delete support
+  createdBy    String?
+  updatedBy    String?
+
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
   @@index([projectId])
   @@index([deploymentId])
   @@index([containerId])
+  @@index([name])
   @@index([status])
+  @@index([network])
 }

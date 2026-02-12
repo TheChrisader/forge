@@ -120,6 +120,8 @@ export interface ContainerState {
   finishedAt?: Date;
 }
 
+export type ContainerHealthStatus = "healthy" | "unhealthy" | "starting" | "none";
+
 export interface ContainerInfo {
   id: string;
   name: string;
@@ -148,7 +150,7 @@ export interface ContainerInfo {
     rw: boolean;
   }>;
   health?: {
-    status: "healthy" | "unhealthy" | "starting" | "none";
+    status: ContainerHealthStatus;
     failingStreak: number;
     log?: Array<{
       start: Date;
@@ -233,13 +235,25 @@ export interface ContainerStats {
 }
 
 export interface ContainerEvent {
-  type: "container" | "image" | "network" | "volume";
-  action: string;
-  actor: {
-    id: string;
-    attributes: Record<string, string>;
+  Type:
+    | "container"
+    | "image"
+    | "network"
+    | "volume"
+    | "daemon"
+    | "plugin"
+    | "node"
+    | "secret"
+    | "service"
+    | "config";
+  Action: string;
+  Actor: {
+    ID: string;
+    Attributes: Record<string, string>;
   };
-  time: Date;
+  scope?: "local" | "swarm";
+  time: number;
+  timeNano?: number;
 }
 
 export interface EventFilters {
@@ -303,7 +317,7 @@ export interface Volume {
   name: string;
   driver: string;
   mountpoint: string;
-  created: Date;
+  created?: Date;
   labels?: Record<string, string>;
 }
 
@@ -387,4 +401,22 @@ export interface WaitOptions {
   timeout?: number;
   interval?: number;
   signal?: AbortSignal;
+}
+
+export interface DockerSystemInfo {
+  ServerVersion: string;
+  OperatingSystem: string;
+  KernelVersion: string;
+  Architecture: string;
+  NCPU: number;
+  MemTotal: number;
+  Containers: number;
+  ContainersRunning: number;
+  ContainersPaused: number;
+  ContainersStopped: number;
+  Images: number;
+  Driver: string;
+  Name: string;
+  Labels?: string[];
+  Warnings?: string[];
 }

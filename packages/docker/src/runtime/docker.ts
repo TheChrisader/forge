@@ -1,4 +1,6 @@
 import Docker from "dockerode";
+import { Writable } from "node:stream";
+import { parseDockerImage } from "../utils/image-parser";
 import type {
   IContainerRuntime,
   Container,
@@ -29,6 +31,11 @@ import type {
   DockerConnectionOptions,
   HealthCheckResult,
   WaitOptions,
+  DockerSystemInfo,
+  PullProgress,
+  BuildProgress,
+  NetworkEndpoint,
+  ContainerHealthStatus,
 } from "../interfaces/runtime";
 import {
   DockerRuntimeError,
@@ -71,14 +78,14 @@ export class DockerRuntime implements IContainerRuntime {
         certPath: options?.certPath,
         ca: options?.ca,
         key: options?.key,
-        timeout: options?.timeout || 10000,
+        timeout: options?.timeout || 30000,
       };
     }
 
     return {
       mode: "socket",
       socketPath: options?.socketPath || getDefaultSocketPath(),
-      timeout: options?.timeout || 10000,
+      timeout: options?.timeout || 30000,
     };
   }
 
@@ -115,7 +122,7 @@ export class DockerRuntime implements IContainerRuntime {
 
   async healthCheck(): Promise<HealthCheckResult> {
     try {
-      const info = await this.docker.info();
+      const info = (await this.docker.info()) as DockerSystemInfo;
       return {
         healthy: true,
         version: info.ServerVersion,
@@ -208,11 +215,28 @@ export class DockerRuntime implements IContainerRuntime {
     );
   }
 
+  private async ensureImage(imageRef: string): Promise<void> {
+    try {
+      await this.docker.getImage(imageRef).inspect();
+    } catch {
+      const parsed = parseDockerImage(imageRef);
+
+      await this.pullImage(parsed.repository, {
+        tag: parsed.tag || undefined,
+        onProgress: undefined,
+      });
+    }
+    // TODO: Local images may be stale (especially :latest tags)
+    // Thinking about adding force-pull option for production deployments
+  }
+
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async create(config: ContainerConfig): Promise<Container> {
+    await this.ensureImage(config.image);
+
     const createOptions: Docker.ContainerCreateOptions = {
       name: config.name,
       Image: config.image,
@@ -355,32 +379,34 @@ export class DockerRuntime implements IContainerRuntime {
           output += chunk.toString();
         });
       } else {
-        this.docker.modem.demuxStream(
-          stream,
-          {
-            write: (chunk: Buffer) => {
-              output += chunk.toString();
-            },
-          } as any,
-          {
-            write: (chunk: Buffer) => {
-              error += chunk.toString();
-            },
-          } as any
-        );
+        const stdoutStream = new Writable({
+          write(chunk: Buffer | string, _encoding, callback): void {
+            output += typeof chunk === "string" ? chunk : chunk.toString();
+            callback();
+          },
+        });
+
+        const stderrStream = new Writable({
+          write(chunk: Buffer | string, _encoding, callback): void {
+            error += typeof chunk === "string" ? chunk : chunk.toString();
+            callback();
+          },
+        });
+
+        this.docker.modem.demuxStream(stream, stdoutStream, stderrStream);
       }
 
-      stream.on("end", async () => {
-        try {
-          const inspectData = await exec.inspect();
-          resolve({
-            exitCode: inspectData.ExitCode || 0,
-            output: output.trim(),
-            error: error.trim() || undefined,
-          });
-        } catch (err) {
-          reject(err);
-        }
+      stream.on("end", () => {
+        exec
+          .inspect()
+          .then((inspectData) => {
+            resolve({
+              exitCode: inspectData.ExitCode || 0,
+              output: output.trim(),
+              error: error.trim() || undefined,
+            });
+          })
+          .catch(reject);
       });
 
       stream.on("error", reject);
@@ -392,13 +418,17 @@ export class DockerRuntime implements IContainerRuntime {
 
     const tailValue = options?.tail === "all" ? "all" : options?.tail;
 
-    const logOptions: Docker.ContainerLogsOptions & { follow?: false } = {
+    type ContainerLogOptions = Docker.ContainerLogsOptions & {
+      follow?: false;
+    };
+
+    const logOptions: ContainerLogOptions = {
       stdout: options?.stdout ?? true,
       stderr: options?.stderr ?? true,
       since: options?.since ? Math.floor(new Date(options.since).getTime() / 1000) : undefined,
       until: options?.until ? Math.floor(new Date(options.until).getTime() / 1000) : undefined,
       timestamps: options?.timestamps ?? true,
-      tail: tailValue as any,
+      tail: tailValue as Docker.ContainerLogsOptions["tail"],
       follow: false,
     };
 
@@ -456,9 +486,9 @@ export class DockerRuntime implements IContainerRuntime {
       return new Promise((resolve, reject) => {
         statsStream.once("data", (data: Buffer) => {
           try {
-            resolve(this.mapStats(JSON.parse(data.toString())));
+            resolve(this.mapStats(JSON.parse(data.toString()) as Docker.ContainerStats));
           } catch (err) {
-            reject(err);
+            reject(err instanceof Error ? err : new Error("Failed to parse container stats"));
           }
         });
         statsStream.once("error", reject);
@@ -466,7 +496,7 @@ export class DockerRuntime implements IContainerRuntime {
     }
 
     const stats = await container.stats({ stream: false });
-    return this.mapStats(stats as any);
+    return this.mapStats(stats);
   }
 
   async *events(filters?: EventFilters): AsyncIterableIterator<ContainerEvent> {
@@ -481,7 +511,7 @@ export class DockerRuntime implements IContainerRuntime {
       filters: JSON.stringify(dockerFilters),
     });
 
-    for await (const chunk of stream as any) {
+    for await (const chunk of stream) {
       const events = chunk
         .toString()
         .split("\n")
@@ -489,16 +519,7 @@ export class DockerRuntime implements IContainerRuntime {
 
       for (const eventStr of events) {
         try {
-          const event = JSON.parse(eventStr);
-          yield {
-            type: event.Type,
-            action: event.Action,
-            actor: {
-              id: event.Actor.ID,
-              attributes: event.Actor.Attributes || {},
-            },
-            time: new Date(event.time * 1000),
-          };
+          yield JSON.parse(eventStr) as ContainerEvent;
         } catch {
           // we don't need to bother with malformed events tbvh
         }
@@ -581,7 +602,7 @@ export class DockerRuntime implements IContainerRuntime {
     return new Promise((resolve, reject) => {
       this.docker.pull(imageName, { authconfig: options?.authconfig }, (err, stream) => {
         if (err) {
-          reject(err);
+          reject(err instanceof Error ? err : new Error("Failed to pull image"));
           return;
         }
 
@@ -599,7 +620,7 @@ export class DockerRuntime implements IContainerRuntime {
               resolve();
             }
           },
-          (event: any) => {
+          (event: PullProgress) => {
             if (options?.onProgress) {
               options.onProgress(event);
             }
@@ -610,7 +631,8 @@ export class DockerRuntime implements IContainerRuntime {
   }
 
   async buildImage(_context: string, options?: BuildOptions): Promise<string> {
-    const tarStream = require("tar-stream");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const tarStream = require("tar-stream") as typeof import("tar-stream");
 
     const pack = tarStream.pack();
 
@@ -631,7 +653,7 @@ export class DockerRuntime implements IContainerRuntime {
         },
         (err, stream) => {
           if (err) {
-            reject(err);
+            reject(err instanceof Error ? err : new Error("Failed to build image"));
             return;
           }
 
@@ -651,7 +673,7 @@ export class DockerRuntime implements IContainerRuntime {
                 resolve(imageId);
               }
             },
-            (event: any) => {
+            (event: BuildProgress) => {
               if (options?.onProgress) {
                 options.onProgress(event);
               }
@@ -805,7 +827,7 @@ export class DockerRuntime implements IContainerRuntime {
       }
     }
 
-    const networks: Record<string, any> = {};
+    const networks: Record<string, NetworkEndpoint> = {};
     if (info.NetworkSettings.Networks) {
       for (const [name, network] of Object.entries(info.NetworkSettings.Networks)) {
         networks[name] = {
@@ -859,7 +881,7 @@ export class DockerRuntime implements IContainerRuntime {
       })),
       health: info.State.Health
         ? {
-            status: info.State.Health.Status as any,
+            status: info.State.Health.Status as ContainerHealthStatus,
             failingStreak: info.State.Health.FailingStreak,
             log: info.State.Health.Log?.map((l) => ({
               start: new Date(l.Start),
@@ -872,7 +894,7 @@ export class DockerRuntime implements IContainerRuntime {
     };
   }
 
-  private mapStats(stats: any): ContainerStats {
+  private mapStats(stats: Docker.ContainerStats): ContainerStats {
     const cpuDelta =
       stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
     const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
@@ -897,34 +919,36 @@ export class DockerRuntime implements IContainerRuntime {
       },
       network: {
         rxBytes: Object.values(stats.networks || {}).reduce(
-          (acc: number, net: any) => acc + (net.rx_bytes || 0),
+          (acc: number, net: Docker.NetworkStats[number]) => acc + (net.rx_bytes || 0),
           0
         ),
         txBytes: Object.values(stats.networks || {}).reduce(
-          (acc: number, net: any) => acc + (net.tx_bytes || 0),
+          (acc: number, net: Docker.NetworkStats[number]) => acc + (net.tx_bytes || 0),
           0
         ),
         rxPackets: Object.values(stats.networks || {}).reduce(
-          (acc: number, net: any) => acc + (net.rx_packets || 0),
+          (acc: number, net: Docker.NetworkStats[number]) => acc + (net.rx_packets || 0),
           0
         ),
         txPackets: Object.values(stats.networks || {}).reduce(
-          (acc: number, net: any) => acc + (net.tx_packets || 0),
+          (acc: number, net: Docker.NetworkStats[number]) => acc + (net.tx_packets || 0),
           0
         ),
       },
       blockIO: {
         readBytes:
-          stats.blkio_stats.io_service_bytes_recursive?.find((item: any) => item.op === "read")
-            ?.value || 0,
+          stats.blkio_stats?.io_service_bytes_recursive?.find(
+            (item: Docker.BlkioStatEntry) => item.op === "read"
+          )?.value || 0,
         writeBytes:
-          stats.blkio_stats.io_service_bytes_recursive?.find((item: any) => item.op === "write")
-            ?.value || 0,
+          stats.blkio_stats?.io_service_bytes_recursive?.find(
+            (item: Docker.BlkioStatEntry) => item.op === "write"
+          )?.value || 0,
       },
     };
   }
 
-  private mapNetworkInfo(info: any): Network {
+  private mapNetworkInfo(info: Docker.NetworkInspectInfo): Network {
     return {
       id: info.Id,
       name: info.Name,
@@ -937,13 +961,22 @@ export class DockerRuntime implements IContainerRuntime {
     };
   }
 
-  private mapVolumeInfo(info: any): Volume {
-    return {
+  private mapVolumeInfo(info: Docker.VolumeInspectInfo): Volume {
+    const volumeInfo: Volume = {
       name: info.Name,
       driver: info.Driver,
       mountpoint: info.Mountpoint,
-      created: new Date(info.CreatedAt),
       labels: info.Labels,
     };
+
+    // CreatedAt is not in dockerode types but may be present in the actual API response
+    if (info && typeof info === "object" && "CreatedAt" in info) {
+      const createdAt = (info as unknown as { CreatedAt: string }).CreatedAt;
+      if (createdAt) {
+        volumeInfo.created = new Date(createdAt);
+      }
+    }
+
+    return volumeInfo;
   }
 }

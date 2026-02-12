@@ -1,0 +1,31 @@
+{
+  "name": "@forge/test-utils",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "shx rm -rf dist",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@forge/database": "workspace:*",
+    "@forge/docker": "workspace:*",
+    "@forge/types": "workspace:*",
+    "@prisma/adapter-pg": "^7.3.0",
+    "@testcontainers/postgresql": "^11.11.0",
+    "@testcontainers/redis": "^11.11.0",
+    "ioredis": "^5.4.2",
+    "testcontainers": "^11.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
+    "shx": "^0.4.0"
+  }
+}

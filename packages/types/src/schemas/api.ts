@@ -7,14 +7,48 @@ export const ResponseMetaSchema = z.object({
   totalPages: z.number().int().nonnegative().optional(),
 });
 
-export function ApiResponseSchema<T extends z.ZodType>(dataSchema: T) {
+export function ApiResponseSchema<T extends z.ZodType>(
+  dataSchema: T
+): z.ZodObject<
+  {
+    data: T;
+    meta: z.ZodOptional<
+      z.ZodObject<
+        {
+          total: z.ZodOptional<z.ZodNumber>;
+          page: z.ZodOptional<z.ZodNumber>;
+          limit: z.ZodOptional<z.ZodNumber>;
+          totalPages: z.ZodOptional<z.ZodNumber>;
+        },
+        z.core.$strip
+      >
+    >;
+  },
+  z.core.$strip
+> {
   return z.object({
     data: dataSchema,
     meta: ResponseMetaSchema.optional(),
   });
 }
 
-export function PaginatedResponseSchema<T extends z.ZodType>(itemSchema: T) {
+export function PaginatedResponseSchema<T extends z.ZodType>(
+  itemSchema: T
+): z.ZodObject<
+  {
+    data: z.ZodArray<T>;
+    meta: z.ZodObject<
+      {
+        total: z.ZodNumber;
+        page: z.ZodNumber;
+        limit: z.ZodNumber;
+        totalPages: z.ZodNumber;
+      },
+      z.core.$strip
+    >;
+  },
+  z.core.$strip
+> {
   return z.object({
     data: z.array(itemSchema),
     meta: z.object({

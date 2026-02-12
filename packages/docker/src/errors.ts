@@ -10,7 +10,13 @@ export class DockerRuntimeError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 
-  toJSON() {
+  toJSON(): {
+    name: string;
+    message: string;
+    code: string;
+    statusCode: number;
+    details: unknown;
+  } {
     return {
       name: this.name,
       message: this.message,
