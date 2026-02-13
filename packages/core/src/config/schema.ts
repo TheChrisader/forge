@@ -9,6 +9,7 @@ export type LogLevel = z.infer<typeof LogLevelSchema>;
 export const ServerConfigSchema = z.object({
   port: z.number().int().positive().default(3000),
   host: z.string().default("localhost"),
+  proxy: z.boolean().default(false),
   cors: z.object({
     enabled: z.boolean().default(true),
     origins: z.array(z.string()).default(["*"]),
@@ -22,7 +23,7 @@ export const ServerConfigSchema = z.object({
 });
 
 export const DatabaseConfigSchema = z.object({
-  url: z.string().url().or(z.string().startsWith("postgresql://")),
+  url: z.url().or(z.string().startsWith("postgresql://")),
   pool: z.object({
     min: z.number().int().nonnegative().default(2),
     max: z.number().int().positive().default(10),
@@ -76,7 +77,7 @@ export const DockerConfigSchema = z.object({
   }),
   registry: z
     .object({
-      url: z.string().url().optional(),
+      url: z.url().optional(),
       username: z.string().optional(),
       password: z.string().optional(),
     })
@@ -96,7 +97,7 @@ export const StorageConfigSchema = z.object({
       region: z.string(),
       accessKeyId: z.string().optional(),
       secretAccessKey: z.string().optional(),
-      endpoint: z.string().url().optional(),
+      endpoint: z.url().optional(),
     })
     .optional(),
 });
@@ -127,7 +128,7 @@ export const ObservabilityConfigSchema = z.object({
   tracing: z.object({
     enabled: z.boolean().default(false),
     samplingRate: z.number().min(0).max(1).default(0.1),
-    endpoint: z.string().url().optional(),
+    endpoint: z.url().optional(),
   }),
 });
 
@@ -141,6 +142,12 @@ export const SecurityConfigSchema = z.object({
     expiresIn: z.string().default("7d"),
     issuer: z.string().default("forge"),
   }),
+  apiKey: z
+    .object({
+      header: z.string().default("x-api-key"),
+      required: z.boolean().default(false),
+    })
+    .optional(),
   rateLimit: z.object({
     enabled: z.boolean().default(true),
     max: z.number().int().positive().default(1000),

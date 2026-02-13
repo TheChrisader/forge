@@ -30,13 +30,14 @@ export class ServiceRegistry {
     for (const [name, module] of this.modules.entries()) {
       try {
         await module.register(this.container);
-      } catch (error) {
-        throw new Error(`Failed to register module ${name}: ${error}`);
+      } catch {
+        // TODO: Add logging
+        throw new Error(`Failed to register module ${name}`);
       }
     }
 
     for (const key of this.container.keys()) {
-      const service = await this.container.resolve<any>(key);
+      const service = await this.container.resolve<unknown>(key);
 
       if (this.isInitializable(service)) {
         await service.initialize();
@@ -56,6 +57,10 @@ export class ServiceRegistry {
     return this.container;
   }
 
+  getModule<T extends ServiceModule>(name: string): T | undefined {
+    return this.modules.get(name) as T | undefined;
+  }
+
   async resolve<T>(key: string): Promise<T> {
     if (!this.initialized) {
       throw new Error("Registry not initialized. Call initialize() first.");
@@ -64,7 +69,7 @@ export class ServiceRegistry {
     return this.container.resolve<T>(key);
   }
 
-  private isInitializable(obj: any): obj is IInitializable {
-    return obj && typeof obj.initialize === "function";
+  private isInitializable(obj: unknown): obj is IInitializable {
+    return obj instanceof Object && "initialize" in obj && typeof obj?.initialize === "function";
   }
 }

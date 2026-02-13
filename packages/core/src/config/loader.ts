@@ -39,7 +39,7 @@ export class ConfigLoader {
     if (options.validate !== false) {
       this.loadedConfig = this.validateConfig(config);
     } else {
-      this.loadedConfig = config as Config;
+      this.loadedConfig = config;
     }
 
     return this.loadedConfig;
@@ -64,12 +64,12 @@ export class ConfigLoader {
     }
   }
 
-  private loadConfigFile(filePath: string): any {
+  private loadConfigFile(filePath: string): Partial<Config> {
     try {
       const content = readFileSync(filePath, "utf-8");
 
       if (filePath.endsWith(".json")) {
-        return JSON.parse(content);
+        return JSON.parse(content) as Partial<Config>;
       } else if (filePath.endsWith(".yaml") || filePath.endsWith(".yml")) {
         // TODO: need to implement yaml parser: const yaml = require('yaml');
         // return yaml.parse(content);
@@ -83,7 +83,7 @@ export class ConfigLoader {
     }
   }
 
-  private buildConfigFromEnv(fileConfig: any = {}): any {
+  private buildConfigFromEnv(fileConfig: Partial<Config> = {}): Config {
     return {
       nodeEnv: process.env.NODE_ENV || fileConfig.nodeEnv || "development",
 
@@ -246,6 +246,12 @@ export class ConfigLoader {
           expiresIn: process.env.JWT_EXPIRES_IN ?? fileConfig.security?.jwt?.expiresIn,
           issuer: process.env.JWT_ISSUER ?? fileConfig.security?.jwt?.issuer,
         },
+        apiKey: {
+          header: process.env.API_KEY_HEADER ?? fileConfig.security?.apiKey?.header,
+          required:
+            this.parseBoolean(process.env.API_KEY_REQUIRED) ??
+            fileConfig.security?.apiKey?.required,
+        },
         rateLimit: {
           enabled:
             this.parseBoolean(process.env.SECURITY_RATE_LIMIT_ENABLED) ??
@@ -280,10 +286,10 @@ export class ConfigLoader {
         plugins: process.env.PATH_PLUGINS ?? fileConfig.paths?.plugins,
         temp: process.env.PATH_TEMP ?? fileConfig.paths?.temp,
       },
-    };
+    } as Config;
   }
 
-  private validateConfig(config: any): Config {
+  private validateConfig(config: Partial<Config>): Config {
     try {
       return ConfigSchema.parse(config);
     } catch (error) {
