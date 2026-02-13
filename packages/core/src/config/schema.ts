@@ -133,6 +133,12 @@ export const ObservabilityConfigSchema = z.object({
 });
 
 export const SecurityConfigSchema = z.object({
+  admin: z
+    .object({
+      email: z.email(),
+      passwordHash: z.string().length(64),
+    })
+    .optional(),
   secrets: z.object({
     encryptionKey: z.string().min(32).optional(),
     rotationDays: z.number().int().positive().default(90),

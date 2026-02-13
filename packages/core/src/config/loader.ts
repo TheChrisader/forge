@@ -234,6 +234,13 @@ export class ConfigLoader {
       },
 
       security: {
+        admin:
+          process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD_HASH
+            ? {
+                email: process.env.ADMIN_EMAIL,
+                passwordHash: process.env.ADMIN_PASSWORD_HASH,
+              }
+            : fileConfig.security?.admin,
         secrets: {
           encryptionKey:
             process.env.SECRETS_ENCRYPTION_KEY ?? fileConfig.security?.secrets?.encryptionKey,

@@ -5,6 +5,7 @@ export const SERVICE_KEYS = {
   DATABASE: Symbol.for("forge:database"),
   CACHE: Symbol.for("forge:cache"),
   QUEUE: Symbol.for("forge:queue"),
+  JOB_QUEUE: Symbol.for("forge:job-queue"),
 
   CONTAINER_RUNTIME: Symbol.for("forge:container-runtime"),
 
@@ -42,6 +43,7 @@ export const SERVICE_KEY_STRINGS = {
   DATABASE: "database",
   CACHE: "cache",
   QUEUE: "queue",
+  JOB_QUEUE: "jobQueue",
   CONTAINER_RUNTIME: "containerRuntime",
   STORAGE: "storage",
   STORAGE_FACTORY: "storageFactory",

@@ -2,17 +2,20 @@ import type { ServiceContainer, ServiceModule, ConfigService } from "@forge/core
 import { SERVICE_KEY_STRINGS } from "@forge/core";
 import { getDatabaseClient } from "@forge/database";
 import Redis from "ioredis";
-import { Queue } from "bullmq";
+import { QueueService } from "@forge/queue";
+import type { QueueConfig } from "@forge/queue";
+import pino from "pino";
 
 export class InfrastructureModule implements ServiceModule {
   private dbInstance?: ReturnType<typeof getDatabaseClient>;
   private redisInstance?: Redis;
-  private queueRedisInstance?: Redis;
-  private queueInstance?: Queue;
+  private queueService?: QueueService;
+  private logger?: pino.Logger;
 
   async register(container: ServiceContainer): Promise<void> {
     const configService = await container.resolve<ConfigService>(SERVICE_KEY_STRINGS.CONFIG);
     const config = configService.getConfig();
+    this.logger = await container.resolve<pino.Logger>(SERVICE_KEY_STRINGS.LOGGER);
 
     this.dbInstance = getDatabaseClient();
     container.singleton(SERVICE_KEY_STRINGS.DATABASE, () => this.dbInstance);
@@ -32,37 +35,29 @@ export class InfrastructureModule implements ServiceModule {
     });
 
     this.redisInstance.on("error", (err: Error) => {
-      console.error("Redis connection error:", err);
+      this.logger?.error({ err }, "Redis connection error");
     });
 
     container.singleton(SERVICE_KEY_STRINGS.CACHE, () => this.redisInstance);
 
-    this.queueRedisInstance = new Redis({
-      host: config.queue.connection.host,
-      port: config.queue.connection.port,
-      password: config.queue.connection.password,
-      db: config.queue.connection.db,
-      maxRetriesPerRequest: null,
-    });
+    const queueConfig: QueueConfig = {
+      redis: {
+        host: config.queue.connection.host,
+        port: config.queue.connection.port,
+        password: config.queue.connection.password,
+        db: config.queue.connection.db,
+      },
+    };
 
-    // Register Queue (this will be fully implemented in later tasks)
-    // For now, register a stub that satisfies the interface
-    this.queueInstance = new Queue("forge-deployments", {
-      connection: this.queueRedisInstance,
-      defaultJobOptions: config.queue.defaultJobOptions,
-    });
+    this.queueService = new QueueService(queueConfig);
 
-    container.singleton(SERVICE_KEY_STRINGS.QUEUE, () => this.queueInstance);
+    container.singleton(SERVICE_KEY_STRINGS.JOB_QUEUE, () => this.queueService);
   }
 
   async dispose(): Promise<void> {
-    // Shutdown order matters: queue first, then queue Redis, then main Redis, then DB
-    if (this.queueInstance) {
-      await this.queueInstance.close();
-    }
-
-    if (this.queueRedisInstance) {
-      await this.queueRedisInstance.quit();
+    // Shutdown order: queue service first (manages its own Redis), then main Redis, then DB
+    if (this.queueService) {
+      await this.queueService.close();
     }
 
     if (this.redisInstance) {
