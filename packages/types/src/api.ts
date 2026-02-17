@@ -20,13 +20,19 @@ export interface PaginatedResponse<T> {
   };
 }
 
+/**
+ * Shape of an error response from ForgeError.toJSON()
+ * Core package imports and uses this for ForgeError.toJSON() return type
+ */
+export interface ForgeErrorShape {
+  code: string;
+  statusCode: number;
+  message: string;
+  details?: unknown;
+}
+
 export interface ErrorResponse {
-  error: {
-    message: string;
-    code?: string;
-    statusCode?: number;
-    details?: unknown;
-  };
+  error: ForgeErrorShape;
 }
 
 export interface SuccessResponse {

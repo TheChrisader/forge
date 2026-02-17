@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-type-provider-zod";
 import {
   ServiceRegistry,
   Config,
@@ -15,6 +16,7 @@ import { setupRoutes } from "./routes/index.js";
 import { setupWebSocket } from "./websocket/index.js";
 import { PrismaClient } from "@forge/database";
 import Redis from "ioredis";
+import { ProjectModule } from "./modules/project.module.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -36,6 +38,8 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   registry.registerModule("config", new ConfigModule());
   registry.registerModule("logger", new LoggerModule());
   registry.registerModule("infrastructure", new InfrastructureModule());
+
+  registry.registerModule("projects", new ProjectModule());
 
   await registry.initialize();
 
@@ -64,7 +68,10 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
     genReqId: () => crypto.randomUUID(),
   };
 
-  const server = Fastify(fastifyOptions);
+  const server = Fastify(fastifyOptions).withTypeProvider<ZodTypeProvider>();
+
+  server.setValidatorCompiler(validatorCompiler);
+  server.setSerializerCompiler(serializerCompiler);
 
   server.decorate("config", config);
   server.decorate("logger", logger);

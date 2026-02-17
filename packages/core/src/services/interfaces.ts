@@ -5,6 +5,7 @@
 
 import type {
   Project,
+  ProjectWithRelations,
   Deployment,
   Service,
   DockerContainer,
@@ -17,8 +18,8 @@ export interface IProjectService {
   create(data: CreateProjectRequest): Promise<Project>;
   update(id: string, data: UpdateProjectRequest): Promise<Project>;
   delete(id: string): Promise<void>;
-  getById(id: string): Promise<Project | null>;
-  getAll(filters?: {
+  getById(id: string): Promise<ProjectWithRelations | null>;
+  list(filters?: {
     page?: number;
     limit?: number;
     status?: string[];

@@ -6,6 +6,9 @@ export interface CacheConfig {
   password?: string;
   db?: number;
   keyPrefix?: string;
+  maxRetriesPerRequest?: number;
+  enableReadyCheck?: boolean;
+  retryStrategy?: (times: number) => number;
 }
 
 let cacheClient: Redis | undefined;
@@ -25,6 +28,9 @@ export function getCacheClient(config: CacheConfig): Redis {
       password: config.password,
       db: config.db || 1,
       keyPrefix: config.keyPrefix || "forge:cache:",
+      maxRetriesPerRequest: config.maxRetriesPerRequest || 10,
+      enableReadyCheck: config.enableReadyCheck || false,
+      retryStrategy: config.retryStrategy,
     });
 
     cacheClient.on("error", (error) => {

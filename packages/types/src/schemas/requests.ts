@@ -7,12 +7,18 @@ import {
   ServiceTypeSchema,
 } from "./common";
 
-const PROJECT_NAME_REGEX = /^[a-zA-Z0-9-_]+$/;
+const PROJECT_NAME_REGEX = /^[a-z0-9-]+$/;
+
+// =============================================================================
+// Project Request Schemas
+// =============================================================================
 
 export const CreateProjectRequestSchema = z
   .object({
     name: z.string().min(1).max(100).regex(PROJECT_NAME_REGEX),
     type: z.string().max(50).optional(),
+    sourceType: z.string().max(50).optional(),
+    sourceUrl: z.string().optional(),
     config: MetadataSchema.optional(),
     metadata: MetadataSchema.optional(),
   })
@@ -22,10 +28,16 @@ export const UpdateProjectRequestSchema = z
   .object({
     name: z.string().min(1).max(100).regex(PROJECT_NAME_REGEX).optional(),
     type: z.string().max(50).optional(),
+    sourceType: z.string().max(50).optional(),
+    sourceUrl: z.string().optional(),
     config: MetadataSchema.optional(),
     metadata: MetadataSchema.optional(),
   })
   .strict();
+
+// =============================================================================
+// Deployment Request Schemas
+// =============================================================================
 
 export const DeployProjectRequestSchema = z
   .object({
@@ -35,6 +47,53 @@ export const DeployProjectRequestSchema = z
     branch: z.string().optional(),
   })
   .strict();
+
+export const CreateDeploymentRequestSchema = z
+  .object({
+    projectId: IdSchema,
+    version: NonEmptyStringSchema,
+  })
+  .strict();
+
+export const UpdateDeploymentRequestSchema = z
+  .object({
+    status: z.string().optional(),
+    buildStartedAt: z.coerce.date().optional(),
+    buildCompletedAt: z.coerce.date().optional(),
+    buildImage: z.string().optional(),
+    buildLogs: z.string().optional(),
+    deployStartedAt: z.coerce.date().optional(),
+    deployCompletedAt: z.coerce.date().optional(),
+    error: z.string().optional(),
+  })
+  .strict();
+
+// =============================================================================
+// Container Request Schemas
+// =============================================================================
+
+export const CreateContainerRequestSchema = z
+  .object({
+    deploymentId: IdSchema,
+    name: z.string().max(255).optional(),
+    image: NonEmptyStringSchema,
+    config: MetadataSchema.optional(),
+    env: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
+export const UpdateContainerRequestSchema = z
+  .object({
+    name: z.string().max(255).optional(),
+    status: z.string().optional(),
+    config: MetadataSchema.optional(),
+    env: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
+// =============================================================================
+// Service Request Schemas
+// =============================================================================
 
 export const CreateServiceRequestSchema = z
   .object({
@@ -54,6 +113,10 @@ export const UpdateServiceRequestSchema = z
   })
   .strict();
 
+// =============================================================================
+// Secret Request Schemas
+// =============================================================================
+
 export const CreateSecretRequestSchema = z
   .object({
     projectId: IdSchema.optional(),
@@ -70,12 +133,16 @@ export const UpdateSecretRequestSchema = z
   })
   .strict();
 
+// =============================================================================
+// Job Request Schemas
+// =============================================================================
+
 export const CreateJobRequestSchema = z
   .object({
     projectId: IdSchema,
     name: NonEmptyStringSchema.max(100),
     command: z.string().min(1),
-    schedule: z.string().optional(), // cron expression
+    schedule: z.string().optional(),
     enabled: z.boolean().optional(),
   })
   .strict();

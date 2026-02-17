@@ -1,3 +1,5 @@
+import type { ForgeErrorShape } from "@forge/types";
+
 /**
  * Base error class for all Forge-specific errors
  */
@@ -16,13 +18,8 @@ export class ForgeError extends Error {
   /**
    * Serialize error to JSON for API responses
    */
-  toJSON(): { code: string; statusCode: number; message: string; details?: unknown } {
-    const json: {
-      code: string;
-      statusCode: number;
-      message: string;
-      details?: unknown;
-    } = {
+  toJSON(): ForgeErrorShape {
+    const json: ForgeErrorShape = {
       code: this.code,
       statusCode: this.statusCode,
       message: this.message,

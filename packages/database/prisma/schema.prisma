@@ -9,18 +9,71 @@ generator client {
   output   = "../src/generated/client"
 }
 
+
 datasource db {
   provider = "postgresql"
 }
 
-model Project {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  type      String?
-  status    String   @default("inactive") // active, inactive, archived
+// =============================================================================
+// Enums
+// =============================================================================
 
-  config    Json     @default("{}")
-  metadata  Json     @default("{}")
+enum ProjectStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum DeploymentStatus {
+  PENDING
+  BUILDING
+  DEPLOYING
+  RUNNING
+  FAILED
+}
+
+enum ContainerStatus {
+  CREATING
+  STARTING
+  RUNNING
+  STOPPING
+  STOPPED
+  TERMINATED
+  ERROR
+}
+
+enum HealthStatus {
+  HEALTHY
+  UNHEALTHY
+  STARTING
+}
+
+enum PortProtocol {
+  TCP
+  UDP
+}
+
+enum VolumeMode {
+  RW
+  RO
+}
+
+// =============================================================================
+// Models
+// =============================================================================
+
+model Project {
+  id        String        @id @default(uuid())
+  name      String        @unique
+  type      String?        // Legacy: consider using sourceType instead
+  sourceType String?      // e.g., "registry", "docker-compose", "git", "dockerfile"
+  sourceUrl  String?      // e.g., "ghcr.io/user/repo", "git@github.com:..."
+  status    ProjectStatus @default(INACTIVE)
+
+  config    Json     @default("{}") /// @zod.custom.use(z.record(z.string(), z.unknown()))
+  metadata  Json     @default("{}") /// @zod.custom.use(z.record(z.string(), z.unknown()))
+
+  deletedAt DateTime?     // Soft delete support
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -33,23 +86,29 @@ model Project {
   @@index([name])
   @@index([createdAt])
   @@index([status])
+  @@index([createdBy])
+  @@index([deletedAt])
 }
 
 model Deployment {
-  id        String   @id @default(uuid())
+  id        String           @id @default(uuid())
   projectId String
   version   String
-  status    String   // pending, building, deploying, running, failed
-  
+  status    DeploymentStatus
+
   buildStartedAt    DateTime?
   buildCompletedAt  DateTime?
   buildImage        String?
   buildLogs         String?
-  
+
   deployStartedAt   DateTime?
   deployCompletedAt DateTime?
-  
+
   error     String?
+
+  parentId  String?
+  parent    Deployment?      @relation("DeploymentChain", fields: [parentId], references: [id])
+  children Deployment[]      @relation("DeploymentChain")
 
   createdAt DateTime @default(now())
   createdBy String?
@@ -61,6 +120,71 @@ model Deployment {
   @@index([projectId])
   @@index([status])
   @@index([createdAt])
+  @@index([createdBy])
+  @@index([parentId])
+  @@unique([projectId, version])
+}
+
+model PortMapping {
+  id             String        @id @default(uuid())
+  containerId    String
+
+  containerPort  Int
+  hostPort       Int?
+  protocol       PortProtocol  @default(TCP)
+
+  container      Container     @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@index([containerId])
+  @@index([hostPort, protocol])
+}
+
+model VolumeMapping {
+  id          String       @id @default(uuid())
+  containerId String
+
+  source      String
+  target      String
+  mode        VolumeMode   @default(RW)
+
+  container   Container    @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@index([containerId])
+}
+
+model HealthCheckConfig {
+  id          String   @id @default(uuid())
+  containerId String   @unique
+
+  test        String   // e.g., "curl -f http://localhost:3000/health"
+  interval    Int      @default(30)  // seconds
+  timeout     Int      @default(5)   // seconds
+  retries     Int      @default(3)   // failures before unhealthy
+  startPeriod Int      @default(0)   // grace period
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  container   Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@index([containerId])
+}
+
+model NetworkAttachment {
+  id          String   @id @default(uuid())
+  containerId String
+
+  networkName String   // e.g., "bridge", "mynetwork"
+  ipAddress   String?  // assigned IP
+  macAddress  String?  // assigned MAC
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  container   Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@index([containerId])
+  @@index([networkName])
 }
 
 model Container {
@@ -68,20 +192,25 @@ model Container {
   projectId    String
   deploymentId String
 
-  name         String?  // Human-readable container name (e.g., "app-container-1")
+  name         String?   // Human-readable container name (e.g., "app-container-1")
   containerId  String   @unique // Docker container ID
   image        String
-  status       String   // creating, running, stopped, error
+  status       ContainerStatus @default(CREATING)
+  containerNumber Int     @default(1)  // Instance number for replicas (1, 2, 3...)
 
   config       Json     @default("{}")
-  ports        Json?    // Port mappings: [{containerPort: 80, hostPort: 8080, protocol: "tcp"}]
-  volumes      Json?    // Volume mounts: [{source: "/host/path", target: "/container/path"}]
-  network      String?   // Network name
-  env          Json?    // Environment variables: {NODE_ENV: "production", PORT: "8080"}
+  ports        PortMapping[]
+  volumes      VolumeMapping[]
+  env          Json?
 
-  healthStatus String?  // healthy, unhealthy, starting
-  healthChecks Int      @default(0)
-  healthFails  Int      @default(0)
+  healthStatus HealthStatus?
+  healthChecks Int             @default(0)
+  healthFails  Int             @default(0)
+  lastHealthCheckAt DateTime?
+
+  replacedById String?
+  replacedBy   Container? @relation("ContainerReplacement", fields: [replacedById], references: [id])
+  replaces     Container[] @relation("ContainerReplacement")
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -93,11 +222,13 @@ model Container {
 
   project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  healthCheckConfig HealthCheckConfig?
+  networkAttachments NetworkAttachment[]
 
   @@index([projectId])
   @@index([deploymentId])
   @@index([containerId])
   @@index([name])
   @@index([status])
-  @@index([network])
+  @@index([createdBy])
 }

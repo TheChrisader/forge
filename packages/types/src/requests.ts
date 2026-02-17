@@ -1,8 +1,14 @@
 import type { DeploymentStrategy, ServiceType } from "./entities";
 
+// =============================================================================
+// Project Requests
+// =============================================================================
+
 export interface CreateProjectRequest {
   name: string;
-  type?: string;
+  type?: string; // get rid o' this
+  sourceType?: string;
+  sourceUrl?: string;
   config?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
@@ -10,9 +16,15 @@ export interface CreateProjectRequest {
 export interface UpdateProjectRequest {
   name?: string;
   type?: string;
+  sourceType?: string;
+  sourceUrl?: string;
   config?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
+
+// =============================================================================
+// Deployment Requests
+// =============================================================================
 
 export interface DeployProjectRequest {
   version?: string;
@@ -20,6 +32,45 @@ export interface DeployProjectRequest {
   gitUrl?: string;
   branch?: string;
 }
+
+export interface CreateDeploymentRequest {
+  projectId: string;
+  version: string;
+}
+
+export interface UpdateDeploymentRequest {
+  status?: string;
+  buildStartedAt?: Date;
+  buildCompletedAt?: Date;
+  buildImage?: string;
+  buildLogs?: string;
+  deployStartedAt?: Date;
+  deployCompletedAt?: Date;
+  error?: string;
+}
+
+// =============================================================================
+// Container Requests
+// =============================================================================
+
+export interface CreateContainerRequest {
+  deploymentId: string;
+  name?: string;
+  image: string;
+  config?: Record<string, unknown>;
+  env?: Record<string, unknown>;
+}
+
+export interface UpdateContainerRequest {
+  name?: string;
+  status?: string;
+  config?: Record<string, unknown>;
+  env?: Record<string, unknown>;
+}
+
+// =============================================================================
+// Service Requests (not in database - domain entities)
+// =============================================================================
 
 export interface CreateServiceRequest {
   projectId: string;
@@ -35,6 +86,10 @@ export interface UpdateServiceRequest {
   config?: Record<string, unknown>;
 }
 
+// =============================================================================
+// Secret Requests (not in database - domain entities)
+// =============================================================================
+
 export interface CreateSecretRequest {
   projectId?: string;
   key: string;
@@ -46,6 +101,10 @@ export interface UpdateSecretRequest {
   value?: string;
   description?: string;
 }
+
+// =============================================================================
+// Job Requests (not in database - domain entities)
+// =============================================================================
 
 export interface CreateJobRequest {
   projectId: string;

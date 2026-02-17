@@ -20,7 +20,7 @@ export class QueueModule implements ServiceModule {
     this.config = { redis: config.redis };
   }
 
-  async register(container: ServiceContainer): Promise<void> {
+  register(container: ServiceContainer): void {
     container.singleton(SERVICE_KEY_STRINGS.QUEUE, () => {
       return getQueueService(this.config);
     });

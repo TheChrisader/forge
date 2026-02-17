@@ -1,4 +1,21 @@
-export type { Project, Deployment, Container as DbContainer } from "@forge/database";
+export type {
+  Project,
+  Deployment,
+  Container as DbContainer,
+  PortMapping as DbPortMapping,
+  VolumeMapping as DbVolumeMapping,
+  HealthCheckConfig as DbHealthCheckConfig,
+  NetworkAttachment as DbNetworkAttachment,
+} from "@forge/database";
+
+export type {
+  ProjectStatus as DbProjectStatus,
+  DeploymentStatus as DbDeploymentStatus,
+  ContainerStatus as DbContainerStatus,
+  HealthStatus as DbHealthStatus,
+  PortProtocol as DbPortProtocol,
+  VolumeMode as DbVolumeMode,
+} from "@forge/database";
 
 export type {
   Container as DockerContainer,

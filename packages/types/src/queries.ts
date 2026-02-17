@@ -1,5 +1,9 @@
 import type { LogLevel, SourceType } from "./entities";
 
+// =============================================================================
+// Common Query Parameters
+// =============================================================================
+
 export interface PaginationParams {
   page?: number;
   limit?: number;
@@ -11,6 +15,10 @@ export interface SortParams {
   sortOrder?: "asc" | "desc";
 }
 
+// =============================================================================
+// Log Queries
+// =============================================================================
+
 export interface LogQueryParams extends PaginationParams {
   since?: string;
   until?: string;
@@ -19,6 +27,10 @@ export interface LogQueryParams extends PaginationParams {
   sourceId?: string;
   search?: string;
 }
+
+// =============================================================================
+// Metric Queries
+// =============================================================================
 
 export interface MetricQueryParams {
   source?: string;
@@ -29,11 +41,41 @@ export interface MetricQueryParams {
   aggregation?: "avg" | "sum" | "min" | "max" | "count";
 }
 
+// =============================================================================
+// Project Queries
+// =============================================================================
+
 export interface ProjectFilters extends PaginationParams, SortParams {
   status?: string[];
   type?: string[];
+  sourceType?: string[];
   search?: string;
 }
+
+// =============================================================================
+// Deployment Queries
+// =============================================================================
+
+export interface DeploymentFilters extends PaginationParams, SortParams {
+  projectId?: string;
+  status?: string[];
+  version?: string;
+}
+
+// =============================================================================
+// Container Queries
+// =============================================================================
+
+export interface ContainerFilters extends PaginationParams, SortParams {
+  projectId?: string;
+  deploymentId?: string;
+  status?: string[];
+  name?: string;
+}
+
+// =============================================================================
+// Service Queries
+// =============================================================================
 
 export interface ServiceFilters extends PaginationParams, SortParams {
   projectId?: string;

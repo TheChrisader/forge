@@ -14,6 +14,7 @@
     "test:connection": "tsx src/test-connection.ts"
   },
   "dependencies": {
+    "@forge/core": "workspace:*",
     "dotenv": "^16.4.1",
     "ioredis": "^5.9.2"
   },

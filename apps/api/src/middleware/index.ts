@@ -29,10 +29,12 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
         return (req as { userId?: string }).userId ?? req.ip;
       },
       errorResponseBuilder: (_req, context) => {
-        return new RateLimitError("Rate limit exceeded", {
-          limit: context.max,
-          reset: context.after,
-        }).toJSON();
+        return {
+          error: new RateLimitError("Rate limit exceeded", {
+            limit: context.max,
+            reset: context.after,
+          }).toJSON(),
+        };
       },
     });
   }
@@ -103,21 +105,22 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
         url: request.url,
       });
 
-      return reply.status(validationError.statusCode).send(validationError.toJSON());
+      return reply.status(validationError.statusCode).send({ error: validationError.toJSON() });
     }
 
     if (isForgeError(error)) {
-      if (error.statusCode === 500 && config.nodeEnv === "production") {
+      const forgeError = error;
+      if (forgeError.statusCode === 500 && config.nodeEnv === "production") {
         const internalError = new InternalError("An internal error occurred");
-        return reply.status(500).send(internalError.toJSON());
+        return reply.status(500).send({ error: internalError.toJSON() });
       }
 
-      return reply.status(error.statusCode).send(error.toJSON());
+      return reply.status(forgeError.statusCode).send({ error: forgeError.toJSON() });
     }
 
     if (err.statusCode === 429) {
       const rateLimitError = new RateLimitError("Rate limit exceeded");
-      return reply.status(429).send(rateLimitError.toJSON());
+      return reply.status(429).send({ error: rateLimitError.toJSON() });
     }
 
     server.logger.error({ err: error }, "Unexpected error");
@@ -126,7 +129,7 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
         ? "An internal error occurred"
         : ((error as Error).message ?? "Unknown error")
     );
-    return reply.status(500).send(internalError.toJSON());
+    return reply.status(500).send({ error: internalError.toJSON() });
   });
 
   server.setNotFoundHandler(async (request, reply) => {
@@ -134,6 +137,6 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
       method: request.method,
       url: request.url,
     });
-    return reply.status(404).send(notFoundError.toJSON());
+    return reply.status(404).send({ error: notFoundError.toJSON() });
   });
 }

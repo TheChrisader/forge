@@ -14,15 +14,8 @@ export const ServiceTypeSchema = z.enum(["database", "cache", "queue", "storage"
 export const ServiceStatusSchema = z.enum(["creating", "running", "stopped", "error"]);
 export const JobEntityStatusSchema = z.enum(["idle", "running", "success", "failed"]);
 export const DeploymentStrategySchema = z.enum(["rolling", "blue-green", "canary"]);
-export const DeploymentStatusSchema = z.enum([
-  "pending",
-  "building",
-  "deploying",
-  "running",
-  "failed",
-  "rolled-back",
-]);
 export const HealthStatusSchema = z.enum(["healthy", "unhealthy", "starting", "none"]);
+export const SortOrderSchema = z.enum(["asc", "desc"]);
 
 export const PaginationParamsSchema = z.object({
   page: z.coerce.number().int().positive().optional(),
@@ -32,5 +25,5 @@ export const PaginationParamsSchema = z.object({
 
 export const SortParamsSchema = z.object({
   sortBy: z.string().optional(),
-  sortOrder: z.enum(["asc", "desc"]).optional(),
+  sortOrder: SortOrderSchema.optional(),
 });

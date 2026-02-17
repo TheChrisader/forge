@@ -3,59 +3,28 @@ import type { Config } from "@forge/core";
 import crypto from "node:crypto";
 import { UnauthorizedError, InternalError } from "@forge/core";
 import { createApiKey, requireAuth } from "../middleware/auth.js";
+import {
+  LoginRequestSchema,
+  LoginResponseSchema,
+  ApiKeyResponseSchema,
+  AuthMeResponseSchema,
+} from "@forge/types";
+import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 
-interface LoginRequestBody {
-  email: string;
-  password: string;
-}
+export function registerAuthRoutes(_server: FastifyInstance, config: Config): void {
+  const server = getTypedFastifyInstance(_server);
 
-interface LoginResponse {
-  accessToken: string;
-  expiresIn: string;
-  tokenType: "Bearer";
-}
-
-interface ApiKeyResponse {
-  key: string;
-  createdAt: number;
-  kid: string;
-}
-
-interface AuthMeResponse {
-  userId: string;
-  role: "admin" | "user";
-  authenticatedVia: "jwt" | "api_key";
-}
-
-export function registerAuthRoutes(server: FastifyInstance, config: Config): void {
-  server.post<{
-    Body: LoginRequestBody;
-    Reply: LoginResponse;
-  }>(
+  server.post(
     "/api/auth/login",
     {
       schema: {
-        body: {
-          type: "object",
-          required: ["email", "password"],
-          properties: {
-            email: { type: "string", format: "email" },
-            password: { type: "string", minLength: 1 },
-          },
-        },
+        body: LoginRequestSchema,
         response: {
-          200: {
-            type: "object",
-            properties: {
-              accessToken: { type: "string" },
-              expiresIn: { type: "string" },
-              tokenType: { type: "string", enum: ["Bearer"] },
-            },
-          },
+          200: LoginResponseSchema,
         },
       },
     },
-    (request): LoginResponse => {
+    (request) => {
       const { email, password } = request.body;
 
       if (!config.security.admin?.email || !config.security.admin.passwordHash) {
@@ -85,36 +54,21 @@ export function registerAuthRoutes(server: FastifyInstance, config: Config): voi
       return {
         accessToken: token,
         expiresIn: config.security.jwt.expiresIn,
-        tokenType: "Bearer",
+        tokenType: "Bearer" as const,
       };
     }
   );
 
-  server.post<{
-    Reply: ApiKeyResponse;
-  }>(
+  server.post(
     "/api/auth/api-keys",
     {
       schema: {
-        headers: {
-          type: "object",
-          properties: {
-            authorization: { type: "string" },
-          },
-        },
         response: {
-          200: {
-            type: "object",
-            properties: {
-              key: { type: "string" },
-              createdAt: { type: "number" },
-              kid: { type: "string" },
-            },
-          },
+          200: ApiKeyResponseSchema,
         },
       },
     },
-    (request): ApiKeyResponse => {
+    (request) => {
       const userId = requireAuth((request as { userId?: string }).userId);
 
       const key = createApiKey(userId, config.security.jwt.secret);
@@ -134,31 +88,16 @@ export function registerAuthRoutes(server: FastifyInstance, config: Config): voi
     }
   );
 
-  server.get<{
-    Reply: AuthMeResponse;
-  }>(
+  server.get(
     "/api/auth/me",
     {
       schema: {
-        headers: {
-          type: "object",
-          properties: {
-            authorization: { type: "string" },
-          },
-        },
         response: {
-          200: {
-            type: "object",
-            properties: {
-              userId: { type: "string" },
-              role: { type: "string", enum: ["admin", "user"] },
-              authenticatedVia: { type: "string", enum: ["jwt", "api_key"] },
-            },
-          },
+          200: AuthMeResponseSchema,
         },
       },
     },
-    (request): AuthMeResponse => {
+    (request) => {
       const userId = requireAuth((request as { userId?: string }).userId);
 
       const authenticatedVia: "jwt" | "api_key" =
@@ -166,7 +105,7 @@ export function registerAuthRoutes(server: FastifyInstance, config: Config): voi
 
       return {
         userId,
-        role: "admin",
+        role: "admin" as "admin" | "user",
         authenticatedVia,
       };
     }

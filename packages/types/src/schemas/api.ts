@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 export const ResponseMetaSchema = z.object({
-  total: z.number().int().nonnegative().optional(),
-  page: z.number().int().positive().optional(),
-  limit: z.number().int().positive().optional(),
-  totalPages: z.number().int().nonnegative().optional(),
+  total: z.int().nonnegative().optional(),
+  page: z.int().positive().optional(),
+  limit: z.int().positive().optional(),
+  totalPages: z.int().nonnegative().optional(),
 });
 
 export function ApiResponseSchema<T extends z.ZodType>(
@@ -52,10 +52,10 @@ export function PaginatedResponseSchema<T extends z.ZodType>(
   return z.object({
     data: z.array(itemSchema),
     meta: z.object({
-      total: z.number().int().nonnegative(),
-      page: z.number().int().positive(),
-      limit: z.number().int().positive(),
-      totalPages: z.number().int().nonnegative(),
+      total: z.int().nonnegative(),
+      page: z.int().positive(),
+      limit: z.int().positive(),
+      totalPages: z.int().nonnegative(),
     }),
   });
 }
@@ -63,8 +63,8 @@ export function PaginatedResponseSchema<T extends z.ZodType>(
 export const ErrorResponseSchema = z.object({
   error: z.object({
     message: z.string(),
-    code: z.string().optional(),
-    statusCode: z.number().int().optional(),
+    code: z.string(),
+    statusCode: z.int(),
     details: z.unknown().optional(),
   }),
 });
