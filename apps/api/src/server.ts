@@ -17,6 +17,7 @@ import { setupWebSocket } from "./websocket/index.js";
 import { PrismaClient } from "@forge/database";
 import Redis from "ioredis";
 import { ProjectModule } from "./modules/project.module.js";
+import { DeploymentModule } from "./modules/deployment.module.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -40,6 +41,7 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   registry.registerModule("infrastructure", new InfrastructureModule());
 
   registry.registerModule("projects", new ProjectModule());
+  registry.registerModule("deployments", new DeploymentModule());
 
   await registry.initialize();
 

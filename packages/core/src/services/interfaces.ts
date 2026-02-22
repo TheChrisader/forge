@@ -7,6 +7,7 @@ import type {
   Project,
   ProjectWithRelations,
   Deployment,
+  DeploymentStatus,
   Service,
   DockerContainer,
   CreateProjectRequest,
@@ -33,7 +34,14 @@ export interface IDeploymentService {
   create(projectId: string, version: string): Promise<Deployment>;
   getById(id: string): Promise<Deployment | null>;
   getByProject(projectId: string): Promise<Deployment[]>;
-  updateStatus(id: string, status: string, error?: string): Promise<Deployment>;
+  list(filters?: {
+    projectId?: string;
+    status?: DeploymentStatus;
+    page?: number;
+    limit?: number;
+  }): Promise<{ deployments: Deployment[]; total: number }>;
+  deploy(projectId: string, version?: string): Promise<Deployment>;
+  updateStatus(id: string, status: DeploymentStatus, error?: string): Promise<Deployment>;
   cancel(id: string): Promise<void>;
   getLogs(id: string): Promise<string>;
 }
