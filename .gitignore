@@ -42,3 +42,6 @@ pnpm-debug.log*
 .cache/
 temp/
 tmp/
+
+# Keep
+!packages/build/
