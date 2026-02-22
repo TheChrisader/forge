@@ -9,7 +9,7 @@ import {
   UpdateProjectRequestSchema,
   ProjectSchema,
   ProjectIdParamsSchema,
-  DbProjectStatus,
+  ProjectStatus,
 } from "@forge/types";
 import { ApiResponseSchema, PaginatedResponseSchema, ProjectListQuerySchema } from "@forge/types";
 
@@ -46,7 +46,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
       const filters: {
         page: number;
         limit: number;
-        status?: DbProjectStatus[];
+        status?: ProjectStatus[];
       } = {
         page,
         limit,

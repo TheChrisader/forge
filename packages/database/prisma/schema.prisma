@@ -14,221 +14,1461 @@ datasource db {
   provider = "postgresql"
 }
 
-// =============================================================================
-// Enums
-// =============================================================================
+// ============================================================================
+// ENUMS
+// ============================================================================
 
 enum ProjectStatus {
   ACTIVE
   INACTIVE
   ARCHIVED
+
+  @@map("project_status")
 }
 
 enum DeploymentStatus {
   PENDING
+  QUEUED
   BUILDING
   DEPLOYING
+  ROLLBACK
   RUNNING
+  SUCCEEDED
   FAILED
+  CANCELLED
+  TIMED_OUT
+
+  @@map("deployment_status")
+}
+
+enum DeploymentStrategy {
+  ROLLING
+  BLUE_GREEN
+  CANARY
+  RECREATE
+
+  @@map("deployment_strategy")
+}
+
+enum ActiveEnvironment {
+  BLUE
+  GREEN
+
+  @@map("active_environment")
 }
 
 enum ContainerStatus {
   CREATING
   STARTING
   RUNNING
+  HEALTHY
+  UNHEALTHY
   STOPPING
   STOPPED
+  RESTARTING
   TERMINATED
   ERROR
+
+  @@map("container_status")
 }
 
 enum HealthStatus {
   HEALTHY
   UNHEALTHY
   STARTING
+
+  @@map("health_status")
 }
 
 enum PortProtocol {
   TCP
   UDP
+
+  @@map("port_protocol")
 }
 
 enum VolumeMode {
   RW
   RO
+
+  @@map("volume_mode")
 }
 
-// =============================================================================
-// Models
-// =============================================================================
+enum LogLevel {
+  TRACE
+  DEBUG
+  INFO
+  WARN
+  ERROR
+  FATAL
+
+  @@map("log_level")
+}
+
+enum SourceType {
+  CONTAINER
+  SERVICE
+  SYSTEM
+  BUILD
+  DEPLOYMENT
+
+  @@map("source_type")
+}
+
+enum SslStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  FAILED
+
+  @@map("ssl_status")
+}
+
+enum GitProvider {
+  GITHUB
+  GITLAB
+  BITBUCKET
+
+  @@map("git_provider")
+}
+
+enum WebhookEvent {
+  DEPLOYMENT_CREATED
+  DEPLOYMENT_BUILDING
+  DEPLOYMENT_READY
+  DEPLOYMENT_ERROR
+  DEPLOYMENT_CANCELLED
+  DOMAIN_VERIFIED
+  DOMAIN_FAILED
+
+  @@map("webhook_event")
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+
+  @@map("team_role")
+}
+
+enum ServiceType {
+  DATABASE
+  CACHE
+  QUEUE
+  STORAGE
+  SEARCH
+  MONITORING
+  CUSTOM
+
+  @@map("service_type")
+}
+
+enum ServiceStatus {
+  CREATING
+  STARTING
+  RUNNING
+  HEALTHY
+  UNHEALTHY
+  STOPPING
+  STOPPED
+  ERROR
+  UPGRADING
+  BACKING_UP
+  RESTORING
+
+  @@map("service_status")
+}
+
+enum BackupType {
+  MANUAL
+  SCHEDULED
+  PRE_UPGRADE
+
+  @@map("backup_type")
+}
+
+enum BackupStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+
+  @@map("backup_status")
+}
+
+enum RegistryType {
+  DOCKER_HUB
+  GHCR
+  ECR
+  GCR
+  ACR
+  HARBOR
+  QUAY
+  SELF_HOSTED
+
+  @@map("registry_type")
+}
+
+enum ScanStatus {
+  PENDING
+  SCANNING
+  COMPLETED
+  FAILED
+
+  @@map("scan_status")
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  NEGLIGIBLE
+
+  @@map("severity")
+}
+
+enum JobStatus {
+  IDLE
+  RUNNING
+
+  @@map("job_status")
+}
+
+enum JobRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  TIMEOUT
+  CANCELLED
+
+  @@map("job_run_status")
+}
+
+enum TriggerType {
+  SCHEDULED
+  MANUAL
+  WEBHOOK
+  DEPLOYMENT
+
+  @@map("trigger_type")
+}
+
+enum AlertOperator {
+  GREATER_THAN
+  LESS_THAN
+  EQUALS
+  NOT_EQUALS
+
+  @@map("alert_operator")
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+
+  @@map("alert_severity")
+}
+
+enum AlertStatus {
+  FIRING
+  RESOLVED
+  ACKNOWLEDGED
+
+  @@map("alert_status")
+}
+
+enum ChannelType {
+  EMAIL
+  SLACK
+  PAGERDUTY
+  WEBHOOK
+  SMS
+  DISCORD
+  TEAMS
+
+  @@map("channel_type")
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+
+  @@map("notification_status")
+}
+
+enum IntegrationType {
+  AWS_S3
+  GCS
+  AZURE_BLOB
+  CLOUDFLARE_R2
+  BACKBLAZE_B2
+  DATADOG
+  NEW_RELIC
+  SENTRY
+  SLACK
+  DISCORD
+  PAGERDUTY
+  GITHUB_ACTIONS
+  GITLAB_CI
+  CIRCLE_CI
+  SENDGRID
+  MAILGUN
+  SES
+  CLOUDFLARE_DNS
+  ROUTE53
+  CUSTOM
+
+  @@map("integration_type")
+}
+
+enum PolicyAction {
+  ALLOW
+  DENY
+
+  @@map("policy_action")
+}
+
+enum TracingBackend {
+  JAEGER
+  ZIPKIN
+  TEMPO
+  LIGHTSTEP
+  HONEYCOMB
+  DATADOG
+
+  @@map("tracing_backend")
+}
+
+// ============================================================================
+// USER & TEAM MANAGEMENT
+// ============================================================================
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique @db.VarChar(255)
+  name      String?  @db.VarChar(255)
+  avatarUrl String?  @map("avatar_url") @db.VarChar(500)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  teamMemberships TeamMember[]
+  roleAssignments RoleAssignment[]
+  apiKeys         ApiKey[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+  @@index([email])
+}
+
+model Team {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @db.VarChar(255)
+  slug String @unique @db.VarChar(100)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  members  TeamMember[]
+  projects Project[]
+
+  @@map("teams")
+  @@index([slug])
+}
+
+model TeamMember {
+  id     String   @id @default(uuid()) @db.Uuid
+  teamId String   @map("team_id") @db.Uuid
+  userId String   @map("user_id") @db.Uuid
+  role   TeamRole @default(MEMBER)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@map("team_members")
+  @@index([teamId])
+  @@index([userId])
+}
+
+// ============================================================================
+// RBAC (ROLE-BASED ACCESS CONTROL)
+// ============================================================================
+
+model Role {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @db.VarChar(100) // OWNER, ADMIN, MEMBER, VIEWER
+  description String? @db.Text
+  isSystem    Boolean @default(false) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  permissions RolePermission[]
+  assignments RoleAssignment[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  resource    String  @db.VarChar(100)
+  action      String  @db.VarChar(100)
+  description String? @db.Text
+
+  roles RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(uuid()) @db.Uuid
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RoleAssignment {
+  id           String  @id @default(uuid()) @db.Uuid
+  userId       String  @map("user_id") @db.Uuid
+  roleId       String  @map("role_id") @db.Uuid
+  resourceType String? @map("resource_type") @db.VarChar(100)
+  resourceId   String? @map("resource_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy String?  @map("created_by") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, resourceType, resourceId])
+  @@map("role_assignments")
+  @@index([userId])
+  @@index([resourceType, resourceId])
+}
+
+// ============================================================================
+// PROJECTS & ENVIRONMENTS
+// ============================================================================
 
 model Project {
-  id        String        @id @default(uuid())
-  name      String        @unique
-  type      String?        // Legacy: consider using sourceType instead
-  sourceType String?      // e.g., "registry", "docker-compose", "git", "dockerfile"
-  sourceUrl  String?      // e.g., "ghcr.io/user/repo", "git@github.com:..."
-  status    ProjectStatus @default(INACTIVE)
+  id         String        @id @default(uuid()) @db.Uuid
+  name       String        @unique @db.VarChar(255)
+  teamId     String?       @map("team_id") @db.Uuid
+  type       String?       @db.VarChar(100)
+  sourceType String?       @map("source_type") @db.VarChar(100)
+  sourceUrl  String?       @map("source_url") @db.Text
+  status     ProjectStatus @default(INACTIVE)
 
-  config    Json     @default("{}") /// @zod.custom.use(z.record(z.string(), z.unknown()))
-  metadata  Json     @default("{}") /// @zod.custom.use(z.record(z.string(), z.unknown()))
+  config   Json @default("{}") @db.JsonB
+  metadata Json @default("{}") @db.JsonB
 
-  deletedAt DateTime?     // Soft delete support
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  createdBy String?
-  updatedBy String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
 
-  deployments Deployment[]
-  containers    Container[]
+  team                Team?                 @relation(fields: [teamId], references: [id])
+  deployments         Deployment[]
+  containers          Container[]
+  environments        Environment[]
+  domains             Domain[]
+  environmentVars     EnvironmentVariable[]
+  gitIntegration      GitIntegration?
+  webhooks            Webhook[]
+  buildCaches         BuildCache[]
+  services            Service[]
+  secrets             Secret[]
+  jobs                Job[]
+  images              Image[]
+  alertRules          AlertRule[]
+  alertChannels       AlertChannel[]
+  integrations        Integration[]
+  networkPolicies     NetworkPolicy[]
+  tracingConfig       TracingConfig?
 
+  @@map("projects")
   @@index([name])
+  @@index([teamId])
   @@index([createdAt])
   @@index([status])
   @@index([createdBy])
   @@index([deletedAt])
+  @@index([config(ops: JsonbPathOps)], type: Gin)
+  @@index([metadata(ops: JsonbPathOps)], type: Gin)
 }
 
-model Deployment {
-  id        String           @id @default(uuid())
-  projectId String
-  version   String
-  status    DeploymentStatus
+model Environment {
+  id           String  @id @default(uuid()) @db.Uuid
+  projectId    String  @map("project_id") @db.Uuid
+  name         String  @db.VarChar(100)
+  slug         String  @db.VarChar(100)
+  isProduction Boolean @default(false) @map("is_production")
+  isDefault    Boolean @default(false) @map("is_default")
+  autoDeploy   Boolean @default(false) @map("auto_deploy")
+  branch       String? @db.VarChar(255)
+  domain       String? @db.VarChar(255)
+  subdomain    String? @db.VarChar(255)
 
-  buildStartedAt    DateTime?
-  buildCompletedAt  DateTime?
-  buildImage        String?
-  buildLogs         String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  deployStartedAt   DateTime?
-  deployCompletedAt DateTime?
+  project     Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deployments Deployment[]
+  variables   EnvironmentVariable[]
 
-  error     String?
-
-  parentId  String?
-  parent    Deployment?      @relation("DeploymentChain", fields: [parentId], references: [id])
-  children Deployment[]      @relation("DeploymentChain")
-
-  createdAt DateTime @default(now())
-  createdBy String?
-  updatedBy String?
-
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  containers Container[]
-
+  @@unique([projectId, slug])
+  @@map("environments")
   @@index([projectId])
+}
+
+// ============================================================================
+// CONTAINER REGISTRY & IMAGES
+// ============================================================================
+
+model Registry {
+  id       String       @id @default(uuid()) @db.Uuid
+  name     String       @db.VarChar(255)
+  type     RegistryType
+  url      String       @db.VarChar(500)
+  username String?      @db.VarChar(255)
+
+  passwordSecretId String? @map("password_secret_id") @db.Uuid
+  tokenSecretId    String? @map("token_secret_id") @db.Uuid
+
+  isDefault  Boolean @default(false) @map("is_default")
+  isPublic   Boolean @default(false) @map("is_public")
+  scanOnPush Boolean @default(true) @map("scan_on_push")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  images         Image[]
+  passwordSecret Secret? @relation("RegistryPassword", fields: [passwordSecretId], references: [id])
+  tokenSecret    Secret? @relation("RegistryToken", fields: [tokenSecretId], references: [id])
+
+  @@map("registries")
+  @@index([type])
+  @@index([isDefault])
+}
+
+model Image {
+  id           String      @id @default(uuid()) @db.Uuid
+  registryId   String      @map("registry_id") @db.Uuid
+  projectId    String?     @map("project_id") @db.Uuid
+  repository   String      @db.VarChar(500)
+  tag          String      @db.VarChar(255)
+  digest       String      @db.VarChar(100)
+  fullName     String      @map("full_name") @db.VarChar(1000)
+  size         BigInt
+  architecture String      @db.VarChar(50)
+  os           String      @db.VarChar(50)
+  buildId      String?     @map("build_id") @db.Uuid
+  scanStatus   ScanStatus? @map("scan_status")
+  scanResults  Json?       @map("scan_results") @db.JsonB
+
+  pushedAt     DateTime  @default(now()) @map("pushed_at") @db.Timestamptz
+  lastPulledAt DateTime? @map("last_pulled_at") @db.Timestamptz
+
+  registry        Registry        @relation(fields: [registryId], references: [id], onDelete: Cascade)
+  project         Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  vulnerabilities Vulnerability[]
+
+  @@unique([registryId, repository, tag])
+  @@unique([digest])
+  @@map("images")
+  @@index([projectId])
+  @@index([scanStatus])
+}
+
+model Vulnerability {
+  id           String   @id @default(uuid()) @db.Uuid
+  imageId      String   @map("image_id") @db.Uuid
+  cveId        String?  @map("cve_id") @db.VarChar(50)
+  severity     Severity
+  package      String   @db.VarChar(255)
+  version      String   @db.VarChar(100)
+  fixAvailable Boolean  @default(false) @map("fix_available")
+  fixedVersion String?  @map("fixed_version") @db.VarChar(100)
+  description  String?  @db.Text
+  link         String?  @db.VarChar(500)
+
+  detectedAt DateTime @default(now()) @map("detected_at") @db.Timestamptz
+
+  image Image @relation(fields: [imageId], references: [id], onDelete: Cascade)
+
+  @@map("vulnerabilities")
+  @@index([imageId])
+  @@index([severity])
+  @@index([cveId])
+}
+
+// ============================================================================
+// DEPLOYMENTS
+// ============================================================================
+
+model Deployment {
+  id            String           @id @default(uuid()) @db.Uuid
+  projectId     String           @map("project_id") @db.Uuid
+  environmentId String?          @map("environment_id") @db.Uuid
+  version       Int           @default(0)
+  status        DeploymentStatus
+  strategy      DeploymentStrategy @default(ROLLING)
+
+  buildStartedAt   DateTime? @map("build_started_at") @db.Timestamptz
+  buildCompletedAt DateTime? @map("build_completed_at") @db.Timestamptz
+  buildImage       String?   @map("build_image") @db.VarChar(500)
+
+  deployStartedAt   DateTime? @map("deploy_started_at") @db.Timestamptz
+  deployCompletedAt DateTime? @map("deploy_completed_at") @db.Timestamptz
+
+  // Blue-green specific
+  blueEnvironmentId  String?             @map("blue_environment_id") @db.Uuid
+  greenEnvironmentId String?             @map("green_environment_id") @db.Uuid
+  activeEnvironment  ActiveEnvironment?  @map("active_environment")
+
+  // Canary specific
+  canaryPercentage Int?  @map("canary_percentage")
+  canaryMetrics    Json? @map("canary_metrics") @db.JsonB
+
+  // Rollback
+  canRollback    Boolean   @default(true) @map("can_rollback")
+  rolledBackAt   DateTime? @map("rolled_back_at") @db.Timestamptz
+  rollbackReason String?   @map("rollback_reason") @db.Text
+
+  error String? @db.Text
+
+  parentId  String?   @map("parent_id") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  parent      Deployment?         @relation("DeploymentChain", fields: [parentId], references: [id])
+  children    Deployment[]        @relation("DeploymentChain")
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment Environment?        @relation(fields: [environmentId], references: [id])
+  containers  Container[]
+  buildLogs   BuildLog[]
+  urls        DeploymentUrl[]
+  gitCommit   GitCommit?
+  metrics     DeploymentMetrics[]
+  comments    DeploymentComment[]
+
+  @@unique([projectId, version])
+  @@map("deployments")
+  @@index([projectId])
+  @@index([environmentId])
   @@index([status])
   @@index([createdAt])
   @@index([createdBy])
   @@index([parentId])
-  @@unique([projectId, version])
+  @@index([deletedAt])
 }
 
-model PortMapping {
-  id             String        @id @default(uuid())
-  containerId    String
+model DeploymentUrl {
+  id           String  @id @default(uuid()) @db.Uuid
+  deploymentId String  @map("deployment_id") @db.Uuid
+  url          String  @unique @db.VarChar(500)
+  isPreview    Boolean @default(true) @map("is_preview")
 
-  containerPort  Int
-  hostPort       Int?
-  protocol       PortProtocol  @default(TCP)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  container      Container     @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  deployment Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 
-  @@index([containerId])
-  @@index([hostPort, protocol])
+  @@map("deployment_urls")
+  @@index([deploymentId])
 }
 
-model VolumeMapping {
-  id          String       @id @default(uuid())
-  containerId String
+model DeploymentMetrics {
+  id           String @id @default(uuid()) @db.Uuid
+  deploymentId String @map("deployment_id") @db.Uuid
 
-  source      String
-  target      String
-  mode        VolumeMode   @default(RW)
+  buildTime    Int?    @map("build_time")
+  deployTime   Int?    @map("deploy_time")
+  bundleSize   BigInt? @map("bundle_size")
 
-  container   Container    @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  requestCount BigInt @default(0) @map("request_count")
+  errorCount   BigInt @default(0) @map("error_count")
+  bandwidth    BigInt @default(0)
 
-  @@index([containerId])
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz
+
+  deployment Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@map("deployment_metrics")
+  @@index([deploymentId, recordedAt])
 }
 
-model HealthCheckConfig {
-  id          String   @id @default(uuid())
-  containerId String   @unique
+model DeploymentComment {
+  id           String @id @default(uuid()) @db.Uuid
+  deploymentId String @map("deployment_id") @db.Uuid
+  userId       String @map("user_id") @db.Uuid
+  content      String @db.Text
 
-  test        String   // e.g., "curl -f http://localhost:3000/health"
-  interval    Int      @default(30)  // seconds
-  timeout     Int      @default(5)   // seconds
-  retries     Int      @default(3)   // failures before unhealthy
-  startPeriod Int      @default(0)   // grace period
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  deployment Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 
-  container   Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
-
-  @@index([containerId])
+  @@map("deployment_comments")
+  @@index([deploymentId])
+  @@index([userId])
 }
 
-model NetworkAttachment {
-  id          String   @id @default(uuid())
-  containerId String
-
-  networkName String   // e.g., "bridge", "mynetwork"
-  ipAddress   String?  // assigned IP
-  macAddress  String?  // assigned MAC
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  container   Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
-
-  @@index([containerId])
-  @@index([networkName])
-}
+// ============================================================================
+// CONTAINERS
+// ============================================================================
 
 model Container {
-  id           String   @id @default(uuid())
-  projectId    String
-  deploymentId String
+  id              String          @id @default(uuid()) @db.Uuid
+  projectId       String          @map("project_id") @db.Uuid
+  version         Int             @default(0)
+  deploymentId    String          @map("deployment_id") @db.Uuid
+  name            String?         @db.VarChar(255)
+  containerId     String          @unique @map("container_id") @db.VarChar(100)
+  image           String          @db.VarChar(500)
+  status          ContainerStatus @default(CREATING)
+  containerNumber Int             @default(1) @map("container_number")
 
-  name         String?   // Human-readable container name (e.g., "app-container-1")
-  containerId  String   @unique // Docker container ID
-  image        String
-  status       ContainerStatus @default(CREATING)
-  containerNumber Int     @default(1)  // Instance number for replicas (1, 2, 3...)
+  config Json  @default("{}") @db.JsonB
+  env    Json? @db.JsonB
 
-  config       Json     @default("{}")
-  ports        PortMapping[]
-  volumes      VolumeMapping[]
-  env          Json?
+  healthStatus      HealthStatus? @map("health_status")
+  healthChecks      Int           @default(0) @map("health_checks")
+  healthFails       Int           @default(0) @map("health_fails")
+  lastHealthCheckAt DateTime?     @map("last_health_check_at") @db.Timestamptz
 
-  healthStatus HealthStatus?
-  healthChecks Int             @default(0)
-  healthFails  Int             @default(0)
-  lastHealthCheckAt DateTime?
+  replacedById String? @map("replaced_by_id") @db.Uuid
 
-  replacedById String?
-  replacedBy   Container? @relation("ContainerReplacement", fields: [replacedById], references: [id])
-  replaces     Container[] @relation("ContainerReplacement")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  startedAt DateTime? @map("started_at") @db.Timestamptz
+  stoppedAt DateTime? @map("stopped_at") @db.Timestamptz
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  startedAt    DateTime?
-  stoppedAt    DateTime?
-  deletedAt    DateTime? // Soft delete support
-  createdBy    String?
-  updatedBy    String?
-
-  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
-  healthCheckConfig HealthCheckConfig?
+  replacedBy         Container?          @relation("ContainerReplacement", fields: [replacedById], references: [id])
+  replaces           Container[]         @relation("ContainerReplacement")
+  project            Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deployment         Deployment          @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  ports              PortMapping[]
+  volumes            VolumeMapping[]
+  healthCheckConfig  HealthCheckConfig?
   networkAttachments NetworkAttachment[]
+  resourceLimit      ResourceLimit?
 
+  @@map("containers")
   @@index([projectId])
   @@index([deploymentId])
   @@index([containerId])
   @@index([name])
   @@index([status])
   @@index([createdBy])
+  @@index([config(ops: JsonbPathOps)], type: Gin)
+  @@index([env(ops: JsonbPathOps)], type: Gin)
+}
+
+model PortMapping {
+  id            String       @id @default(uuid()) @db.Uuid
+  containerId   String       @map("container_id") @db.Uuid
+  containerPort Int          @map("container_port")
+  hostPort      Int?         @map("host_port")
+  protocol      PortProtocol @default(TCP)
+
+  container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@map("port_mappings")
+  @@index([containerId])
+  @@index([hostPort, protocol])
+}
+
+model VolumeMapping {
+  id          String     @id @default(uuid()) @db.Uuid
+  containerId String     @map("container_id") @db.Uuid
+  source      String     @db.VarChar(500)
+  target      String     @db.VarChar(500)
+  mode        VolumeMode @default(RW)
+
+  container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@map("volume_mappings")
+  @@index([containerId])
+}
+
+model HealthCheckConfig {
+  id          String @id @default(uuid()) @db.Uuid
+  containerId String @unique @map("container_id") @db.Uuid
+  test        String @db.VarChar(500)
+  interval    Int    @default(30)
+  timeout     Int    @default(5)
+  retries     Int    @default(3)
+  startPeriod Int    @default(0) @map("start_period")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@map("health_check_configs")
+  @@index([containerId])
+}
+
+model NetworkAttachment {
+  id          String  @id @default(uuid()) @db.Uuid
+  containerId String  @map("container_id") @db.Uuid
+  networkName String  @map("network_name") @db.VarChar(255)
+  ipAddress   String? @map("ip_address") @db.VarChar(45)
+  macAddress  String? @map("mac_address") @db.VarChar(17)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@map("network_attachments")
+  @@index([containerId])
+  @@index([networkName])
+}
+
+model ResourceLimit {
+  id             String  @id @default(uuid()) @db.Uuid
+  containerId    String  @unique @map("container_id") @db.Uuid
+  cpuRequest     Float?  @map("cpu_request")
+  memoryRequest  BigInt? @map("memory_request")
+  cpuLimit       Float?  @map("cpu_limit")
+  memoryLimit    BigInt? @map("memory_limit")
+  storageLimit   BigInt? @map("storage_limit")
+  bandwidthLimit BigInt? @map("bandwidth_limit")
+
+  container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+
+  @@map("resource_limits")
+}
+
+// ============================================================================
+// SERVICES (Database, Cache, Queue, etc.)
+// ============================================================================
+
+model Service {
+  id        String        @id @default(uuid()) @db.Uuid
+  projectId String        @map("project_id") @db.Uuid
+  name      String        @db.VarChar(255)
+  type      ServiceType
+  engine    String?       @db.VarChar(100)
+  version   Int           @default(0)
+  status    ServiceStatus @default(CREATING)
+
+  config Json @default("{}") @db.JsonB
+
+  connectionHost     String? @map("connection_host") @db.VarChar(255)
+  connectionPort     Int?    @map("connection_port")
+  connectionUrl      String? @map("connection_url") @db.Text
+  connectionUsername String? @map("connection_username") @db.VarChar(255)
+  connectionPassword String? @map("connection_password") @db.Text
+  connectionDatabase String? @map("connection_database") @db.VarChar(255)
+
+  resourcesAllocated Json? @map("resources_allocated") @db.JsonB
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy String?   @map("created_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  backups ServiceBackup[]
+
+  @@map("services")
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@index([type])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model ServiceBackup {
+  id        String       @id @default(uuid()) @db.Uuid
+  serviceId String       @map("service_id") @db.Uuid
+  type      BackupType
+  path      String       @db.VarChar(500)
+  size      BigInt
+  status    BackupStatus
+
+  startedAt   DateTime? @map("started_at") @db.Timestamptz
+  completedAt DateTime? @map("completed_at") @db.Timestamptz
+
+  metadata Json?   @db.JsonB
+  error    String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdBy String?  @map("created_by") @db.Uuid
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@map("service_backups")
+  @@index([serviceId, createdAt])
+  @@index([status])
+}
+
+// ============================================================================
+// SECRETS & ENVIRONMENT VARIABLES
+// ============================================================================
+
+model Secret {
+  id             String  @id @default(uuid()) @db.Uuid
+  projectId      String? @map("project_id") @db.Uuid
+  key            String  @db.VarChar(255)
+  encryptedValue String  @map("encrypted_value") @db.Text
+  encryptionKeyId String @map("encryption_key_id") @db.VarChar(100)
+  description    String? @db.Text
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  lastAccessedAt DateTime? @map("last_accessed_at") @db.Timestamptz
+  accessCount    Int       @default(0) @map("access_count")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  project                    Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  registriesUsingAsPassword  Registry[]  @relation("RegistryPassword")
+  registriesUsingAsToken     Registry[]  @relation("RegistryToken")
+
+  @@unique([projectId, key])
+  @@map("secrets")
+  @@index([projectId])
+  @@index([key])
+  @@index([createdBy])
+}
+
+model EnvironmentVariable {
+  id            String  @id @default(uuid()) @db.Uuid
+  projectId     String  @map("project_id") @db.Uuid
+  environmentId String? @map("environment_id") @db.Uuid
+  key           String  @db.VarChar(255)
+  value         String  @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment Environment? @relation(fields: [environmentId], references: [id])
+
+  @@unique([projectId, environmentId, key])
+  @@map("environment_variables")
+  @@index([projectId])
+  @@index([environmentId])
+}
+
+// ============================================================================
+// OBSERVABILITY (LOGS, METRICS, TRACING)
+// ============================================================================
+
+model Log {
+  id         String     @default(uuid()) @db.Uuid
+  timestamp  DateTime   @default(now()) @db.Timestamptz
+  sourceType SourceType @map("source_type")
+  sourceId   String     @map("source_id") @db.Uuid
+  sourceName String     @map("source_name") @db.VarChar(255)
+  level      LogLevel
+  message    String     @db.Text
+
+  context Json? @db.JsonB
+
+  traceId String? @map("trace_id") @db.VarChar(100)
+  spanId  String? @map("span_id") @db.VarChar(100)
+
+  projectId    String? @map("project_id") @db.Uuid
+  deploymentId String? @map("deployment_id") @db.Uuid
+  containerId  String? @map("container_id") @db.Uuid
+  serviceId    String? @map("service_id") @db.Uuid
+
+  @@map("logs")
+  @@id([id, timestamp])
+  @@index([timestamp])
+  @@index([sourceType, sourceId])
+  @@index([level])
+  @@index([traceId])
+  @@index([projectId, timestamp])
+}
+
+model BuildLog {
+  id           String   @default(uuid()) @db.Uuid
+  deploymentId String   @map("deployment_id") @db.Uuid
+  timestamp    DateTime @default(now()) @db.Timestamptz
+  message      String   @db.Text
+  level        LogLevel @default(INFO)
+
+  deployment Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@map("build_logs")
+  @@id([id, timestamp])
+  @@index([deploymentId, timestamp])
+  @@index([timestamp])
+}
+
+model Metric {
+  id         String     @default(uuid()) @db.Uuid
+  timestamp  DateTime   @default(now()) @db.Timestamptz
+  sourceType SourceType @map("source_type")
+  sourceId   String     @map("source_id") @db.Uuid
+  sourceName String     @map("source_name") @db.VarChar(255)
+  metric     String     @db.VarChar(255)
+  value      Float
+  unit       String?    @db.VarChar(50)
+
+  labels Json? @db.JsonB
+
+  projectId    String? @map("project_id") @db.Uuid
+  containerId  String? @map("container_id") @db.Uuid
+  serviceId    String? @map("service_id") @db.Uuid
+  deploymentId String? @map("deployment_id") @db.Uuid
+
+  @@map("metrics")
+  @@id([id, timestamp])
+  @@index([timestamp])
+  @@index([sourceType, sourceId])
+  @@index([metric])
+  @@index([projectId, timestamp])
+}
+
+model TracingConfig {
+  id             String         @id @default(uuid()) @db.Uuid
+  projectId      String         @unique @map("project_id") @db.Uuid
+  enabled        Boolean        @default(false)
+  backend        TracingBackend
+  endpoint       String         @db.VarChar(500)
+  sampleRate     Float          @default(0.1) @map("sample_rate")
+  captureHeaders String[]       @default([]) @map("capture_headers")
+  autoInstrument Boolean        @default(true) @map("auto_instrument")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("tracing_configs")
+}
+
+// ============================================================================
+// ALERTING
+// ============================================================================
+
+model AlertRule {
+  id          String        @id @default(uuid()) @db.Uuid
+  projectId   String        @map("project_id") @db.Uuid
+  name        String        @db.VarChar(255)
+  description String?       @db.Text
+  metric      String        @db.VarChar(255)
+  operator    AlertOperator
+  threshold   Float
+  duration    Int
+  severity    AlertSeverity
+  sourceType  SourceType?   @map("source_type")
+  sourceId    String?       @map("source_id") @db.Uuid
+  enabled     Boolean       @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy String?  @map("created_by") @db.Uuid
+
+  project  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  alerts   Alert[]
+  channels AlertChannelRule[]
+
+  @@map("alert_rules")
+  @@index([projectId])
+  @@index([enabled])
+}
+
+model Alert {
+  id       String        @id @default(uuid()) @db.Uuid
+  ruleId   String        @map("rule_id") @db.Uuid
+  status   AlertStatus
+  severity AlertSeverity
+  value    Float
+  message  String        @db.Text
+
+  firedAt    DateTime  @default(now()) @map("fired_at") @db.Timestamptz
+  resolvedAt DateTime? @map("resolved_at") @db.Timestamptz
+
+  acknowledgedAt DateTime? @map("acknowledged_at") @db.Timestamptz
+  acknowledgedBy String?   @map("acknowledged_by") @db.Uuid
+
+  rule          AlertRule           @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  notifications AlertNotification[]
+
+  @@map("alerts")
+  @@index([ruleId])
+  @@index([status])
+  @@index([firedAt])
+}
+
+model AlertChannel {
+  id        String      @id @default(uuid()) @db.Uuid
+  projectId String?     @map("project_id") @db.Uuid
+  name      String      @db.VarChar(255)
+  type      ChannelType
+  config    Json        @db.JsonB
+  enabled   Boolean     @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  project       Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rules         AlertChannelRule[]
+  notifications AlertNotification[]
+
+  @@map("alert_channels")
+  @@index([projectId])
+  @@index([type])
+}
+
+model AlertChannelRule {
+  id         String          @id @default(uuid()) @db.Uuid
+  ruleId     String          @map("rule_id") @db.Uuid
+  channelId  String          @map("channel_id") @db.Uuid
+  severities AlertSeverity[]
+
+  rule    AlertRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  channel AlertChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, channelId])
+  @@map("alert_channel_rules")
+}
+
+model AlertNotification {
+  id        String             @default(uuid()) @db.Uuid
+  timestamp DateTime           @default(now()) @db.Timestamptz
+  alertId   String             @map("alert_id") @db.Uuid
+  channelId String             @map("channel_id") @db.Uuid
+  status    NotificationStatus
+
+  sentAt DateTime? @map("sent_at") @db.Timestamptz
+  error  String?   @db.Text
+
+  alert   Alert        @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  channel AlertChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@map("alert_notifications")
+  @@id([id, timestamp])
+  @@index([alertId])
+  @@index([status])
+}
+
+// ============================================================================
+// JOBS & AUTOMATION
+// ============================================================================
+
+model Job {
+  id          String     @id @default(uuid()) @db.Uuid
+  projectId   String     @map("project_id") @db.Uuid
+  name        String     @db.VarChar(255)
+  description String?    @db.Text
+  command     String     @db.Text
+  schedule    String?    @db.VarChar(100)
+  status      JobStatus  @default(IDLE)
+  enabled     Boolean    @default(true)
+
+  lastRunAt     DateTime?     @map("last_run_at") @db.Timestamptz
+  lastRunStatus JobRunStatus? @map("last_run_status")
+  nextRunAt     DateTime?     @map("next_run_at") @db.Timestamptz
+
+  timeout    Int? @default(3600)
+  retries    Int  @default(0)
+  retryDelay Int  @default(60) @map("retry_delay")
+
+  env Json? @db.JsonB
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdBy String?   @map("created_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  runs    JobRun[]
+
+  @@map("jobs")
+  @@index([projectId])
+  @@index([schedule])
+  @@index([nextRunAt])
+  @@index([enabled])
+  @@index([env(ops: JsonbPathOps)], type: Gin)
+}
+
+model JobRun {
+  id          String       @id @default(uuid()) @db.Uuid
+  jobId       String       @map("job_id") @db.Uuid
+  status      JobRunStatus @default(RUNNING)
+  startedAt   DateTime     @default(now()) @map("started_at") @db.Timestamptz
+  completedAt DateTime?    @map("completed_at") @db.Timestamptz
+  output      String?      @db.Text
+  error       String?      @db.Text
+  exitCode    Int?         @map("exit_code")
+  triggeredBy TriggerType  @map("triggered_by")
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("job_runs")
+  @@index([jobId, startedAt])
+  @@index([status])
+}
+
+// ============================================================================
+// DOMAINS & NETWORKING
+// ============================================================================
+
+model Domain {
+  id                String    @id @default(uuid()) @db.Uuid
+  projectId         String    @map("project_id") @db.Uuid
+  domain            String    @unique @db.VarChar(255)
+  verified          Boolean   @default(false)
+  verificationToken String?   @map("verification_token") @db.VarChar(100)
+  isPrimary         Boolean   @default(false) @map("is_primary")
+  sslStatus         SslStatus @default(PENDING) @map("ssl_status")
+  sslIssuedAt       DateTime? @map("ssl_issued_at") @db.Timestamptz
+  sslExpiresAt      DateTime? @map("ssl_expires_at") @db.Timestamptz
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("domains")
+  @@index([projectId])
+  @@index([domain])
+  @@index([verified])
+}
+
+model NetworkPolicy {
+  id             String       @id @default(uuid()) @db.Uuid
+  projectId      String       @map("project_id") @db.Uuid
+  name           String       @db.VarChar(255)
+  description    String?      @db.Text
+  sourceSelector Json         @map("source_selector") @db.JsonB
+  targetSelector Json         @map("target_selector") @db.JsonB
+  action         PolicyAction
+  protocol       String?      @db.VarChar(50)
+  ports          Int[]
+  enabled        Boolean      @default(true)
+  priority       Int          @default(100)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("network_policies")
+  @@index([projectId])
+  @@index([priority])
+}
+
+// ============================================================================
+// GIT INTEGRATION
+// ============================================================================
+
+model GitIntegration {
+  id             String      @id @default(uuid()) @db.Uuid
+  projectId      String      @unique @map("project_id") @db.Uuid
+  provider       GitProvider
+  repository     String      @db.VarChar(255)
+  branch         String      @default("main") @db.VarChar(255)
+  installationId String?     @map("installation_id") @db.VarChar(100)
+  autoDeploy     Boolean     @default(true) @map("auto_deploy")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("git_integrations")
+  @@index([repository])
+}
+
+model GitCommit {
+  id           String @id @default(uuid()) @db.Uuid
+  deploymentId String @unique @map("deployment_id") @db.Uuid
+  sha          String @db.VarChar(40)
+  message      String @db.Text
+  author       String @db.VarChar(255)
+  branch       String @db.VarChar(255)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  deployment Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@map("git_commits")
+  @@index([sha])
+  @@index([branch])
+}
+
+// ============================================================================
+// WEBHOOKS
+// ============================================================================
+
+model Webhook {
+  id        String         @id @default(uuid()) @db.Uuid
+  projectId String         @map("project_id") @db.Uuid
+  url       String         @db.VarChar(500)
+  secret    String         @db.VarChar(255)
+  events    WebhookEvent[]
+  enabled   Boolean        @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@map("webhooks")
+  @@index([projectId])
+}
+
+model WebhookDelivery {
+  id         String        @default(uuid()) @db.Uuid
+  webhookId  String        @map("webhook_id") @db.Uuid
+  event      WebhookEvent
+  payload    Json          @db.JsonB
+  statusCode Int?          @map("status_code")
+  response   String?       @db.Text
+  error      String?       @db.Text
+
+  deliveredAt DateTime? @map("delivered_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@map("webhook_deliveries")
+  @@id([id, createdAt])
+  @@index([webhookId, createdAt])
+}
+
+// ============================================================================
+// INTEGRATIONS
+// ============================================================================
+
+model Integration {
+  id         String          @id @default(uuid()) @db.Uuid
+  projectId  String?         @map("project_id") @db.Uuid
+  type       IntegrationType
+  name       String          @db.VarChar(255)
+  config     Json            @db.JsonB
+  enabled    Boolean         @default(true)
+
+  accessToken    String?   @map("access_token") @db.Text
+  refreshToken   String?   @map("refresh_token") @db.Text
+  tokenExpiresAt DateTime? @map("token_expires_at") @db.Timestamptz
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("integrations")
+  @@index([projectId])
+  @@index([type])
+  @@index([config(ops: JsonbPathOps)], type: Gin)
+}
+
+// ============================================================================
+// BUILD CACHE
+// ============================================================================
+
+model BuildCache {
+  id         String @id @default(uuid()) @db.Uuid
+  projectId  String @map("project_id") @db.Uuid
+  key        String @db.VarChar(255)
+  path       String @db.VarChar(500)
+  size       BigInt
+
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz
+  lastUsedAt DateTime @default(now()) @map("last_used_at") @db.Timestamptz
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, key])
+  @@map("build_caches")
+  @@index([expiresAt])
+  @@index([lastUsedAt])
+  @@index([deletedAt])
+}
+
+// ============================================================================
+// API KEYS
+// ============================================================================
+
+model ApiKey {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  projectId String?  @map("project_id") @db.Uuid
+  name      String   @db.VarChar(255)
+  keyHash   String   @unique @map("key_hash") @db.VarChar(255)
+  prefix    String   @db.VarChar(20)
+  scopes    String[] @default([])
+  rateLimit Int?     @map("rate_limit")
+
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz
+  usageCount BigInt    @default(0) @map("usage_count")
+
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+  @@index([userId])
+  @@index([projectId])
+  @@index([prefix])
+}
+
+// ============================================================================
+// AUDIT LOG
+// ============================================================================
+
+model AuditLog {
+  id           String  @default(uuid()) @db.Uuid
+  userId       String? @map("user_id") @db.Uuid
+  userEmail    String? @map("user_email") @db.VarChar(255)
+  ipAddress    String? @map("ip_address") @db.VarChar(45)
+  userAgent    String? @map("user_agent") @db.Text
+  action       String  @db.VarChar(100)
+  resourceType String  @map("resource_type") @db.VarChar(100)
+  resourceId   String? @map("resource_id") @db.Uuid
+
+  changes  Json? @db.JsonB
+  metadata Json? @db.JsonB
+
+  timestamp DateTime @default(now()) @db.Timestamptz
+
+  projectId String? @map("project_id") @db.Uuid
+  teamId    String? @map("team_id") @db.Uuid
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+  @@id([id, timestamp])
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType, resourceId])
+  @@index([projectId])
+  @@index([timestamp])
 }

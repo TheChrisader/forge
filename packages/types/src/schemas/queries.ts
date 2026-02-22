@@ -3,12 +3,12 @@ import {
   IdSchema,
   LogLevelSchema,
   PaginationParamsSchema,
+  ProjectStatusSchema,
   ServiceTypeSchema,
   SortOrderSchema,
   SourceTypeSchema,
   TimestampSchema,
 } from "./common";
-import { ProjectStatusSchema } from "./entities";
 
 // =============================================================================
 // Log Query Schemas

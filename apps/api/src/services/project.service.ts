@@ -4,7 +4,7 @@ import {
   type Project,
   type CreateProjectRequest,
   type UpdateProjectRequest,
-  type DbProjectStatus,
+  type ProjectStatus,
   type ProjectWithRelations,
   ProjectWithRelationsSchema,
   CreateProjectSchema,
@@ -65,14 +65,14 @@ export class ProjectService implements IProjectService {
   async list(filters?: {
     page?: number;
     limit?: number;
-    status?: DbProjectStatus[];
+    status?: ProjectStatus[];
   }): Promise<{ projects: Project[]; total: number }> {
     const page = Math.max(1, filters?.page ?? 1);
     const limit = Math.min(100, Math.max(1, filters?.limit ?? 10));
     const skip = (page - 1) * limit;
 
     const where: {
-      status?: { in: DbProjectStatus[] };
+      status?: { in: ProjectStatus[] };
     } = {};
 
     const result = ProjectListQuerySchema.safeParse(filters?.status);
@@ -128,7 +128,7 @@ export class ProjectService implements IProjectService {
       throw new ValidationError(result.error.message);
     }
 
-    const { name, type, config, metadata } = result.data;
+    const { name, type, sourceType, sourceUrl, config, metadata } = result.data;
 
     if (config?.gitUrl && typeof config.gitUrl === "string") {
       if (!isValidGitUrl(config.gitUrl)) {
@@ -143,6 +143,8 @@ export class ProjectService implements IProjectService {
         data: {
           name,
           type,
+          sourceType,
+          sourceUrl,
           config: config as never,
           metadata: (metadata ?? {}) as never,
         },
