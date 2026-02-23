@@ -93,7 +93,7 @@ export default [
   // Type-aware linting for apps/web
   ...tseslint.configs.recommendedTypeChecked.map((config) => ({
     ...config,
-    files: ["apps/web/**/*.{ts,tsx}"],
+    files: ["apps/web/src/**/*.{ts,tsx}"],
     languageOptions: {
       ...config.languageOptions,
       parserOptions: {

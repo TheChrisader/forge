@@ -93,7 +93,7 @@ export class ApiClient {
       headers.set("Authorization", `Bearer ${token}`);
     }
 
-    let finalFetchOptions: RequestInit = {
+    const finalFetchOptions: RequestInit = {
       ...fetchOptions,
       headers,
     };
@@ -139,8 +139,8 @@ export class ApiClient {
         return {} as T;
       }
 
-      const data = await finalResponse.json();
-      return data as T;
+      const data = (await finalResponse.json()) as T;
+      return data;
     } catch (error) {
       clearTimeout(timeoutId);
 

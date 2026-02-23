@@ -1,4 +1,4 @@
-import { useParams } from "@tanstack/react-router";
+import { useParams, useRouter } from "@tanstack/react-router";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -18,88 +18,66 @@ import { Button } from "@/shared/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/components/ui/tabs";
 import { Badge } from "@/shared/components/ui/badge";
 import { StatusIndicator } from "@/shared/components/ui/status-indicator";
-import {
-  ItemGroup,
-  Item,
-  ItemMedia,
-  ItemContent,
-  ItemTitle,
-  ItemDescription,
-  ItemActions,
-} from "@/shared/components/ui/item";
-import { Avatar, AvatarFallback, AvatarGroup } from "@/shared/components/ui/avatar";
-import { ServerIcon, RocketIcon, PlusIcon } from "lucide-react";
-import type { ServiceStatus } from "@forge/types";
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/components/ui/empty";
+import { LoaderIcon } from "lucide-react";
+import { useProject } from "@/core/api/hooks/useProjects";
+import { useProjectDeployments } from "@/core/api/hooks/useDeployments";
+import { DeploymentSection } from "./components/DeploymentSection";
+import { mapProjectStatusToServiceStatus } from "@/shared/lib/utils";
 
-const mockProject = {
-  id: "forge-web",
-  name: "forge-web",
-  description: "Main web application for the Forge platform",
-  status: "RUNNING" as ServiceStatus,
-  framework: "React",
-  repository: "github.com/forge/forge-web",
-  team: ["JD", "SK", "MR"],
-  createdAt: "Jan 15, 2024",
-  lastDeployed: "2 hours ago",
-};
+function formatTimestamp(timestamp: Date | string | null | undefined): string {
+  if (!timestamp) return "Never";
 
-const mockServices = [
-  {
-    id: "svc-1",
-    name: "web-app",
-    description: "Main web application",
-    status: "RUNNING" as ServiceStatus,
-    containers: 3,
-  },
-  {
-    id: "svc-2",
-    name: "admin-dashboard",
-    description: "Admin interface",
-    status: "RUNNING" as ServiceStatus,
-    containers: 2,
-  },
-  {
-    id: "svc-3",
-    name: "public-site",
-    description: "Public marketing site",
-    status: "RUNNING" as ServiceStatus,
-    containers: 2,
-  },
-  {
-    id: "svc-4",
-    name: "api-proxy",
-    description: "API proxy service",
-    status: "STOPPED" as ServiceStatus,
-    containers: 0,
-  },
-];
+  const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
 
-const mockDeployments = [
-  {
-    id: "dep-1",
-    version: "v2.1.0",
-    status: "success" as ServiceStatus,
-    timestamp: "2 hours ago",
-    duration: "2m 34s",
-  },
-  {
-    id: "dep-2",
-    version: "v2.0.9",
-    status: "success" as ServiceStatus,
-    timestamp: "1 day ago",
-    duration: "2m 15s",
-  },
-  {
-    id: "dep-3",
-    version: "v2.0.8",
-    status: "failed" as ServiceStatus,
-    timestamp: "2 days ago",
-    duration: "1m 45s",
-  },
-];
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString();
+}
 
 export function ProjectDetailPage(): React.ReactElement {
   const { projectId } = useParams({ from: "/projects/$projectId" });
+  const router = useRouter();
+
+  const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
+
+  const { data: deployments = [], isLoading: deploymentsLoading } =
+    useProjectDeployments(projectId);
+
+  if (projectLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <LoaderIcon className="h-5 w-5 animate-spin" />
+          <span>Loading project...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (projectError || !project) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-destructive">
+          {projectError ? "Failed to load project" : "Project not found"}
+        </div>
+      </div>
+    );
+  }
+
+  const framework = (project.config as Record<string, unknown> | undefined)?.framework as
+    | string
+    | undefined;
+  const repository = project.sourceUrl || "No repository configured";
+  const createdAt = formatTimestamp(project.createdAt);
+  const updatedAt = formatTimestamp(project.updatedAt);
+  const description = (project.metadata as Record<string, unknown> | undefined)?.description as
+    | string
+    | undefined;
 
   return (
     <div className="space-y-6">
@@ -110,7 +88,7 @@ export function ProjectDetailPage(): React.ReactElement {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{projectId}</BreadcrumbPage>
+            <BreadcrumbPage>{project.name}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -120,33 +98,35 @@ export function ProjectDetailPage(): React.ReactElement {
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <CardTitle className="text-2xl">{mockProject.name}</CardTitle>
-                <StatusIndicator status={mockProject.status} size="sm" />
+                <CardTitle className="text-2xl">{project.name}</CardTitle>
+                <StatusIndicator
+                  status={mapProjectStatusToServiceStatus(project.status)}
+                  size="sm"
+                />
+                {framework && <Badge variant="outline">{framework}</Badge>}
               </div>
-              <CardDescription className="text-base">{mockProject.description}</CardDescription>
+              <CardDescription className="text-base">
+                {description || "No description"}
+              </CardDescription>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>Framework: {mockProject.framework}</span>
-                <span>•</span>
-                <span>Created {mockProject.createdAt}</span>
-                <span>•</span>
-                <span>Last deployed {mockProject.lastDeployed}</span>
+                {framework && <span>Framework: {framework}</span>}
+                {repository !== "No repository configured" && (
+                  <>
+                    <span>•</span>
+                    <span className="font-mono">{repository}</span>
+                  </>
+                )}
               </div>
-            </div>
-            <div className="flex flex-col items-end gap-3">
-              <AvatarGroup>
-                {mockProject.team.map((member, idx) => (
-                  <Avatar key={idx} size="sm">
-                    <AvatarFallback>{member}</AvatarFallback>
-                  </Avatar>
-                ))}
-              </AvatarGroup>
-              <Badge variant="outline">Production</Badge>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span>Created {createdAt}</span>
+                {updatedAt !== "Never" && <span>• Updated {updatedAt}</span>}
+              </div>
             </div>
           </div>
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue="deployments">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
@@ -158,101 +138,62 @@ export function ProjectDetailPage(): React.ReactElement {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             <Card>
               <CardHeader>
-                <CardDescription>Total Services</CardDescription>
-                <CardTitle className="text-3xl">{mockServices.length}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardDescription>Running</CardDescription>
-                <CardTitle className="text-3xl">
-                  {mockServices.filter((s) => s.status === "RUNNING").length}
+                <CardDescription>Status</CardDescription>
+                <CardTitle className="text-3xl capitalize">
+                  {project.status.toLowerCase()}
                 </CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader>
-                <CardDescription>Total Deployments</CardDescription>
-                <CardTitle className="text-3xl">47</CardTitle>
+                <CardDescription>Deployments</CardDescription>
+                <CardTitle className="text-3xl">{deployments.length}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Framework</CardDescription>
+                <CardTitle className="text-3xl">{framework || "Unknown"}</CardTitle>
               </CardHeader>
             </Card>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Repository</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">{mockProject.repository}</p>
-            </CardContent>
-          </Card>
+          {repository !== "No repository configured" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Repository</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="font-mono text-sm">{repository}</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="services">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Services</CardTitle>
-                <Button variant="default" size="sm">
-                  <PlusIcon />
-                  Add Service
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ItemGroup>
-                {mockServices.map((service) => (
-                  <Item key={service.id}>
-                    <ItemMedia variant="icon">
-                      <ServerIcon />
-                    </ItemMedia>
-                    <ItemContent>
-                      <ItemTitle>{service.name}</ItemTitle>
-                      <ItemDescription>{service.description}</ItemDescription>
-                    </ItemContent>
-                    <ItemActions>
-                      <StatusIndicator status={service.status} size="sm" />
-                      <span className="text-sm text-muted-foreground">
-                        {service.containers} {service.containers === 1 ? "container" : "containers"}
-                      </span>
-                    </ItemActions>
-                  </Item>
-                ))}
-              </ItemGroup>
-            </CardContent>
-          </Card>
+          <Empty>
+            <EmptyHeader>
+              <EmptyTitle>No services configured</EmptyTitle>
+              <EmptyDescription>
+                Services will be created when you deploy your project
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </TabsContent>
 
         <TabsContent value="deployments">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Recent Deployments</CardTitle>
-                <Button variant="outline" size="sm">
-                  View All
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ItemGroup>
-                {mockDeployments.map((deployment) => (
-                  <Item key={deployment.id}>
-                    <ItemMedia variant="icon">
-                      <RocketIcon />
-                    </ItemMedia>
-                    <ItemContent>
-                      <ItemTitle>{deployment.version}</ItemTitle>
-                      <ItemDescription>{deployment.timestamp}</ItemDescription>
-                    </ItemContent>
-                    <ItemActions>
-                      <StatusIndicator status={deployment.status} size="sm" />
-                      <span className="text-sm text-muted-foreground">{deployment.duration}</span>
-                    </ItemActions>
-                  </Item>
-                ))}
-              </ItemGroup>
-            </CardContent>
-          </Card>
+          {deploymentsLoading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <LoaderIcon className="h-5 w-5 animate-spin" />
+                  <span>Loading deployments...</span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <DeploymentSection project={project} deployments={deployments} />
+          )}
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
@@ -263,17 +204,47 @@ export function ProjectDetailPage(): React.ReactElement {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
+                <label className="text-sm font-medium">Project ID</label>
+                <p className="text-sm text-muted-foreground font-mono">{project.id}</p>
+              </div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Project Name</label>
-                <p className="text-sm text-muted-foreground">{mockProject.name}</p>
+                <p className="text-sm text-muted-foreground">{project.name}</p>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Repository</label>
-                <p className="text-sm text-muted-foreground">{mockProject.repository}</p>
+                <label className="text-sm font-medium">Status</label>
+                <p className="text-sm text-muted-foreground capitalize">
+                  {project.status.toLowerCase()}
+                </p>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Framework</label>
-                <p className="text-sm text-muted-foreground">{mockProject.framework}</p>
-              </div>
+              {repository !== "No repository configured" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Repository</label>
+                  <p className="text-sm text-muted-foreground font-mono">{repository}</p>
+                </div>
+              )}
+              {framework && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Framework</label>
+                  <p className="text-sm text-muted-foreground">{framework}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Advanced Settings</CardTitle>
+              <CardDescription>
+                Configure environment variables, build settings, and more
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => void router.navigate({ to: `/projects/${project.id}/settings` })}
+              >
+                Open Full Settings Page
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

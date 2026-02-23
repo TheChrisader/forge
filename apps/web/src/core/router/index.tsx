@@ -1,9 +1,9 @@
 import { createRouter, createRoute, createRootRoute } from "@tanstack/react-router";
 import { RootLayout } from "@/shared/components/layout";
 import { DashboardPage } from "@/features/dashboard";
-import { ProjectsPage, ProjectDetailPage } from "@/features/projects";
+import { ProjectsPage, ProjectDetailPage, ProjectSettingsPage } from "@/features/projects";
 import { ServicesPage } from "@/features/services";
-import { DeploymentsPage } from "@/features/deployments";
+import { DeploymentsPage, DeploymentLogsPage } from "@/features/deployments";
 import { LogsPage } from "@/features/logging";
 import { MetricsPage } from "@/features/metrics";
 import { SettingsPage } from "@/features/settings";
@@ -29,6 +29,18 @@ const projectDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/projects/$projectId",
   component: ProjectDetailPage,
+});
+
+const deploymentLogsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/projects/$projectId/deployments/$deploymentId",
+  component: DeploymentLogsPage,
+});
+
+const projectSettingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/projects/$projectId/settings",
+  component: ProjectSettingsPage,
 });
 
 const servicesRoute = createRoute({
@@ -71,6 +83,8 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   projectsRoute,
   projectDetailRoute,
+  deploymentLogsRoute,
+  projectSettingsRoute,
   servicesRoute,
   deploymentsRoute,
   logsRoute,

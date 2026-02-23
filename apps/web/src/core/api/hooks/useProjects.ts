@@ -4,6 +4,7 @@ import type {
   CreateProjectRequest,
   UpdateProjectRequest,
   DeployProjectRequest,
+  Project,
 } from "@forge/types";
 
 export const projectKeys = {
@@ -15,98 +16,164 @@ export const projectKeys = {
   deployments: (id: string) => [...projectKeys.detail(id), "deployments"] as const,
 };
 
-export function useProjects(params?: { page?: number; limit?: number }) {
-  return useQuery({
+export function useProjects(params?: {
+  page?: number;
+  limit?: number;
+}): ReturnType<typeof useQuery<Project[]>> {
+  return useQuery<Project[]>({
     queryKey: projectKeys.list(params),
-    queryFn: () => projectsApi.getAll(params),
+    queryFn: async () => {
+      const response = await projectsApi.getAll(params);
+      return response.data;
+    },
   });
 }
 
-export function useProject(id: string) {
-  return useQuery({
+export function useProject(id: string): ReturnType<typeof useQuery<Project>> {
+  return useQuery<Project>({
     queryKey: projectKeys.detail(id),
-    queryFn: () => projectsApi.getById(id),
+    queryFn: async () => {
+      const response = await projectsApi.getById(id);
+      return response.data;
+    },
     enabled: !!id,
   });
 }
 
-export function useProjectDeployments(id: string) {
-  return useQuery({
+/**
+ * DEPRECATED: Use useProjectDeployments from useDeployments instead
+ * This endpoint may not exist
+ */
+export function useProjectDeployments(id: string): ReturnType<typeof useQuery<unknown[]>> {
+  return useQuery<unknown[]>({
     queryKey: projectKeys.deployments(id),
-    queryFn: () => projectsApi.getDeployments(id),
+    queryFn: async () => {
+      const response = await projectsApi.getDeployments(id);
+      return response.deployments;
+    },
     enabled: !!id,
   });
 }
 
-export function useCreateProject() {
+export function useCreateProject(): ReturnType<
+  typeof useMutation<Project, unknown, CreateProjectRequest>
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateProjectRequest) => projectsApi.create(data),
+    mutationFn: async (data: CreateProjectRequest) => {
+      const response = await projectsApi.create(data);
+      return response.data;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
     },
   });
 }
 
-export function useUpdateProject() {
+export function useUpdateProject(): ReturnType<
+  typeof useMutation<Project, unknown, { id: string; data: UpdateProjectRequest }>
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateProjectRequest }) =>
-      projectsApi.update(id, data),
+    mutationFn: async ({ id, data }: { id: string; data: UpdateProjectRequest }) => {
+      const response = await projectsApi.update(id, data);
+      return response.data;
+    },
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
     },
   });
 }
 
-export function useDeleteProject() {
+export function usePatchProject(): ReturnType<
+  typeof useMutation<Project, unknown, { id: string; data: UpdateProjectRequest }>
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => projectsApi.delete(id),
+    mutationFn: async ({ id, data }: { id: string; data: UpdateProjectRequest }) => {
+      const response = await projectsApi.patch(id, data);
+      return response.data;
+    },
+    onSuccess: (_, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+}
+
+export function useDeleteProject(): ReturnType<typeof useMutation<void, unknown, string>> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await projectsApi.delete(id);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
     },
   });
 }
 
-export function useDeployProject() {
+/**
+ * DEPRECATED: This endpoint is a stub and not functional
+ * Use useCreateDeployment from useDeployments instead
+ */
+export function useDeployProject(): ReturnType<
+  typeof useMutation<unknown, unknown, { id: string; data?: DeployProjectRequest }>
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data?: DeployProjectRequest }) =>
-      projectsApi.deploy(id, data),
+    mutationFn: async ({ id, data }: { id: string; data?: DeployProjectRequest }) => {
+      const response = await projectsApi.deploy(id, data);
+      return response.deployment;
+    },
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: projectKeys.deployments(id) });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.deployments(id) });
     },
   });
 }
 
-export function useRollbackDeployment() {
+/**
+ * DEPRECATED: Rollback functionality - not yet implemented
+ */
+export function useRollbackDeployment(): ReturnType<
+  typeof useMutation<unknown, unknown, { id: string; deploymentId?: string }>
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, deploymentId }: { id: string; deploymentId?: string }) =>
-      projectsApi.rollback(id, deploymentId),
+    mutationFn: async ({ id, deploymentId }: { id: string; deploymentId?: string }) => {
+      const response = await projectsApi.rollback(id, deploymentId);
+      return response.deployment;
+    },
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: projectKeys.deployments(id) });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.deployments(id) });
     },
   });
 }
 
-export function useScaleProject() {
+/**
+ * DEPRECATED: Scale functionality - not yet implemented
+ */
+export function useScaleProject(): ReturnType<
+  typeof useMutation<unknown, unknown, { id: string; replicas: number }>
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, replicas }: { id: string; replicas: number }) =>
-      projectsApi.scale(id, replicas),
+    mutationFn: async ({ id, replicas }: { id: string; replicas: number }) => {
+      const response = await projectsApi.scale(id, replicas);
+      return response.success;
+    },
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
     },
   });
 }
