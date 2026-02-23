@@ -1,5 +1,5 @@
 import { apiClient } from "../client";
-import type { LogEntry, LogQueryParams, LogLevel } from "@forge/types";
+import type { Log, LogQueryParams, LogLevel } from "@forge/types";
 
 function serializeLogParams(
   params: LogQueryParams | Omit<LogQueryParams, "sourceId" | "sourceType">
@@ -23,14 +23,14 @@ function serializeLogParams(
 }
 
 export const logsApi = {
-  query: async (params: LogQueryParams): Promise<{ logs: LogEntry[] }> => {
+  query: async (params: LogQueryParams): Promise<{ logs: Log[] }> => {
     return apiClient.get("/api/logs", { params: serializeLogParams(params) });
   },
 
   getProjectLogs: async (
     projectId: string,
     params?: Omit<LogQueryParams, "sourceId" | "sourceType">
-  ): Promise<{ logs: LogEntry[] }> => {
+  ): Promise<{ logs: Log[] }> => {
     return apiClient.get(`/api/projects/${projectId}/logs`, {
       params: params ? serializeLogParams(params) : undefined,
     });

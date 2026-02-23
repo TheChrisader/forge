@@ -1,20 +1,19 @@
 import { defineConfig } from "vitest/config";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    // Setup files for integration tests
-    setupFiles: ["./tests/integration/setup.ts"],
-    // Include both unit and integration tests
+    setupFiles: [resolve(__dirname, "tests/integration/setup.ts")],
     include: ["src/**/*.test.ts", "src/**/*.spec.ts", "tests/**/*.test.ts"],
-    // Exclude patterns
     exclude: ["node_modules", "dist"],
-    // Timeouts for container startup and slow tests
-    // TimescaleDB requires longer startup time than standard PostgreSQL
     testTimeout: 60000,
-    hookTimeout: 180000, // 3 minutes for TimescaleDB container startup
-    // Coverage configuration
+    hookTimeout: 180000,
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
@@ -27,7 +26,6 @@ export default defineConfig({
         "packages/test-utils/",
       ],
     },
-    // Pool configuration for parallel tests
     pool: "threads",
     singleThread: false,
     minThreads: 1,

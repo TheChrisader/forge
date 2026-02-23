@@ -3,7 +3,7 @@ import type {
   Project,
   Deployment,
   Service,
-  LogEntry,
+  Log,
   CreateProjectRequest,
   UpdateProjectRequest,
   DeployProjectRequest,
@@ -121,8 +121,8 @@ export class ApiClient {
     projectId?: string;
     since?: string;
     limit?: number;
-  }): Promise<{ logs: LogEntry[] }> {
-    const response = await this.client.get<{ logs: LogEntry[] }>("/api/logs", { params });
+  }): Promise<{ logs: Log[] }> {
+    const response = await this.client.get<{ logs: Log[] }>("/api/logs", { params });
     return response.data;
   }
 }

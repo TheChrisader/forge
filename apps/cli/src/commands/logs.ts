@@ -3,7 +3,7 @@ import chalk from "chalk";
 import { ApiClient } from "../client/api.js";
 import { ConfigManager } from "../config/manager.js";
 import { output } from "../utils/output.js";
-import type { LogEntry, LogLevel } from "@forge/types";
+import type { Log, LogLevel } from "@forge/types";
 
 interface LogsOptions {
   follow?: boolean;
@@ -44,7 +44,7 @@ export function createLogsCommand(): Command {
           limit,
         });
 
-        result.logs.forEach((log: LogEntry) => {
+        result.logs.forEach((log: Log) => {
           printLog(log);
         });
 
@@ -59,7 +59,7 @@ export function createLogsCommand(): Command {
     });
 }
 
-function printLog(log: LogEntry): void {
+function printLog(log: Log): void {
   const timestamp = chalk.gray(new Date(log.timestamp).toISOString());
   const level = formatLogLevel(log.level);
   const source = chalk.cyan(`[${log.sourceName}]`);
@@ -70,14 +70,14 @@ function printLog(log: LogEntry): void {
 
 function formatLogLevel(level: LogLevel): string {
   const colors: Record<LogLevel, (text: string) => string> = {
-    trace: chalk.gray,
-    debug: chalk.blue,
-    info: chalk.green,
-    warn: chalk.yellow,
-    error: chalk.red,
-    fatal: chalk.red.bold,
+    TRACE: chalk.gray,
+    DEBUG: chalk.blue,
+    INFO: chalk.green,
+    WARN: chalk.yellow,
+    ERROR: chalk.red,
+    FATAL: chalk.red.bold,
   };
 
   const formatter = colors[level] ?? chalk.white;
-  return formatter(level.toUpperCase().padEnd(5));
+  return formatter(level.padEnd(5));
 }

@@ -40,7 +40,7 @@ describe("Database Integration", () => {
         data: {
           name: "Original Name",
           type: "nodejs",
-          status: "active",
+          status: "ACTIVE",
           config: {},
           metadata: {},
         },
@@ -50,12 +50,12 @@ describe("Database Integration", () => {
         where: { id: project.id },
         data: {
           name: "Updated Name",
-          status: "inactive",
+          status: "INACTIVE",
         },
       });
 
       expect(updated.name).toBe("Updated Name");
-      expect(updated.status).toBe("inactive");
+      expect(updated.status).toBe("INACTIVE");
     });
 
     it("should delete a project", async () => {
@@ -65,7 +65,7 @@ describe("Database Integration", () => {
         data: {
           name: "To Delete",
           type: "nodejs",
-          status: "active",
+          status: "ACTIVE",
           config: {},
           metadata: {},
         },
@@ -87,9 +87,9 @@ describe("Database Integration", () => {
 
       await db.project.createMany({
         data: [
-          { name: "Project 1", type: "nodejs", status: "active", config: {}, metadata: {} },
-          { name: "Project 2", type: "nodejs", status: "active", config: {}, metadata: {} },
-          { name: "Project 3", type: "nodejs", status: "active", config: {}, metadata: {} },
+          { name: "Project 1", type: "nodejs", status: "ACTIVE", config: {}, metadata: {} },
+          { name: "Project 2", type: "nodejs", status: "ACTIVE", config: {}, metadata: {} },
+          { name: "Project 3", type: "nodejs", status: "ACTIVE", config: {}, metadata: {} },
         ],
       });
 
@@ -110,7 +110,7 @@ describe("Database Integration", () => {
         data: {
           name: "Test Project",
           type: "nodejs",
-          status: "active",
+          status: "ACTIVE",
           config: {},
           metadata: {},
         },
@@ -119,14 +119,14 @@ describe("Database Integration", () => {
       const deployment = await db.deployment.create({
         data: {
           projectId: project.id,
-          version: "v1.0.0",
-          status: "pending",
+          version: 1,
+          status: "PENDING",
         },
       });
 
       expect(deployment).toBeDefined();
       expect(deployment.projectId).toBe(project.id);
-      expect(deployment.version).toBe("v1.0.0");
+      expect(deployment.version).toBe(1);
 
       const projectWithDeployments = await db.project.findUnique({
         where: { id: project.id },
@@ -144,7 +144,7 @@ describe("Database Integration", () => {
         data: {
           name: "Test Project",
           type: "nodejs",
-          status: "active",
+          status: "ACTIVE",
           config: {},
           metadata: {},
         },
@@ -153,20 +153,20 @@ describe("Database Integration", () => {
       const deployment = await db.deployment.create({
         data: {
           projectId: project.id,
-          version: "v1.0.0",
-          status: "pending",
+          version: 1,
+          status: "PENDING",
         },
       });
 
       const updated = await db.deployment.update({
         where: { id: deployment.id },
         data: {
-          status: "running",
+          status: "RUNNING",
           deployStartedAt: new Date(),
         },
       });
 
-      expect(updated.status).toBe("running");
+      expect(updated.status).toBe("RUNNING");
       expect(updated.deployStartedAt).toBeDefined();
     });
 
@@ -177,13 +177,13 @@ describe("Database Integration", () => {
         data: {
           name: "Test Project",
           type: "nodejs",
-          status: "active",
+          status: "ACTIVE",
           config: {},
           metadata: {},
           deployments: {
             create: {
-              version: "v1.0.0",
-              status: "pending",
+              version: 1,
+              status: "PENDING",
             },
           },
         },
@@ -214,7 +214,7 @@ describe("Database Integration", () => {
         data: {
           name: "Test Project",
           type: "nodejs",
-          status: "active",
+          status: "ACTIVE",
           config: {},
           metadata: {},
         },
@@ -223,8 +223,8 @@ describe("Database Integration", () => {
       const deployment = await db.deployment.create({
         data: {
           projectId: project.id,
-          version: "v1.0.0",
-          status: "running",
+          version: 1,
+          status: "RUNNING",
         },
       });
 
@@ -235,7 +235,7 @@ describe("Database Integration", () => {
           containerId: `docker-${Date.now()}`,
           name: "app-container-1",
           image: "node:20-alpine",
-          status: "running",
+          status: "RUNNING",
         },
       });
 
@@ -258,7 +258,7 @@ describe("Database Integration", () => {
         data: {
           name: "Test Project",
           type: "nodejs",
-          status: "active",
+          status: "ACTIVE",
           config: {},
           metadata: {},
         },
@@ -267,8 +267,8 @@ describe("Database Integration", () => {
       const deployment = await db.deployment.create({
         data: {
           projectId: project.id,
-          version: "v1.0.0",
-          status: "running",
+          version: 1,
+          status: "RUNNING",
         },
       });
 
@@ -279,16 +279,16 @@ describe("Database Integration", () => {
           containerId: `docker-${Date.now()}`,
           name: "app-container-1",
           image: "node:20-alpine",
-          status: "running",
+          status: "RUNNING",
         },
       });
 
       const updated = await db.container.update({
         where: { id: container.id },
-        data: { status: "stopped" },
+        data: { status: "STOPPED" },
       });
 
-      expect(updated.status).toBe("stopped");
+      expect(updated.status).toBe("STOPPED");
     });
   });
 
@@ -301,7 +301,7 @@ describe("Database Integration", () => {
           data: {
             name: "Transaction Test",
             type: "nodejs",
-            status: "active",
+            status: "ACTIVE",
             config: {},
             metadata: {},
           },
@@ -310,8 +310,8 @@ describe("Database Integration", () => {
         await tx.deployment.create({
           data: {
             projectId: project.id,
-            version: "v1.0.0",
-            status: "pending",
+            version: 1,
+            status: "PENDING",
           },
         });
       });
@@ -334,7 +334,7 @@ describe("Database Integration", () => {
             data: {
               name: "Rollback Test",
               type: "nodejs",
-              status: "active",
+              status: "ACTIVE",
               config: {},
               metadata: {},
             },
@@ -343,7 +343,7 @@ describe("Database Integration", () => {
           throw new Error("Intentional error");
         });
       } catch {
-        // TODO: Log
+        // Expected error
       }
 
       const project = await db.project.findFirst({

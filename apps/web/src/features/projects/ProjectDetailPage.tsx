@@ -35,7 +35,7 @@ const mockProject = {
   id: "forge-web",
   name: "forge-web",
   description: "Main web application for the Forge platform",
-  status: "running" as ServiceStatus,
+  status: "RUNNING" as ServiceStatus,
   framework: "React",
   repository: "github.com/forge/forge-web",
   team: ["JD", "SK", "MR"],
@@ -48,28 +48,28 @@ const mockServices = [
     id: "svc-1",
     name: "web-app",
     description: "Main web application",
-    status: "running" as ServiceStatus,
+    status: "RUNNING" as ServiceStatus,
     containers: 3,
   },
   {
     id: "svc-2",
     name: "admin-dashboard",
     description: "Admin interface",
-    status: "running" as ServiceStatus,
+    status: "RUNNING" as ServiceStatus,
     containers: 2,
   },
   {
     id: "svc-3",
     name: "public-site",
     description: "Public marketing site",
-    status: "running" as ServiceStatus,
+    status: "RUNNING" as ServiceStatus,
     containers: 2,
   },
   {
     id: "svc-4",
     name: "api-proxy",
     description: "API proxy service",
-    status: "stopped" as ServiceStatus,
+    status: "STOPPED" as ServiceStatus,
     containers: 0,
   },
 ];
@@ -166,7 +166,7 @@ export function ProjectDetailPage(): React.ReactElement {
               <CardHeader>
                 <CardDescription>Running</CardDescription>
                 <CardTitle className="text-3xl">
-                  {mockServices.filter((s) => s.status === "running").length}
+                  {mockServices.filter((s) => s.status === "RUNNING").length}
                 </CardTitle>
               </CardHeader>
             </Card>

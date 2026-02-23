@@ -33,7 +33,7 @@ const mockMetrics = {
     average: 54,
     peak: 92,
     threshold: 80,
-    status: "warning" as const,
+    status: "WARN" as const,
   },
   memory: {
     current: 8.2,
@@ -41,54 +41,54 @@ const mockMetrics = {
     average: 7.5,
     peak: 14.1,
     threshold: 85,
-    status: "success" as const,
+    status: "INFO" as const,
   },
   requests: {
     current: 1247,
     average: 1089,
     peak: 3456,
     perSecond: 42,
-    status: "success" as const,
+    status: "INFO" as const,
   },
   errors: {
     current: 23,
     average: 15,
     peak: 156,
     rate: 1.8,
-    status: "error" as const,
+    status: "ERROR" as const,
   },
   uptime: {
     current: 99.94,
     target: 99.9,
-    status: "success" as const,
+    status: "INFO" as const,
   },
 };
 
 const mockAlerts = [
   {
     id: "alert-1",
-    severity: "error" as const,
+    severity: "ERROR" as const,
     title: "High CPU Usage",
     description: "web-app CPU usage exceeded 80% threshold",
     timestamp: "2 minutes ago",
   },
   {
     id: "alert-2",
-    severity: "error" as const,
+    severity: "ERROR" as const,
     title: "Memory Warning",
     description: "api-gateway memory usage approaching threshold",
     timestamp: "15 minutes ago",
   },
   {
     id: "alert-3",
-    severity: "error" as const,
+    severity: "ERROR" as const,
     title: "Database Connection Failed",
     description: "Failed to establish connection to primary database",
     timestamp: "1 hour ago",
   },
   {
     id: "alert-4",
-    severity: "error" as const,
+    severity: "ERROR" as const,
     title: "Disk Space Low",
     description: "Server disk usage at 85% capacity",
     timestamp: "3 hours ago",
@@ -213,7 +213,7 @@ export function MetricsPage(): React.ReactElement {
             </div>
             <Progress value={(mockMetrics.requests.current / mockMetrics.requests.peak) * 100} />
             <Badge variant="secondary" className="text-xs">
-              {mockMetrics.requests.status === "success" ? "Healthy" : "Warning"}
+              {mockMetrics.requests.status === "INFO" ? "Healthy" : "Warning"}
             </Badge>
           </CardContent>
         </Card>

@@ -192,11 +192,13 @@ export class ApiClient {
       const json = (await response.json()) as { error?: ErrorResponse["error"] };
       errorData = json.error ?? {
         message: response.statusText || "Unknown error",
+        code: "UNKNOWN_ERROR",
         statusCode: response.status,
       };
     } catch {
       errorData = {
         message: response.statusText || "Unknown error",
+        code: "UNKNOWN_ERROR",
         statusCode: response.status,
       };
     }

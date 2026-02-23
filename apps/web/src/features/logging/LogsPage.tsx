@@ -36,7 +36,7 @@ const mockLogs = [
   {
     id: "log-1",
     service: "web-app",
-    level: "info" as LogLevel,
+    level: "INFO" as LogLevel,
     message: "Application started successfully on port 3000",
     timestamp: "2024-02-09 14:32:15",
     source: "server.ts:45",
@@ -44,7 +44,7 @@ const mockLogs = [
   {
     id: "log-2",
     service: "api-gateway",
-    level: "error" as LogLevel,
+    level: "ERROR" as LogLevel,
     message: "Failed to connect to database: connection timeout",
     timestamp: "2024-02-09 14:31:42",
     source: "db.ts:128",
@@ -52,7 +52,7 @@ const mockLogs = [
   {
     id: "log-3",
     service: "auth-service",
-    level: "warn" as LogLevel,
+    level: "WARN" as LogLevel,
     message: "Rate limit exceeded for IP 192.168.1.100",
     timestamp: "2024-02-09 14:31:30",
     source: "middleware.ts:67",
@@ -60,7 +60,7 @@ const mockLogs = [
   {
     id: "log-4",
     service: "web-app",
-    level: "info" as LogLevel,
+    level: "INFO" as LogLevel,
     message: "New user registration: user@example.com",
     timestamp: "2024-02-09 14:30:58",
     source: "auth.ts:234",
@@ -68,7 +68,7 @@ const mockLogs = [
   {
     id: "log-5",
     service: "background-jobs",
-    level: "debug" as LogLevel,
+    level: "DEBUG" as LogLevel,
     message: "Processing job queue: 15 pending jobs",
     timestamp: "2024-02-09 14:30:45",
     source: "worker.ts:89",
@@ -76,7 +76,7 @@ const mockLogs = [
   {
     id: "log-6",
     service: "api-gateway",
-    level: "info" as LogLevel,
+    level: "INFO" as LogLevel,
     message: "API request completed: GET /api/users - 200 (45ms)",
     timestamp: "2024-02-09 14:30:30",
     source: "router.ts:156",
@@ -84,7 +84,7 @@ const mockLogs = [
   {
     id: "log-7",
     service: "email-processor",
-    level: "error" as LogLevel,
+    level: "ERROR" as LogLevel,
     message: "Failed to send email: SMTP server unreachable",
     timestamp: "2024-02-09 14:29:15",
     source: "email.ts:78",
@@ -92,7 +92,7 @@ const mockLogs = [
   {
     id: "log-8",
     service: "web-app",
-    level: "warn" as LogLevel,
+    level: "WARN" as LogLevel,
     message: "High memory usage detected: 85% of heap",
     timestamp: "2024-02-09 14:28:50",
     source: "monitor.ts:34",
@@ -100,7 +100,7 @@ const mockLogs = [
   {
     id: "log-9",
     service: "auth-service",
-    level: "info" as LogLevel,
+    level: "INFO" as LogLevel,
     message: "JWT token generated for user@example.com",
     timestamp: "2024-02-09 14:28:22",
     source: "jwt.ts:112",
@@ -108,7 +108,7 @@ const mockLogs = [
   {
     id: "log-10",
     service: "api-gateway",
-    level: "debug" as LogLevel,
+    level: "DEBUG" as LogLevel,
     message: "Cache hit for key: user_12345_profile",
     timestamp: "2024-02-09 14:28:10",
     source: "cache.ts:45",
@@ -116,7 +116,7 @@ const mockLogs = [
   {
     id: "log-11",
     service: "background-jobs",
-    level: "info" as LogLevel,
+    level: "INFO" as LogLevel,
     message: "Job completed successfully: email_notifications",
     timestamp: "2024-02-09 14:27:45",
     source: "worker.ts:201",
@@ -124,7 +124,7 @@ const mockLogs = [
   {
     id: "log-12",
     service: "web-app",
-    level: "error" as LogLevel,
+    level: "ERROR" as LogLevel,
     message: "Unhandled exception: Cannot read property 'id' of undefined",
     timestamp: "2024-02-09 14:27:30",
     source: "controller.ts:89",
@@ -132,32 +132,32 @@ const mockLogs = [
 ];
 
 const logLevelConfig: Record<LogLevel, { color: string; icon: React.ReactNode; label: string }> = {
-  error: {
+  ERROR: {
     color: "bg-destructive/10 text-destructive",
     icon: <AlertTriangleIcon className="size-3" />,
     label: "Error",
   },
-  warn: {
+  WARN: {
     color: "bg-warning-500/10 text-warning-700 dark:text-warning-400",
     icon: <AlertTriangleIcon className="size-3" />,
     label: "Warning",
   },
-  info: {
+  INFO: {
     color: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
     icon: <InfoIcon className="size-3" />,
     label: "Info",
   },
-  debug: {
+  DEBUG: {
     color: "bg-muted text-muted-foreground",
     icon: <BugIcon className="size-3" />,
     label: "Debug",
   },
-  trace: {
+  TRACE: {
     color: "bg-muted text-muted-foreground",
     icon: <BugIcon className="size-3" />,
     label: "Trace",
   },
-  fatal: {
+  FATAL: {
     color: "bg-destructive/10 text-destructive",
     icon: <AlertTriangleIcon className="size-3" />,
     label: "Fatal",
@@ -169,9 +169,9 @@ const filterLogsByLevel = (
   level?: "all" | "errors" | "warnings" | LogLevel
 ): typeof mockLogs => {
   if (!level || level === "all") return logs;
-  if (level === "errors") return logs.filter((log) => log.level === "error");
+  if (level === "errors") return logs.filter((log) => log.level === "ERROR");
   if (level === "warnings")
-    return logs.filter((log) => log.level === "warn" || log.level === "error");
+    return logs.filter((log) => log.level === "WARN" || log.level === "ERROR");
   return logs.filter((log) => log.level === level);
 };
 

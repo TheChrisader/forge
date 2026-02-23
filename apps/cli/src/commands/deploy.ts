@@ -39,7 +39,7 @@ export function createDeployCommand(): Command {
         output.newline();
         output.keyValue("Deployment ID", result.deployment.id);
         output.keyValue("Project ID", result.deployment.projectId);
-        output.keyValue("Version", result.deployment.version || "latest");
+        output.keyValue("Version", String(result.deployment.version));
         output.keyValue("Status", result.deployment.status);
         output.newline();
 

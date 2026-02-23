@@ -22,7 +22,7 @@ export const servicesApi = {
     return apiClient.delete(`/api/services/${id}`);
   },
 
-  getConnection: async (id: string): Promise<{ connection: Service["connection"] }> => {
+  getConnection: async (id: string): Promise<{ connectionUrl: Service["connectionUrl"] }> => {
     return apiClient.get(`/api/services/${id}/connection`);
   },
 };

@@ -6,7 +6,7 @@ import type {
   DeploymentStatus,
   ServiceStatus,
   HealthStatus,
-  JobEntityStatus,
+  JobStatus,
   DockerContainerStatus,
   LogLevel,
 } from "@forge/types";
@@ -203,7 +203,7 @@ export interface StatusIndicatorProps
     | DeploymentStatus
     | ServiceStatus
     | HealthStatus
-    | JobEntityStatus
+    | JobStatus
     | DockerContainerStatus
     | LogLevel;
 

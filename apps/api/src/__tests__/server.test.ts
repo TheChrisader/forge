@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createServer } from "../server.js";
 
 vi.mock("@forge/cache", () => ({
@@ -73,6 +73,12 @@ describe("Server Integration Tests", () => {
     mockPrisma.deployment.update.mockResolvedValue({} as any);
 
     server = await createServer({ logger: false });
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await server.close();
+    }
   });
 
   describe("Health Endpoints", () => {
