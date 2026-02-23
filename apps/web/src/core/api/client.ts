@@ -236,6 +236,18 @@ export class ApiClient {
     }
   }
 
+  public removeAuthToken(): void {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return;
+    }
+
+    try {
+      localStorage.removeItem("auth_token");
+    } catch (error) {
+      console.error("Failed to remove auth token:", error);
+    }
+  }
+
   async get<T>(endpoint: string, options?: RequestOptions): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,

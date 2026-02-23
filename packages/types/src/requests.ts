@@ -67,7 +67,20 @@ import {
   UpdatePermissionRequestSchema,
   CreateRolePermissionRequestSchema,
   CreateRoleAssignmentRequestSchema,
+  LoginRequestSchema,
+  LoginResponseSchema,
+  AuthMeResponseSchema,
 } from "./schemas";
+
+// =============================================================================
+// Authentication
+// =============================================================================
+
+export type LoginRequest = z.infer<typeof LoginRequestSchema>;
+
+export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+
+export type AuthMeResponse = z.infer<typeof AuthMeResponseSchema>;
 
 // =============================================================================
 // Project Requests

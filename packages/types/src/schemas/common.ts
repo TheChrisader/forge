@@ -5,7 +5,8 @@ import { z } from "zod";
 // =============================================================================
 
 export const IdSchema = z.uuid();
-export const TimestampSchema = z.iso.datetime({ offset: true });
+// export const TimestampSchema = z.iso.datetime({ offset: true });
+export const TimestampSchema = z.coerce.date();
 export const NonEmptyStringSchema = z.string().min(1);
 export const MetadataSchema = z.record(z.string(), z.unknown());
 export const ConfigSchema = z.record(z.string(), z.unknown());

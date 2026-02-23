@@ -1,4 +1,4 @@
-import { createRouter, createRoute, createRootRoute } from "@tanstack/react-router";
+import { createRouter, createRoute, createRootRoute, Outlet } from "@tanstack/react-router";
 import { RootLayout } from "@/shared/components/layout";
 import { DashboardPage } from "@/features/dashboard";
 import { ProjectsPage, ProjectDetailPage, ProjectSettingsPage } from "@/features/projects";
@@ -8,89 +8,136 @@ import { LogsPage } from "@/features/logging";
 import { MetricsPage } from "@/features/metrics";
 import { SettingsPage } from "@/features/settings";
 import { NotFoundPage } from "@/shared/components/NotFoundPage";
+import { AuthProvider, ProtectedRoute } from "@/core/auth";
+import { LoginPage } from "@/features/auth";
+
+// =============================================================================
+// Root Route (AuthProvider only, no layout)
+// =============================================================================
 
 const rootRoute = createRootRoute({
-  component: RootLayout,
+  component: () => (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  ),
+});
+
+// =============================================================================
+// Public Routes (no Header/Sidebar)
+// =============================================================================
+
+const publicRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "public",
+  component: Outlet,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => publicRoute,
+  path: "/login",
+  component: LoginPage,
+});
+
+// =============================================================================
+// Authenticated Routes (RootLayout with Header + Sidebar)
+// =============================================================================
+
+const authenticatedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "authenticated",
+  component: () => (
+    <ProtectedRoute>
+      <RootLayout />
+    </ProtectedRoute>
+  ),
 });
 
 const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/",
   component: DashboardPage,
 });
 
 const projectsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/projects",
   component: ProjectsPage,
 });
 
 const projectDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/projects/$projectId",
   component: ProjectDetailPage,
 });
 
 const deploymentLogsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/projects/$projectId/deployments/$deploymentId",
   component: DeploymentLogsPage,
 });
 
 const projectSettingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/projects/$projectId/settings",
   component: ProjectSettingsPage,
 });
 
 const servicesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/services",
   component: ServicesPage,
 });
 
 const deploymentsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/deployments",
   component: DeploymentsPage,
 });
 
 const logsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/logs",
   component: LogsPage,
 });
 
 const metricsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/metrics",
   component: MetricsPage,
 });
 
 const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/settings",
   component: SettingsPage,
 });
 
 const notFoundRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "*",
   component: NotFoundPage,
 });
 
+// =============================================================================
+// Route Tree
+// =============================================================================
+
 const routeTree = rootRoute.addChildren([
-  indexRoute,
-  projectsRoute,
-  projectDetailRoute,
-  deploymentLogsRoute,
-  projectSettingsRoute,
-  servicesRoute,
-  deploymentsRoute,
-  logsRoute,
-  metricsRoute,
-  settingsRoute,
-  notFoundRoute,
+  publicRoute.addChildren([loginRoute]),
+  authenticatedRoute.addChildren([
+    indexRoute,
+    projectsRoute,
+    projectDetailRoute,
+    deploymentLogsRoute,
+    projectSettingsRoute,
+    servicesRoute,
+    deploymentsRoute,
+    logsRoute,
+    metricsRoute,
+    settingsRoute,
+    notFoundRoute,
+  ]),
 ]);
 
 export const router = createRouter({ routeTree });

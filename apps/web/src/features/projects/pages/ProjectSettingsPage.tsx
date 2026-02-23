@@ -24,7 +24,7 @@ import { DangerZone } from "../components/settings/DangerZone";
 
 export function ProjectSettingsPage(): React.ReactElement | null {
   const { projectId } = useParams({
-    from: "/projects/$projectId/settings",
+    from: "/authenticated/projects/$projectId/settings",
   });
 
   const { data: project, isLoading, error } = useProject(projectId);

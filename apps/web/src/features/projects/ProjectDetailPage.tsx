@@ -40,7 +40,7 @@ function formatTimestamp(timestamp: Date | string | null | undefined): string {
 }
 
 export function ProjectDetailPage(): React.ReactElement {
-  const { projectId } = useParams({ from: "/projects/$projectId" });
+  const { projectId } = useParams({ from: "/authenticated/projects/$projectId" });
   const router = useRouter();
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);

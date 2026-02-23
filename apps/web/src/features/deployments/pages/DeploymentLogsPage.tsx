@@ -7,7 +7,7 @@ import { LoaderIcon } from "lucide-react";
 // TODO Sprint 4: Replace with WebSocket connection
 export function DeploymentLogsPage(): React.ReactElement {
   const { projectId, deploymentId } = useParams({
-    from: "/projects/$projectId/deployments/$deploymentId",
+    from: "/authenticated/projects/$projectId/deployments/$deploymentId",
   });
 
   const {
