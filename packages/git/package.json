@@ -1,5 +1,5 @@
 {
-  "name": "@forge/storage",
+  "name": "@forge/git",
   "version": "0.1.0",
   "private": true,
   "main": "./dist/index.js",
@@ -13,6 +13,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@forge/core": "workspace:*",
+    "@forge/types": "workspace:*",
+    "simple-git": "^3.32.1"
   },
   "devDependencies": {
     "@types/node": "^25.2.0",
