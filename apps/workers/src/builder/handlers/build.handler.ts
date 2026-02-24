@@ -9,9 +9,10 @@ import {
   getBuildStrategyRegistry,
   registerDefaultStrategies,
   type BuildContext,
+  type BuildProgressEvent,
 } from "@forge/build";
 import type { BuildJobData, DeploymentStatus } from "@forge/types";
-import { BuildError } from "@forge/core";
+import { EventEmitter } from "eventemitter3";
 import pino from "pino";
 import * as fs from "node:fs/promises";
 
@@ -75,15 +76,33 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
 
   const repoPath = `${buildDir}/${deploymentId}`;
 
+  // Create EventEmitter for progress reporting
+  const emitter = new EventEmitter();
+  const buildLogs: string[] = [];
+
+  // Listen to progress events for logging
+  emitter.on("progress", (progress: BuildProgressEvent) => {
+    const logEntry = `[${progress.type.toUpperCase()}] ${progress.message}`;
+    buildLogs.push(logEntry);
+
+    logger.info(
+      {
+        deploymentId,
+        type: progress.type,
+        stage: progress.stage,
+        progress: progress.progress,
+      },
+      progress.message
+    );
+  });
+
   try {
-    // Step 1: Update deployment to "BUILDING"
     logger.info({ deploymentId }, "Updating deployment status to BUILDING");
     await db.deployment.update({
       where: { id: deploymentId },
       data: { status: "BUILDING" as DeploymentStatus },
     });
 
-    // Step 2: Clone the repo
     logger.info({ deploymentId, gitUrl, repoPath }, "Cloning repository...");
     await gitService.clone({
       url: gitUrl ?? "",
@@ -93,7 +112,6 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
     });
     logger.info({ deploymentId }, "Repository cloned successfully");
 
-    // Step 3: Detect framework using build strategy registry
     const buildContext: BuildContext = {
       projectId,
       deploymentId,
@@ -103,14 +121,8 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
     };
 
     logger.info({ deploymentId }, "Detecting framework...");
+    // No null check needed - throws NoStrategyFoundError if not found
     const strategy = await strategyRegistry.detect(buildContext);
-
-    if (!strategy) {
-      throw new BuildError("Unable to detect project framework", {
-        projectId,
-        deploymentId,
-      });
-    }
 
     const detectionResult = await strategy.detect(buildContext);
     logger.info(
@@ -122,7 +134,6 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       "Framework detected"
     );
 
-    // Step 4: Update project with detected framework info
     const config = detectionResult.config ?? strategy.getDefaultConfig();
 
     await db.project.update({
@@ -139,9 +150,23 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
     });
     logger.info({ deploymentId, projectId }, "Project updated with framework info");
 
-    // Step 5 (Sprint 2 stub): Mark as COMPLETED immediately
-    // TODO Sprint 3: Actually build the Docker image here
-    logger.info({ deploymentId }, "Build completed (stub implementation)");
+    emitter.emit("progress", {
+      type: "stage",
+      message: "Starting build process...",
+      timestamp: new Date(),
+      stage: "build",
+    } as BuildProgressEvent);
+
+    const result = await strategy.build(buildContext, config, emitter);
+
+    logger.info(
+      {
+        deploymentId,
+        success: result.success,
+        duration: result.duration,
+      },
+      "Build completed"
+    );
 
     await db.deployment.update({
       where: { id: deploymentId },
@@ -172,9 +197,8 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       logger.error({ deploymentId, dbError }, "Failed to update deployment status");
     }
 
-    throw error; // BullMQ will retry based on job options
+    throw error;
   } finally {
-    // Clean up cloned repo
     await cleanupBuildDir(repoPath);
   }
 }

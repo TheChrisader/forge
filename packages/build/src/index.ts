@@ -6,3 +6,6 @@ export * from "./registry.js";
 
 // Export all strategies
 export * from "./strategies/index.js";
+
+// Export errors
+export * from "./errors.js";

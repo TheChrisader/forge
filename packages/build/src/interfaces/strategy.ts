@@ -3,6 +3,25 @@
  * Allows pluggable build strategies for different frameworks/languages
  */
 
+import type { EventEmitter } from "eventemitter3";
+
+/**
+ * Progress event emitted during build
+ * Consumers can listen to these events for real-time build updates
+ *
+ * Named BuildProgressEvent to avoid conflict with @forge/docker's BuildProgress
+ * which is used for Docker runtime callbacks (stream/status/progress/error)
+ */
+export interface BuildProgressEvent {
+  type: "log" | "stage" | "complete" | "error";
+  message: string;
+  timestamp: Date;
+  /** Strategy-specific stage name (e.g., "pull", "build", "install") */
+  stage?: string;
+  /** Progress percentage 0-100 */
+  progress?: number;
+}
+
 export interface BuildContext {
   projectId: string;
   deploymentId: string;
@@ -72,7 +91,19 @@ export interface DetectionResult {
 export interface IBuildStrategy {
   readonly name: string;
   detect(context: BuildContext): Promise<DetectionResult>;
-  build(context: BuildContext, config?: BuildConfig): Promise<BuildResult>;
+
+  /**
+   * Executes the build with optional progress reporting
+   * @param context - Build context containing project info
+   * @param config - Optional build configuration
+   * @param emitter - Optional event emitter for progress events
+   */
+  build(
+    context: BuildContext,
+    config?: BuildConfig,
+    emitter?: EventEmitter
+  ): Promise<BuildResult>;
+
   getDefaultConfig(): BuildConfig;
   validateConfig(config: BuildConfig): { valid: boolean; errors?: string[] };
 }
@@ -80,6 +111,7 @@ export interface IBuildStrategy {
 export interface IBuildStrategyRegistry {
   register(strategy: IBuildStrategy): void;
   getAll(): IBuildStrategy[];
-  detect(context: BuildContext): Promise<IBuildStrategy | null>;
+  /** Now throws NoStrategyFoundError if no strategy detected (was: returns null) */
+  detect(context: BuildContext): Promise<IBuildStrategy>;
   get(name: string): IBuildStrategy | null;
 }

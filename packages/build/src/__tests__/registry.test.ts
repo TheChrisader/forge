@@ -7,7 +7,7 @@ import {
   BuildStrategyRegistry,
   getBuildStrategyRegistry,
   resetBuildStrategyRegistry,
-} from "../registry.js";
+} from "../index.js";
 import type {
   BuildContext,
   DetectionResult,
@@ -157,10 +157,10 @@ describe("BuildStrategyRegistry", () => {
 
       const result = await registry.detect(mockContext);
 
-      expect(result?.name).toBe("detecting");
+      expect(result.name).toBe("detecting");
     });
 
-    it("should return null when no strategy detects", async () => {
+    it("should throw NoStrategyFoundError when no strategy detects", async () => {
       class NonDetectingStrategy implements IBuildStrategy {
         readonly name = "non-detecting";
         async detect(): Promise<DetectionResult> {
@@ -179,9 +179,7 @@ describe("BuildStrategyRegistry", () => {
 
       registry.register(new NonDetectingStrategy() as IBuildStrategy);
 
-      const result = await registry.detect(mockContext);
-
-      expect(result).toBeNull();
+      await expect(registry.detect(mockContext)).rejects.toThrow("No build strategy available");
     });
 
     it("should handle errors in strategy detection gracefully", async () => {
@@ -221,7 +219,7 @@ describe("BuildStrategyRegistry", () => {
 
       const result = await registry.detect(mockContext);
 
-      expect(result?.name).toBe("working");
+      expect(result.name).toBe("working");
     });
   });
 

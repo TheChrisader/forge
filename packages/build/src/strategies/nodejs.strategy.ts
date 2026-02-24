@@ -6,6 +6,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import type { EventEmitter } from "eventemitter3";
 import type {
   IBuildStrategy,
   BuildContext,
@@ -13,6 +14,7 @@ import type {
   BuildResult,
   BuildConfig,
 } from "../interfaces/strategy.js";
+import type { BuildProgressEvent } from "../interfaces/strategy.js";
 import {
   discoverNodeJSScripts,
   analyzeDiscoveredScripts,
@@ -233,13 +235,39 @@ export class NodeJsBuildStrategy implements IBuildStrategy {
     };
   }
 
-  async build(context: BuildContext, config?: BuildConfig): Promise<BuildResult> {
+  async build(
+    context: BuildContext,
+    config?: BuildConfig,
+    emitter?: EventEmitter
+  ): Promise<BuildResult> {
+    const startTime = Date.now();
     const nodeVersion = config?.nodeVersion ?? "20";
-    return Promise.resolve({
+
+    emitter?.emit("progress", {
+      type: "stage",
+      message: `Starting ${this.name} build...`,
+      timestamp: new Date(),
+      stage: "init",
+    } as BuildProgressEvent);
+
+    emitter?.emit("progress", {
+      type: "log",
+      message: `${this.name} build stub for ${context.projectId} (will use node ${nodeVersion})`,
+      timestamp: new Date(),
+    } as BuildProgressEvent);
+
+    emitter?.emit("progress", {
+      type: "complete",
+      message: `${this.name} build completed (stub)`,
+      timestamp: new Date(),
+      progress: 100,
+    } as BuildProgressEvent);
+
+    return {
       success: true,
-      logs: `Node.js build stub for ${context.projectId} (Sprint 3: will use node ${nodeVersion})`,
-      duration: 0,
-    });
+      logs: `Node.js build stub for ${context.projectId}`,
+      duration: Date.now() - startTime,
+    };
   }
 
   getDefaultConfig(): BuildConfig {

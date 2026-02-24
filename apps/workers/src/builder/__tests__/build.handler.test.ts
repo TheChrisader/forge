@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { BuildJobData } from "@forge/types";
+import { NoStrategyFoundError } from "@forge/build";
 
 // Minimal Job interface matching the handler's interface
 interface Job<T = unknown> {
@@ -67,11 +68,15 @@ vi.mock("@forge/git", () => ({
   GitService: MockGitService,
 }));
 
-vi.mock("@forge/build", () => ({
-  registerDefaultStrategies: vi.fn(),
-  getBuildStrategyRegistry: vi.fn(() => mockRegistry),
-  resetBuildStrategyRegistry: vi.fn(),
-}));
+vi.mock("@forge/build", async () => {
+  const actual = await vi.importActual("@forge/build");
+  return {
+    ...actual,
+    registerDefaultStrategies: vi.fn(),
+    getBuildStrategyRegistry: vi.fn(() => mockRegistry),
+    resetBuildStrategyRegistry: vi.fn(),
+  };
+});
 
 vi.mock("node:fs/promises", () => mockFs);
 
@@ -194,7 +199,7 @@ describe("handleBuildJob", () => {
 
   it("should handle framework detection failure", async () => {
     mockGitService.clone.mockResolvedValue("/tmp/forge-builds-test/deploy-123");
-    mockRegistry.detect.mockResolvedValue(null);
+    mockRegistry.detect.mockRejectedValue(new NoStrategyFoundError("project-456"));
 
     await expect(handleBuildJob(mockJob as Job<BuildJobData>)).rejects.toThrow();
 

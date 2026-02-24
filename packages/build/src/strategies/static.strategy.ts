@@ -6,6 +6,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import type { EventEmitter } from "eventemitter3";
 import type {
   IBuildStrategy,
   BuildContext,
@@ -13,6 +14,7 @@ import type {
   BuildResult,
   BuildConfig,
 } from "../interfaces/strategy.js";
+import type { BuildProgressEvent } from "../interfaces/strategy.js";
 import { discoverNodeJSScripts, analyzeDiscoveredScripts } from "../utils/script-discovery.js";
 
 /**
@@ -27,7 +29,6 @@ export class StaticBuildStrategy implements IBuildStrategy {
     try {
       await fs.access(indexPath);
 
-      // Check for common static site generators
       const hugoConfigPath = path.join(context.sourceDir, "hugo.toml");
       const jekyllConfigPath = path.join(context.sourceDir, "_config.yml");
       const astroConfigPath = path.join(context.sourceDir, "astro.config.mjs");
@@ -86,7 +87,6 @@ export class StaticBuildStrategy implements IBuildStrategy {
       }
 
       if (hasAstro) {
-        // For Astro, discover scripts from package.json
         const discoveredScripts = await discoverNodeJSScripts(context.sourceDir);
         const scriptAnalysis = analyzeDiscoveredScripts(discoveredScripts, ["build", "start"]);
 
@@ -109,7 +109,6 @@ export class StaticBuildStrategy implements IBuildStrategy {
         };
       }
 
-      // Plain static site
       return {
         detected: true,
         framework: "Static",
@@ -129,13 +128,39 @@ export class StaticBuildStrategy implements IBuildStrategy {
     }
   }
 
-  async build(context: BuildContext, config?: BuildConfig): Promise<BuildResult> {
+  async build(
+    context: BuildContext,
+    config?: BuildConfig,
+    emitter?: EventEmitter
+  ): Promise<BuildResult> {
+    const startTime = Date.now();
     const port = config?.port ?? 80;
-    return Promise.resolve({
+
+    emitter?.emit("progress", {
+      type: "stage",
+      message: `Starting ${this.name} build...`,
+      timestamp: new Date(),
+      stage: "init",
+    } as BuildProgressEvent);
+
+    emitter?.emit("progress", {
+      type: "log",
+      message: `${this.name} build stub for ${context.projectId} (will serve on port ${port})`,
+      timestamp: new Date(),
+    } as BuildProgressEvent);
+
+    emitter?.emit("progress", {
+      type: "complete",
+      message: `${this.name} build completed (stub)`,
+      timestamp: new Date(),
+      progress: 100,
+    } as BuildProgressEvent);
+
+    return {
       success: true,
-      logs: `Static build stub for ${context.projectId} (Sprint 3: will serve on port ${port})`,
-      duration: 0,
-    });
+      logs: `Static build stub for ${context.projectId}`,
+      duration: Date.now() - startTime,
+    };
   }
 
   getDefaultConfig(): BuildConfig {
@@ -145,7 +170,6 @@ export class StaticBuildStrategy implements IBuildStrategy {
   }
 
   validateConfig(_config: BuildConfig): { valid: boolean; errors?: string[] } {
-    // Static sites have minimal config requirements - all configs are valid
     return { valid: true };
   }
 }

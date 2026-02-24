@@ -9,6 +9,7 @@ import type {
   BuildContext,
   DetectionResult,
 } from "./interfaces/strategy.js";
+import { NoStrategyFoundError } from "./errors.js";
 
 /**
  * BuildStrategyRegistry manages build strategies
@@ -23,14 +24,17 @@ export class BuildStrategyRegistry implements IBuildStrategyRegistry {
     this.strategies.set(strategy.name, strategy);
   }
 
+  unregister(name: string): void {
+    this.strategies.delete(name);
+  }
+
   getAll(): IBuildStrategy[] {
     return Array.from(this.strategies.values());
   }
 
-  async detect(context: BuildContext): Promise<IBuildStrategy | null> {
+  async detect(context: BuildContext): Promise<IBuildStrategy> {
     const detections: Array<{ strategy: IBuildStrategy; result: DetectionResult }> = [];
 
-    // Collect ALL successful detections
     for (const strategy of this.strategies.values()) {
       try {
         const result = await strategy.detect(context);
@@ -38,7 +42,6 @@ export class BuildStrategyRegistry implements IBuildStrategyRegistry {
           detections.push({ strategy, result });
         }
       } catch (error) {
-        // Log error but continue trying other strategies
         console.error(
           `Error in strategy "${strategy.name}":`,
           error instanceof Error ? error.message : error
@@ -46,10 +49,11 @@ export class BuildStrategyRegistry implements IBuildStrategyRegistry {
       }
     }
 
-    if (detections.length === 0) return null;
+    if (detections.length === 0) {
+      throw new NoStrategyFoundError(context.projectId);
+    }
 
     detections.sort((a, b) => b.result.confidence - a.result.confidence);
-
     return detections[0].strategy;
   }
 
@@ -66,7 +70,6 @@ export class BuildStrategyRegistry implements IBuildStrategyRegistry {
   }
 }
 
-// Singleton instance
 let registryInstance: BuildStrategyRegistry | null = null;
 
 export function getBuildStrategyRegistry(): BuildStrategyRegistry {

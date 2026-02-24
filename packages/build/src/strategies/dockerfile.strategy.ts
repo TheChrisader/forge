@@ -5,6 +5,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import type { EventEmitter } from "eventemitter3";
 import type {
   IBuildStrategy,
   BuildContext,
@@ -12,6 +13,8 @@ import type {
   BuildResult,
   BuildConfig,
 } from "../interfaces/strategy.js";
+import type { BuildProgressEvent } from "../interfaces/strategy.js";
+import { BuildValidationError } from "../errors.js";
 
 /**
  * Priority 0 - checks for existing Dockerfile first
@@ -40,14 +43,51 @@ export class DockerfileBuildStrategy implements IBuildStrategy {
     }
   }
 
-  async build(context: BuildContext, config?: BuildConfig): Promise<BuildResult> {
-    // For Sprint 2, just return success
-    // Sprint 3 will implement actual Docker build using context and config
-    return Promise.resolve({
+  async build(
+    context: BuildContext,
+    config?: BuildConfig,
+    emitter?: EventEmitter
+  ): Promise<BuildResult> {
+    const startTime = Date.now();
+    const dockerfilePath = path.join(context.sourceDir, config?.dockerfile || "Dockerfile");
+
+    emitter?.emit("progress", {
+      type: "stage",
+      message: "Starting Docker build...",
+      timestamp: new Date(),
+      stage: "init",
+    } as BuildProgressEvent);
+
+    // Validate Dockerfile exists
+    try {
+      await fs.access(dockerfilePath);
+      emitter?.emit("progress", {
+        type: "log",
+        message: `Dockerfile found at ${dockerfilePath}`,
+        timestamp: new Date(),
+      } as BuildProgressEvent);
+    } catch {
+      const error = `Dockerfile not found at ${dockerfilePath}`;
+      emitter?.emit("progress", {
+        type: "error",
+        message: error,
+        timestamp: new Date(),
+      } as BuildProgressEvent);
+      throw new BuildValidationError(error);
+    }
+
+    emitter?.emit("progress", {
+      type: "complete",
+      message: "Build completed (stub implementation - Sprint 3 will build actual image)",
+      timestamp: new Date(),
+      progress: 100,
+    } as BuildProgressEvent);
+
+    return {
       success: true,
-      logs: `Dockerfile build stub for ${context.projectId} (Sprint 3: will use config.dockerfile: ${config?.dockerfile})`,
-      duration: 0,
-    });
+      logs: `Dockerfile build stub for ${context.projectId}`,
+      duration: Date.now() - startTime,
+    };
   }
 
   getDefaultConfig(): BuildConfig {

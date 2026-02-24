@@ -341,6 +341,9 @@ importers:
       '@forge/types':
         specifier: workspace:*
         version: link:../../packages/types
+      eventemitter3:
+        specifier: ^5.0.4
+        version: 5.0.4
       pino:
         specifier: ^10.3.1
         version: 10.3.1
@@ -363,9 +366,15 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+      '@forge/docker':
+        specifier: workspace:*
+        version: link:../docker
       '@forge/types':
         specifier: workspace:*
         version: link:../types
+      eventemitter3:
+        specifier: ^5.0.4
+        version: 5.0.4
     devDependencies:
       '@types/node':
         specifier: ^25.2.0
@@ -3485,6 +3494,9 @@ packages:
   event-target-shim@5.0.1:
     resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
     engines: {node: '>=6'}
+
+  eventemitter3@5.0.4:
+    resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
 
   events-universal@1.0.1:
     resolution: {integrity: sha512-LUd5euvbMLpwOF8m6ivPCbhQeSiYVNb8Vs0fQ8QjXo0JTkEHpz8pxdQf0gStltaPpw0Cca8b39KxvK9cfKRiAw==}
@@ -8626,6 +8638,8 @@ snapshots:
   esutils@2.0.3: {}
 
   event-target-shim@5.0.1: {}
+
+  eventemitter3@5.0.4: {}
 
   events-universal@1.0.1:
     dependencies:
