@@ -110,6 +110,13 @@ export class BuildError extends DockerRuntimeError {
   }
 }
 
+export class DockerSyntaxError extends DockerRuntimeError {
+  constructor(message: string) {
+    super(`Dockerfile syntax error: ${message}`, "DOCKERFILE_SYNTAX_ERROR", 400, { message });
+    this.name = "DockerSyntaxError";
+  }
+}
+
 export class ExecError extends DockerRuntimeError {
   constructor(id: string, exitCode: number, output: string) {
     super(`Exec command failed in container ${id} with exit code ${exitCode}`, "EXEC_FAILED", 500, {

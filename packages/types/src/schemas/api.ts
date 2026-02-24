@@ -73,3 +73,17 @@ export const SuccessResponseSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
 });
+
+export const CacheStatsSchema = z.object({
+  totalEntries: z.int().nonnegative(),
+  totalSizeBytes: z.int().nonnegative(),
+  averageAgeDays: z.number().nonnegative(),
+  oldestEntry: z.coerce.date().optional(),
+});
+
+export const CacheClearResultSchema = z.object({
+  deleted: z.int().nonnegative(),
+  freedBytes: z.int().nonnegative(),
+});
+
+export type CacheClearResult = z.infer<typeof CacheClearResultSchema>;

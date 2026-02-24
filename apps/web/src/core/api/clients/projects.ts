@@ -6,6 +6,8 @@ import type {
   UpdateProjectRequest,
   DeployProjectRequest,
   PaginatedResponse,
+  CacheStats,
+  CacheClearResult,
 } from "@forge/types";
 
 export const projectsApi = {
@@ -65,5 +67,19 @@ export const projectsApi = {
    */
   scale: async (id: string, replicas: number): Promise<{ success: boolean }> => {
     return apiClient.post(`/api/projects/${id}/scale`, { replicas });
+  },
+
+  /**
+   * Get build cache statistics for a project
+   */
+  getCacheStats: async (id: string): Promise<{ data: CacheStats }> => {
+    return apiClient.get(`/api/projects/${id}/cache`);
+  },
+
+  /**
+   * Clear build cache for a project
+   */
+  clearCache: async (id: string): Promise<{ data: CacheClearResult }> => {
+    return apiClient.delete(`/api/projects/${id}/cache`);
   },
 };

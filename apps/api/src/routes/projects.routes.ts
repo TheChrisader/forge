@@ -3,6 +3,7 @@ import type { Config } from "@forge/core";
 import { NotFoundError, SERVICE_KEY_STRINGS } from "@forge/core";
 import { requireAuth } from "../middleware/auth.js";
 import { ProjectService } from "../services/project.service.js";
+import type { BuildCacheService } from "@forge/docker";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 import {
   CreateProjectRequestSchema,
@@ -11,7 +12,13 @@ import {
   ProjectIdParamsSchema,
   ProjectStatus,
 } from "@forge/types";
-import { ApiResponseSchema, PaginatedResponseSchema, ProjectListQuerySchema } from "@forge/types";
+import {
+  ApiResponseSchema,
+  PaginatedResponseSchema,
+  ProjectListQuerySchema,
+  CacheStatsSchema,
+  CacheClearResultSchema,
+} from "@forge/types";
 
 // =============================================================================
 // Routes
@@ -216,6 +223,72 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
       await projectService.delete(params.id);
 
       return reply.status(204).send();
+    }
+  );
+
+  /**
+   * GET /api/projects/:id/cache
+   * Gets build cache statistics for a project
+   */
+  server.get(
+    "/api/projects/:id/cache",
+    {
+      schema: {
+        params: ProjectIdParamsSchema,
+        response: {
+          200: ApiResponseSchema(CacheStatsSchema),
+        },
+      },
+    },
+    async (request, reply) => {
+      requireAuth((request as { userId?: string }).userId);
+      const params = request.params;
+
+      const project = await projectService.getById(params.id);
+
+      if (!project) {
+        throw new NotFoundError("Project");
+      }
+
+      const cacheService = container.resolveSync<BuildCacheService>(
+        SERVICE_KEY_STRINGS.BUILD_CACHE_SERVICE
+      );
+      const stats = await cacheService.getCacheStats(params.id);
+
+      return reply.status(200).send({ data: stats });
+    }
+  );
+
+  /**
+   * DELETE /api/projects/:id/cache
+   * Clears build cache for a project
+   */
+  server.delete(
+    "/api/projects/:id/cache",
+    {
+      schema: {
+        params: ProjectIdParamsSchema,
+        response: {
+          200: ApiResponseSchema(CacheClearResultSchema),
+        },
+      },
+    },
+    async (request, reply) => {
+      requireAuth((request as { userId?: string }).userId);
+      const params = request.params;
+
+      const project = await projectService.getById(params.id);
+
+      if (!project) {
+        throw new NotFoundError("Project");
+      }
+
+      const cacheService = container.resolveSync<BuildCacheService>(
+        SERVICE_KEY_STRINGS.BUILD_CACHE_SERVICE
+      );
+      const result = await cacheService.clearCache(params.id);
+
+      return reply.status(200).send({ data: result });
     }
   );
 }

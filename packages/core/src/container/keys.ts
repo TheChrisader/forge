@@ -1,6 +1,3 @@
-/**
- * Service keys for dependency injection
- */
 export const SERVICE_KEYS = {
   DATABASE: Symbol.for("forge:database"),
   CACHE: Symbol.for("forge:cache"),
@@ -16,6 +13,7 @@ export const SERVICE_KEYS = {
 
   BUILD_SERVICE: Symbol.for("forge:build-service"),
   BUILD_STRATEGY_REGISTRY: Symbol.for("forge:build-strategy-registry"),
+  BUILD_CACHE_SERVICE: Symbol.for("forge:build-cache-service"),
 
   DEPLOYMENT_SERVICE: Symbol.for("forge:deployment-service"),
   DEPLOYMENT_STRATEGY_REGISTRY: Symbol.for("forge:deployment-strategy-registry"),
@@ -49,6 +47,7 @@ export const SERVICE_KEY_STRINGS = {
   REVERSE_PROXY_FACTORY: "reverseProxyFactory",
   BUILD_SERVICE: "buildService",
   BUILD_STRATEGY_REGISTRY: "buildStrategyRegistry",
+  BUILD_CACHE_SERVICE: "buildCacheService",
   DEPLOYMENT_SERVICE: "deploymentService",
   DEPLOYMENT_STRATEGY_REGISTRY: "deploymentStrategyRegistry",
   PROJECT_SERVICE: "projectService",

@@ -6,3 +6,6 @@ export * from "./queries";
 export * from "./events";
 export * from "./schemas/index";
 export * from "./utils";
+
+export type { CacheConfig, CacheStats } from "@forge/docker";
+export type { CacheClearResult } from "./schemas/api";

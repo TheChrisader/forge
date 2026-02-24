@@ -27,6 +27,7 @@ import type {
   ImageFilters,
   PullOptions,
   BuildOptions,
+  BuildResult,
   RemoveImageOptions,
   DockerConnectionOptions,
   HealthCheckResult,
@@ -42,6 +43,8 @@ import {
   ContainerNotRunningError,
   HealthCheckTimeoutError,
   DockerConnectionError,
+  BuildError,
+  DockerSyntaxError,
 } from "../errors";
 
 const DEFAULT_SOCKET_PATHS = {
@@ -630,60 +633,139 @@ export class DockerRuntime implements IContainerRuntime {
     });
   }
 
-  async buildImage(_context: string, options?: BuildOptions): Promise<string> {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const tarStream = require("tar-stream") as typeof import("tar-stream");
+  async buildImage(context: string, options?: BuildOptions): Promise<BuildResult> {
+    const tar = (await import("tar-fs")) as typeof import("tar-fs");
+    const path = await import("node:path");
 
-    const pack = tarStream.pack();
+    // Create tar stream from build context
+    const tarStream = tar.pack(context, {
+      ignore: (name: string) => {
+        const basename = path.basename(name);
+        const ignoredPatterns = [
+          "node_modules",
+          ".git",
+          ".gitignore",
+          ".env",
+          ".env.local",
+          "*.log",
+          ".DS_Store",
+        ];
+        return ignoredPatterns.some(
+          (pattern) => basename === pattern || basename.includes(pattern)
+        );
+      },
+    });
 
-    // TODO: replace this implementation with a proper tar library
-    // to recursively add files from the context directory
+    // Prepare build options for dockerode
+    const dockerOptions: Docker.ImageBuildOptions = {
+      dockerfile: options?.dockerfile ?? "Dockerfile",
+      // t: options?.tags ?? [],
+      labels: options?.labels,
+      buildargs: options?.buildArgs,
+      target: options?.target,
+      platform: options?.platform,
+      pull: options?.pull,
+      nocache: options?.noCache,
+    };
 
-    return new Promise((resolve, reject) => {
-      this.docker.buildImage(
-        pack,
-        {
-          dockerfile: options?.dockerfile || "Dockerfile",
-          t: options?.tags?.[0],
-          labels: options?.labels,
-          buildargs: options?.buildArgs,
-          target: options?.target,
-          nocache: options?.noCache,
-          pull: options?.pull,
-        },
-        (err, stream) => {
-          if (err) {
-            reject(err instanceof Error ? err : new Error("Failed to build image"));
-            return;
-          }
+    // Call Docker build API
+    const buildStream = await this.docker.buildImage(tarStream, dockerOptions);
 
-          if (!stream) {
-            reject(new Error("Failed to get build stream from Docker"));
-            return;
-          }
+    // Parse streaming output and collect metadata
+    const warnings: string[] = [];
+    let imageId = "";
 
-          let imageId = "";
-
-          this.docker.modem.followProgress(
-            stream,
-            (err: Error | null) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve(imageId);
-              }
-            },
-            (event: BuildProgress) => {
-              if (options?.onProgress) {
-                options.onProgress(event);
-              }
-              if (event.stream && event.stream.includes("Successfully built")) {
-                imageId = event.stream.split("Successfully built ")[1].trim();
-              }
-            }
-          );
+    return new Promise<BuildResult>((resolve, reject) => {
+      const handleLine = (line: BuildProgress): void => {
+        // Emit progress through callback
+        if (options?.onProgress) {
+          options.onProgress(line);
         }
-      );
+
+        // Collect warnings
+        if (line.stream?.toLowerCase().includes("warning")) {
+          warnings.push(line.stream);
+        }
+
+        // Extract final image ID
+        if (line.aux?.ID) {
+          imageId = line.aux.ID;
+        }
+
+        // Handle errors
+        if (line.error || line.errorDetail) {
+          const message = line.errorDetail?.message ?? line.error ?? "Build failed";
+
+          // Categorize error type
+          if (
+            message.includes("Dockerfile parse error") ||
+            message.includes("unknown instruction")
+          ) {
+            reject(new DockerSyntaxError(message));
+          } else {
+            reject(new BuildError("build", message));
+          }
+        }
+      };
+
+      // Docker returns JSONL (newline-delimited JSON)
+      let buffer = "";
+
+      buildStream.on("data", (chunk: Buffer) => {
+        buffer += chunk.toString();
+
+        // Split on newlines and process complete lines
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const parsed = JSON.parse(line) as BuildProgress;
+            handleLine(parsed);
+          } catch {
+            // Ignore malformed JSON lines
+          }
+        }
+      });
+
+      buildStream.on("end", () => {
+        // Process any remaining buffer
+        if (buffer.trim()) {
+          try {
+            const parsed = JSON.parse(buffer) as BuildProgress;
+            handleLine(parsed);
+          } catch {
+            // Ignore
+          }
+        }
+
+        if (!imageId) {
+          reject(new BuildError("build", "No image ID returned from Docker"));
+          return;
+        }
+
+        // Inspect the built image to get metadata
+        this.docker
+          .getImage(imageId)
+          .inspect()
+          .then((imageInfo) => {
+            resolve({
+              imageId,
+              sizeBytes: imageInfo.Size,
+              layers: imageInfo.RootFS.Layers ?? [],
+              warnings,
+            });
+          })
+          .catch((err) => {
+            reject(new BuildError("inspect", err instanceof Error ? err.message : String(err)));
+          });
+      });
+
+      buildStream.on("error", (err: Error) => {
+        reject(new BuildError("stream", err.message));
+      });
     });
   }
 

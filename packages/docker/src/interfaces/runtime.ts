@@ -30,7 +30,7 @@ export interface IContainerRuntime {
   listVolumes(filters?: VolumeFilters): Promise<Volume[]>;
 
   pullImage(name: string, options?: PullOptions): Promise<void>;
-  buildImage(context: string, options?: BuildOptions): Promise<string>;
+  buildImage(context: string, options?: BuildOptions): Promise<BuildResult>;
   removeImage(id: string, options?: RemoveImageOptions): Promise<void>;
   listImages(filters?: ImageFilters): Promise<Image[]>;
 }
@@ -349,6 +349,7 @@ export interface BuildOptions {
   target?: string;
   noCache?: boolean;
   pull?: boolean;
+  platform?: string;
   onProgress?: (progress: BuildProgress) => void;
 }
 
@@ -357,6 +358,23 @@ export interface BuildProgress {
   status?: string;
   progress?: string;
   error?: string;
+  errorDetail?: {
+    message: string;
+  };
+  aux?: {
+    ID: string;
+  };
+}
+
+export interface BuildResult {
+  /** Docker image ID (sha256:...) */
+  imageId: string;
+  /** Size in bytes */
+  sizeBytes: number;
+  /** Layer IDs (sha256 hashes) */
+  layers: string[];
+  /** Warning messages collected during build */
+  warnings: string[];
 }
 
 export interface RemoveImageOptions {

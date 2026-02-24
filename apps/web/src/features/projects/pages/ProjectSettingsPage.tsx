@@ -20,6 +20,7 @@ import { GeneralSettings } from "../components/settings/GeneralSettings";
 import { GitSettings } from "../components/settings/GitSettings";
 import { BuildSettings } from "../components/settings/BuildSettings";
 import { EnvVarsSettings } from "../components/settings/EnvVarsSettings";
+import { CacheSettings } from "../components/settings/CacheSettings";
 import { DangerZone } from "../components/settings/DangerZone";
 
 export function ProjectSettingsPage(): React.ReactElement | null {
@@ -97,6 +98,16 @@ export function ProjectSettingsPage(): React.ReactElement | null {
         </CardHeader>
         <CardContent>
           <BuildSettings project={project} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Build Cache</CardTitle>
+          <CardDescription>Manage cached build artifacts to speed up deployments</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CacheSettings project={project} />
         </CardContent>
       </Card>
 

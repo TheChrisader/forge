@@ -18,6 +18,7 @@ import { PrismaClient } from "@forge/database";
 import Redis from "ioredis";
 import { ProjectModule } from "./modules/project.module.js";
 import { DeploymentModule } from "./modules/deployment.module.js";
+import { BuildCacheModule } from "./modules/build-cache.module.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -42,6 +43,7 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
 
   registry.registerModule("projects", new ProjectModule());
   registry.registerModule("deployments", new DeploymentModule());
+  registry.registerModule("buildCache", new BuildCacheModule());
 
   await registry.initialize();
 
