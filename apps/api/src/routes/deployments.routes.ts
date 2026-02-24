@@ -60,7 +60,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
 
       const totalPages = Math.ceil(total / limit);
 
-      reply.status(200).send({
+      return reply.status(200).send({
         data: DeploymentSchema.array().parse(deployments),
         meta: { total, page, limit, totalPages },
       });
@@ -122,7 +122,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
         throw new NotFoundError("Deployment");
       }
 
-      reply.status(200).send({ data: DeploymentSchema.parse(deployment) });
+      return reply.status(200).send({ data: DeploymentSchema.parse(deployment) });
     }
   );
 
@@ -179,7 +179,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
 
       const logs = await deploymentService.getLogs(params.id);
 
-      reply.status(200).send({ data: { logs } });
+      return reply.status(200).send({ data: { logs } });
     }
   );
 }

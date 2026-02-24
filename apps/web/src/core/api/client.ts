@@ -43,7 +43,7 @@ export class ApiClient {
   private defaultRetryOptions: RetryOptions = {};
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || import.meta.env.VITE_API_URL || "http://localhost:3000";
+    this.baseUrl = baseUrl || import.meta.env.VITE_API_URL || "http://localhost:4000";
   }
 
   useRequest(interceptor: RequestInterceptor): void {
@@ -140,6 +140,7 @@ export class ApiClient {
       }
 
       const data = (await finalResponse.json()) as T;
+
       return data;
     } catch (error) {
       clearTimeout(timeoutId);

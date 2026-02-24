@@ -59,7 +59,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
       const { projects, total } = await projectService.list(filters);
       const totalPages = Math.ceil(total / limit);
 
-      reply.status(200).send({
+      return reply.status(200).send({
         data: ProjectSchema.array().parse(projects),
         meta: {
           total,
@@ -122,7 +122,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
         throw new NotFoundError("Project");
       }
 
-      reply.status(200).send({ data: project });
+      return reply.status(200).send({ data: project });
     }
   );
 
@@ -155,7 +155,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
         metadata: { ...(body.metadata ?? {}), updatedBy: userId },
       });
 
-      reply.status(200).send({ data: ProjectSchema.parse(project) });
+      return reply.status(200).send({ data: ProjectSchema.parse(project) });
     }
   );
 
@@ -188,7 +188,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
         metadata: { ...(body.metadata ?? {}), updatedBy: userId },
       });
 
-      reply.status(200).send({ data: ProjectSchema.parse(project) });
+      return reply.status(200).send({ data: ProjectSchema.parse(project) });
     }
   );
 
