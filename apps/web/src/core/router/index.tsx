@@ -7,13 +7,10 @@ import { DeploymentsPage, DeploymentLogsPage } from "@/features/deployments";
 import { LogsPage } from "@/features/logging";
 import { MetricsPage } from "@/features/metrics";
 import { SettingsPage } from "@/features/settings";
+import { ImagesPage } from "@/features/images";
 import { NotFoundPage } from "@/shared/components/NotFoundPage";
 import { AuthProvider, ProtectedRoute } from "@/core/auth";
 import { LoginPage } from "@/features/auth";
-
-// =============================================================================
-// Root Route (AuthProvider only, no layout)
-// =============================================================================
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -22,10 +19,6 @@ const rootRoute = createRootRoute({
     </AuthProvider>
   ),
 });
-
-// =============================================================================
-// Public Routes (no Header/Sidebar)
-// =============================================================================
 
 const publicRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -38,10 +31,6 @@ const loginRoute = createRoute({
   path: "/login",
   component: LoginPage,
 });
-
-// =============================================================================
-// Authenticated Routes (RootLayout with Header + Sidebar)
-// =============================================================================
 
 const authenticatedRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -95,6 +84,12 @@ const deploymentsRoute = createRoute({
   component: DeploymentsPage,
 });
 
+const imagesRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "/images",
+  component: ImagesPage,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: "/logs",
@@ -119,10 +114,6 @@ const notFoundRoute = createRoute({
   component: NotFoundPage,
 });
 
-// =============================================================================
-// Route Tree
-// =============================================================================
-
 const routeTree = rootRoute.addChildren([
   publicRoute.addChildren([loginRoute]),
   authenticatedRoute.addChildren([
@@ -133,6 +124,7 @@ const routeTree = rootRoute.addChildren([
     projectSettingsRoute,
     servicesRoute,
     deploymentsRoute,
+    imagesRoute,
     logsRoute,
     metricsRoute,
     settingsRoute,

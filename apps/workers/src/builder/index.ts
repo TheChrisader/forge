@@ -1,17 +1,15 @@
-/**
- * Build worker entry point
- */
-
+import "dotenv/config";
 import pino from "pino";
 import { BuildWorker } from "./worker.js";
 import { registerDefaultStrategies } from "@forge/build";
+import { startCleanupJob } from "./jobs/cleanup.job.js";
+import { ServiceRegistry, DatabaseModule } from "@forge/core";
 
 const logger = pino({
   name: "forge-build-worker",
   level: process.env.LOG_LEVEL ?? "info",
 });
 
-// Load queue config from environment
 function getQueueConfig(): {
   redis: { host: string; port: number; password?: string; db: number };
 } {
@@ -28,25 +26,29 @@ function getQueueConfig(): {
 async function main(): Promise<void> {
   logger.info("Starting Forge Build Worker...");
 
-  // Register all build strategies once at startup
   registerDefaultStrategies();
   logger.info("Build strategies registered");
 
-  // Load queue config
   const queueConfig = getQueueConfig();
   logger.info(
     { redis: { host: queueConfig.redis.host, port: queueConfig.redis.port } },
     "Connecting to Redis..."
   );
 
-  // Create and start worker
   const worker = new BuildWorker(queueConfig, {
     concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? "3", 10),
   });
 
   logger.info("Build worker started and ready to process jobs");
 
-  // Graceful shutdown
+  const registry = new ServiceRegistry();
+  registry.registerModule("database", new DatabaseModule());
+  await registry.initialize();
+  logger.info("Cleanup job container initialized");
+
+  startCleanupJob(registry.getContainer());
+  logger.info("Cleanup job started");
+
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, "Received shutdown signal");
     await worker.close();
@@ -58,7 +60,6 @@ async function main(): Promise<void> {
   process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
-// Start the worker
 main().catch((error) => {
   logger.error({ error }, "Failed to start build worker");
   process.exit(1);

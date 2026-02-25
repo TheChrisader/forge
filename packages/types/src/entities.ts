@@ -58,6 +58,7 @@ export type {
   DeploymentStrategy,
   ActiveEnvironment,
   LogLevel,
+  BuildLogSource,
   SourceType,
   SslStatus,
   GitProvider,

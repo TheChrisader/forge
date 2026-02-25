@@ -1,4 +1,4 @@
-import Docker from "dockerode";
+import Docker, { ImageRemoveInfo, PruneImagesInfo } from "dockerode";
 import { Writable } from "node:stream";
 import { parseDockerImage } from "../utils/image-parser";
 import type {
@@ -659,7 +659,8 @@ export class DockerRuntime implements IContainerRuntime {
     // Prepare build options for dockerode
     const dockerOptions: Docker.ImageBuildOptions = {
       dockerfile: options?.dockerfile ?? "Dockerfile",
-      // t: options?.tags ?? [],
+      // TODO: Get back to this
+      t: options?.tags?.[0] ?? "",
       labels: options?.labels,
       buildargs: options?.buildArgs,
       target: options?.target,
@@ -784,6 +785,9 @@ export class DockerRuntime implements IContainerRuntime {
     if (filters?.label) {
       dockerFilters.label = Object.entries(filters.label).map(([k, v]) => `${k}=${v}`);
     }
+    if (filters?.dangling !== undefined) {
+      dockerFilters.dangling = [filters.dangling ? "true" : "false"];
+    }
 
     const images = await this.docker.listImages({
       filters: JSON.stringify(dockerFilters),
@@ -796,6 +800,77 @@ export class DockerRuntime implements IContainerRuntime {
       size: img.Size,
       labels: img.Labels,
     }));
+  }
+
+  async pruneDanglingImages(): Promise<{
+    deleted: string[];
+    reclaimedBytes: number;
+  }> {
+    const result: PruneImagesInfo = await this.docker.pruneImages({
+      filters: JSON.stringify({ dangling: { true: true } }),
+    });
+
+    return {
+      deleted: (result.ImagesDeleted ?? ([] as ImageRemoveInfo[]))
+        .map((img: ImageRemoveInfo) => img.Untagged || img.Deleted)
+        .filter(Boolean),
+      reclaimedBytes: result.SpaceReclaimed ?? 0,
+    };
+  }
+
+  async pruneOldImages(
+    tagPrefix: string,
+    maxAgeDays: number
+  ): Promise<{
+    deleted: string[];
+    reclaimedBytes: number;
+    errors: string[];
+  }> {
+    const images = await this.listImages({ dangling: false });
+    const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
+
+    const deleted: string[] = [];
+    let reclaimedBytes = 0;
+    const errors: string[] = [];
+
+    for (const image of images) {
+      // Check if image matches the tag prefix
+      const matchingTag = image.repoTags?.find((tag) => tag.startsWith(tagPrefix));
+      if (!matchingTag) continue;
+
+      // Check if image is older than cutoff
+      if (image.created && image.created < cutoff) {
+        try {
+          const beforeSize = image.size;
+          await this.removeImage(image.id, { force: true });
+          deleted.push(image.id);
+          reclaimedBytes += beforeSize;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push(`${image.id}: ${msg}`);
+        }
+      }
+    }
+
+    return { deleted, reclaimedBytes, errors };
+  }
+
+  async getImageDiskUsage(tagPrefix?: string): Promise<{
+    count: number;
+    totalBytes: number;
+  }> {
+    const images = await this.listImages({ dangling: false });
+
+    const filtered = tagPrefix
+      ? images.filter((img) => img.repoTags?.some((tag) => tag.startsWith(tagPrefix)))
+      : images;
+
+    const totalBytes = filtered.reduce((sum, img) => sum + (img.size || 0), 0);
+
+    return {
+      count: filtered.length,
+      totalBytes,
+    };
   }
 
   private buildPortBindings(

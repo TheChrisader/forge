@@ -58,7 +58,7 @@ CREATE TRIGGER service_version_trigger
 -- Enable TimescaleDB Extension
 -- ============================================================================
 
-CREATE EXTENSION IF NOT EXISTS timescaledb;
+CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
 -- ============================================================================
 -- 1. METRICS (CRITICAL)

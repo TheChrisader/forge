@@ -33,6 +33,22 @@ export interface IContainerRuntime {
   buildImage(context: string, options?: BuildOptions): Promise<BuildResult>;
   removeImage(id: string, options?: RemoveImageOptions): Promise<void>;
   listImages(filters?: ImageFilters): Promise<Image[]>;
+  pruneDanglingImages(): Promise<{
+    deleted: string[];
+    reclaimedBytes: number;
+  }>;
+  pruneOldImages(
+    tagPrefix: string,
+    maxAgeDays: number
+  ): Promise<{
+    deleted: string[];
+    reclaimedBytes: number;
+    errors: string[];
+  }>;
+  getImageDiskUsage(tagPrefix?: string): Promise<{
+    count: number;
+    totalBytes: number;
+  }>;
 }
 
 export interface ContainerConfig {
@@ -284,6 +300,7 @@ export interface VolumeFilters {
 export interface ImageFilters {
   reference?: string[];
   label?: Record<string, string>;
+  dangling?: boolean;
 }
 
 export interface NetworkConfig {
@@ -367,13 +384,9 @@ export interface BuildProgress {
 }
 
 export interface BuildResult {
-  /** Docker image ID (sha256:...) */
   imageId: string;
-  /** Size in bytes */
   sizeBytes: number;
-  /** Layer IDs (sha256 hashes) */
   layers: string[];
-  /** Warning messages collected during build */
   warnings: string[];
 }
 

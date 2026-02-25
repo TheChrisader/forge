@@ -39,3 +39,5 @@ export interface SuccessResponse {
   success: boolean;
   message?: string;
 }
+
+export type { DeploymentLogsQuery, DeploymentLogsResponse } from "./schemas/api";

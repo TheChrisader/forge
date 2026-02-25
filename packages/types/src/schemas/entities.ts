@@ -40,10 +40,6 @@ import {
   TracingBackendSchema,
 } from "./common";
 
-// =============================================================================
-// USER & TEAM MANAGEMENT
-// =============================================================================
-
 export const UserSchema = z.object({
   id: IdSchema,
   email: NonEmptyStringSchema.max(255),
@@ -100,10 +96,6 @@ export const CreateTeamMemberSchema = z.object({
 export const UpdateTeamMemberSchema = z.object({
   role: TeamRoleSchema.optional(),
 });
-
-// =============================================================================
-// RBAC (ROLE-BASED ACCESS CONTROL)
-// =============================================================================
 
 export const RoleSchema = z.object({
   id: IdSchema,
@@ -174,10 +166,6 @@ export const CreateRoleAssignmentSchema = z.object({
   createdBy: IdSchema.nullable(),
 });
 
-// =============================================================================
-// PROJECTS & ENVIRONMENTS
-// =============================================================================
-
 export const ProjectSchema = z.object({
   id: IdSchema,
   name: NonEmptyStringSchema.max(255),
@@ -218,10 +206,6 @@ export const UpdateProjectSchema = z.object({
   updatedBy: IdSchema.nullable().optional(),
 });
 
-// -----------------------------------------------------------------------------
-// Environment
-// -----------------------------------------------------------------------------
-
 export const EnvironmentSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
@@ -259,10 +243,6 @@ export const UpdateEnvironmentSchema = z.object({
   domain: z.string().max(255).nullable().optional(),
   subdomain: z.string().max(255).nullable().optional(),
 });
-
-// =============================================================================
-// DEPLOYMENT
-// =============================================================================
 
 export const DeploymentSchema = z.object({
   id: IdSchema,
@@ -386,10 +366,6 @@ export const UpdateDeploymentCommentSchema = z.object({
   content: NonEmptyStringSchema.optional(),
 });
 
-// =============================================================================
-// CONTAINER
-// =============================================================================
-
 export const ContainerSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
@@ -447,10 +423,6 @@ export const UpdateContainerSchema = z.object({
   updatedBy: IdSchema.nullable().optional(),
 });
 
-// -----------------------------------------------------------------------------
-// Port Mapping
-// -----------------------------------------------------------------------------
-
 export const PortMappingSchema = z.object({
   id: IdSchema,
   containerId: IdSchema,
@@ -466,10 +438,6 @@ export const CreatePortMappingSchema = z.object({
   protocol: PortProtocolSchema.optional(),
 });
 
-// -----------------------------------------------------------------------------
-// Volume Mapping
-// -----------------------------------------------------------------------------
-
 export const VolumeMappingSchema = z.object({
   id: IdSchema,
   containerId: IdSchema,
@@ -484,10 +452,6 @@ export const CreateVolumeMappingSchema = z.object({
   target: NonEmptyStringSchema.max(500),
   mode: VolumeModeSchema.optional(),
 });
-
-// -----------------------------------------------------------------------------
-// Health Check Config
-// -----------------------------------------------------------------------------
 
 export const HealthCheckConfigSchema = z.object({
   id: IdSchema,
@@ -518,10 +482,6 @@ export const UpdateHealthCheckConfigSchema = z.object({
   startPeriod: z.number().int().nonnegative().optional(),
 });
 
-// -----------------------------------------------------------------------------
-// Network Attachment
-// -----------------------------------------------------------------------------
-
 export const NetworkAttachmentSchema = z.object({
   id: IdSchema,
   containerId: IdSchema,
@@ -544,10 +504,6 @@ export const UpdateNetworkAttachmentSchema = z.object({
   ipAddress: z.string().max(45).nullable().optional(),
   macAddress: z.string().max(17).nullable().optional(),
 });
-
-// -----------------------------------------------------------------------------
-// Resource Limit (NEW)
-// -----------------------------------------------------------------------------
 
 export const ResourceLimitSchema = z.object({
   id: IdSchema,
@@ -578,10 +534,6 @@ export const UpdateResourceLimitSchema = z.object({
   storageLimit: z.bigint().nullable().optional(),
   bandwidthLimit: z.bigint().nullable().optional(),
 });
-
-// =============================================================================
-// CONTAINER REGISTRY & IMAGES
-// =============================================================================
 
 export const RegistrySchema = z.object({
   id: IdSchema,
@@ -695,10 +647,6 @@ export const UpdateVulnerabilitySchema = z.object({
   link: z.string().max(500).nullable().optional(),
 });
 
-// =============================================================================
-// SERVICES (DATABASE, CACHE, QUEUE, etc.)
-// =============================================================================
-
 export const ServiceSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
@@ -790,10 +738,6 @@ export const UpdateServiceBackupSchema = z.object({
   error: z.string().nullable().optional(),
 });
 
-// =============================================================================
-// SECRETS & ENVIRONMENT VARIABLES
-// =============================================================================
-
 export const SecretSchema = z.object({
   id: IdSchema,
   projectId: IdSchema.nullable(),
@@ -850,10 +794,6 @@ export const UpdateEnvironmentVariableSchema = z.object({
   environmentId: IdSchema.nullable().optional(),
 });
 
-// =============================================================================
-// OBSERVABILITY (LOGS, METRICS, TRACING)
-// =============================================================================
-
 export const LogSchema = z.object({
   id: IdSchema,
   timestamp: TimestampSchema,
@@ -886,18 +826,24 @@ export const CreateLogSchema = z.object({
   serviceId: IdSchema.nullable().optional(),
 });
 
+import { BuildLogSourceSchema } from "./common";
+
 export const BuildLogSchema = z.object({
   id: IdSchema,
   deploymentId: IdSchema,
+  lineNumber: z.number().int().nonnegative(),
   timestamp: TimestampSchema,
   message: NonEmptyStringSchema,
   level: LogLevelSchema,
+  source: BuildLogSourceSchema,
 });
 
 export const CreateBuildLogSchema = z.object({
   deploymentId: IdSchema,
+  lineNumber: z.number().int().nonnegative(),
   message: NonEmptyStringSchema,
   level: LogLevelSchema.optional(),
+  source: BuildLogSourceSchema.optional(),
 });
 
 export const MetricSchema = z.object({
@@ -959,10 +905,6 @@ export const UpdateTracingConfigSchema = z.object({
   captureHeaders: z.array(z.string()).optional(),
   autoInstrument: z.boolean().optional(),
 });
-
-// =============================================================================
-// ALERTING
-// =============================================================================
 
 export const AlertRuleSchema = z.object({
   id: IdSchema,
@@ -1113,10 +1055,6 @@ export const UpdateAlertNotificationSchema = z.object({
   error: z.string().nullable().optional(),
 });
 
-// =============================================================================
-// JOBS & AUTOMATION
-// =============================================================================
-
 export const JobSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
@@ -1199,10 +1137,6 @@ export const UpdateJobRunSchema = z.object({
   exitCode: z.number().int().nullable().optional(),
 });
 
-// =============================================================================
-// DOMAINS & NETWORKING
-// =============================================================================
-
 export const DomainSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
@@ -1278,10 +1212,6 @@ export const UpdateNetworkPolicySchema = z.object({
   priority: z.number().int().optional(),
 });
 
-// =============================================================================
-// GIT INTEGRATION
-// =============================================================================
-
 export const GitIntegrationSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
@@ -1335,10 +1265,6 @@ export const UpdateGitCommitSchema = z.object({
   author: NonEmptyStringSchema.max(255).optional(),
   branch: NonEmptyStringSchema.max(255).optional(),
 });
-
-// =============================================================================
-// WEBHOOKS
-// =============================================================================
 
 export const WebhookSchema = z.object({
   id: IdSchema,
@@ -1395,10 +1321,6 @@ export const UpdateWebhookDeliverySchema = z.object({
   deliveredAt: TimestampSchema.nullable().optional(),
 });
 
-// =============================================================================
-// INTEGRATIONS
-// =============================================================================
-
 export const IntegrationSchema = z.object({
   id: IdSchema,
   projectId: IdSchema.nullable(),
@@ -1434,10 +1356,6 @@ export const UpdateIntegrationSchema = z.object({
   tokenExpiresAt: TimestampSchema.nullable().optional(),
 });
 
-// =============================================================================
-// BUILD CACHE
-// =============================================================================
-
 export const BuildCacheSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
@@ -1465,10 +1383,6 @@ export const UpdateBuildCacheSchema = z.object({
   expiresAt: TimestampSchema.optional(),
   lastUsedAt: TimestampSchema.optional(),
 });
-
-// =============================================================================
-// API KEYS
-// =============================================================================
 
 export const ApiKeySchema = z.object({
   id: IdSchema,
@@ -1505,10 +1419,6 @@ export const UpdateApiKeySchema = z.object({
   revokedAt: TimestampSchema.nullable().optional(),
 });
 
-// =============================================================================
-// AUDIT LOG
-// =============================================================================
-
 export const AuditLogSchema = z.object({
   id: IdSchema,
   userId: IdSchema.nullable(),
@@ -1538,10 +1448,6 @@ export const CreateAuditLogSchema = z.object({
   projectId: IdSchema.nullable().optional(),
   teamId: IdSchema.nullable().optional(),
 });
-
-// =============================================================================
-// WITH RELATIONS SCHEMAS
-// =============================================================================
 
 export const ProjectWithRelationsSchema = ProjectSchema.extend({
   team: z
@@ -1693,10 +1599,6 @@ export const IntegrationWithRelationsSchema = IntegrationSchema.extend({
     .nullable()
     .optional(),
 });
-
-// =============================================================================
-// INFERRED TYPES
-// =============================================================================
 
 export type ProjectWithRelations = z.infer<typeof ProjectWithRelationsSchema>;
 export type EnvironmentWithRelations = z.infer<typeof EnvironmentWithRelationsSchema>;

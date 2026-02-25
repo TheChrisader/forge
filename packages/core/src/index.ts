@@ -9,6 +9,7 @@ export * from "./container/keys";
 export * from "./errors";
 export * from "./modules";
 export * from "./services/interfaces";
+export * from "./services/build-log.service";
 export * from "./plugins/interfaces";
 
 console.log(`${PLATFORM_NAME} v${PLATFORM_VERSION} - Core package loaded`);

@@ -1,13 +1,3 @@
-/*
-  Warnings:
-
-  - You are about to drop the `Container` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Deployment` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `PortMapping` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Project` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `VolumeMapping` table. If the table is not empty, all the data it contains will be lost.
-
-*/
 -- CreateEnum
 CREATE TYPE "project_status" AS ENUM ('ACTIVE', 'INACTIVE', 'ARCHIVED');
 
@@ -34,6 +24,9 @@ CREATE TYPE "volume_mode" AS ENUM ('RW', 'RO');
 
 -- CreateEnum
 CREATE TYPE "log_level" AS ENUM ('TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL');
+
+-- CreateEnum
+CREATE TYPE "build_log_source" AS ENUM ('BUILD', 'SYSTEM', 'USER', 'DEPLOY');
 
 -- CreateEnum
 CREATE TYPE "source_type" AS ENUM ('CONTAINER', 'SERVICE', 'SYSTEM', 'BUILD', 'DEPLOYMENT');
@@ -103,54 +96,6 @@ CREATE TYPE "policy_action" AS ENUM ('ALLOW', 'DENY');
 
 -- CreateEnum
 CREATE TYPE "tracing_backend" AS ENUM ('JAEGER', 'ZIPKIN', 'TEMPO', 'LIGHTSTEP', 'HONEYCOMB', 'DATADOG');
-
--- DropForeignKey
-ALTER TABLE "Container" DROP CONSTRAINT "Container_deploymentId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Container" DROP CONSTRAINT "Container_projectId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Deployment" DROP CONSTRAINT "Deployment_projectId_fkey";
-
--- DropForeignKey
-ALTER TABLE "PortMapping" DROP CONSTRAINT "PortMapping_containerId_fkey";
-
--- DropForeignKey
-ALTER TABLE "VolumeMapping" DROP CONSTRAINT "VolumeMapping_containerId_fkey";
-
--- DropTable
-DROP TABLE "Container";
-
--- DropTable
-DROP TABLE "Deployment";
-
--- DropTable
-DROP TABLE "PortMapping";
-
--- DropTable
-DROP TABLE "Project";
-
--- DropTable
-DROP TABLE "VolumeMapping";
-
--- DropEnum
-DROP TYPE "ContainerStatus";
-
--- DropEnum
-DROP TYPE "DeploymentStatus";
-
--- DropEnum
-DROP TYPE "HealthStatus";
-
--- DropEnum
-DROP TYPE "PortProtocol";
-
--- DropEnum
-DROP TYPE "ProjectStatus";
-
--- DropEnum
-DROP TYPE "VolumeMode";
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -565,7 +510,7 @@ CREATE TABLE "environment_variables" (
 CREATE TABLE "logs" (
     "id" UUID NOT NULL,
     "timestamp" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "sourceType" "source_type" NOT NULL,
+    "source_type" "source_type" NOT NULL,
     "source_id" UUID NOT NULL,
     "source_name" VARCHAR(255) NOT NULL,
     "level" "log_level" NOT NULL,
@@ -578,25 +523,27 @@ CREATE TABLE "logs" (
     "container_id" UUID,
     "service_id" UUID,
 
-    CONSTRAINT "logs_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "logs_pkey" PRIMARY KEY ("id","timestamp")
 );
 
 -- CreateTable
 CREATE TABLE "build_logs" (
     "id" UUID NOT NULL,
     "deployment_id" UUID NOT NULL,
+    "line_number" INTEGER NOT NULL DEFAULT 0,
     "timestamp" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "message" TEXT NOT NULL,
     "level" "log_level" NOT NULL DEFAULT 'INFO',
+    "source" "build_log_source" NOT NULL DEFAULT 'BUILD',
 
-    CONSTRAINT "build_logs_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "build_logs_pkey" PRIMARY KEY ("id","timestamp")
 );
 
 -- CreateTable
 CREATE TABLE "metrics" (
     "id" UUID NOT NULL,
     "timestamp" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "sourceType" "source_type" NOT NULL,
+    "source_type" "source_type" NOT NULL,
     "source_id" UUID NOT NULL,
     "source_name" VARCHAR(255) NOT NULL,
     "metric" VARCHAR(255) NOT NULL,
@@ -608,7 +555,7 @@ CREATE TABLE "metrics" (
     "service_id" UUID,
     "deployment_id" UUID,
 
-    CONSTRAINT "metrics_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "metrics_pkey" PRIMARY KEY ("id","timestamp")
 );
 
 -- CreateTable
@@ -689,13 +636,14 @@ CREATE TABLE "alert_channel_rules" (
 -- CreateTable
 CREATE TABLE "alert_notifications" (
     "id" UUID NOT NULL,
+    "timestamp" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "alert_id" UUID NOT NULL,
     "channel_id" UUID NOT NULL,
     "status" "notification_status" NOT NULL,
     "sent_at" TIMESTAMPTZ,
     "error" TEXT,
 
-    CONSTRAINT "alert_notifications_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "alert_notifications_pkey" PRIMARY KEY ("id","timestamp")
 );
 
 -- CreateTable
@@ -827,7 +775,7 @@ CREATE TABLE "webhook_deliveries" (
     "delivered_at" TIMESTAMPTZ,
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "webhook_deliveries_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "webhook_deliveries_pkey" PRIMARY KEY ("id","created_at")
 );
 
 -- CreateTable
@@ -857,6 +805,7 @@ CREATE TABLE "build_caches" (
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expires_at" TIMESTAMPTZ NOT NULL,
     "last_used_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMPTZ,
 
     CONSTRAINT "build_caches_pkey" PRIMARY KEY ("id")
 );
@@ -896,7 +845,7 @@ CREATE TABLE "audit_logs" (
     "project_id" UUID,
     "team_id" UUID,
 
-    CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id","timestamp")
 );
 
 -- CreateIndex
@@ -1131,7 +1080,7 @@ CREATE UNIQUE INDEX "environment_variables_project_id_environment_id_key_key" ON
 CREATE INDEX "logs_timestamp_idx" ON "logs"("timestamp");
 
 -- CreateIndex
-CREATE INDEX "logs_sourceType_source_id_idx" ON "logs"("sourceType", "source_id");
+CREATE INDEX "logs_source_type_source_id_idx" ON "logs"("source_type", "source_id");
 
 -- CreateIndex
 CREATE INDEX "logs_level_idx" ON "logs"("level");
@@ -1149,10 +1098,16 @@ CREATE INDEX "build_logs_deployment_id_timestamp_idx" ON "build_logs"("deploymen
 CREATE INDEX "build_logs_timestamp_idx" ON "build_logs"("timestamp");
 
 -- CreateIndex
+CREATE INDEX "build_logs_level_idx" ON "build_logs"("level");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "build_logs_deployment_id_line_number_timestamp_key" ON "build_logs"("deployment_id", "line_number", "timestamp");
+
+-- CreateIndex
 CREATE INDEX "metrics_timestamp_idx" ON "metrics"("timestamp");
 
 -- CreateIndex
-CREATE INDEX "metrics_sourceType_source_id_idx" ON "metrics"("sourceType", "source_id");
+CREATE INDEX "metrics_source_type_source_id_idx" ON "metrics"("source_type", "source_id");
 
 -- CreateIndex
 CREATE INDEX "metrics_metric_idx" ON "metrics"("metric");
@@ -1267,6 +1222,9 @@ CREATE INDEX "build_caches_expires_at_idx" ON "build_caches"("expires_at");
 
 -- CreateIndex
 CREATE INDEX "build_caches_last_used_at_idx" ON "build_caches"("last_used_at");
+
+-- CreateIndex
+CREATE INDEX "build_caches_deleted_at_idx" ON "build_caches"("deleted_at");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "build_caches_project_id_key_key" ON "build_caches"("project_id", "key");

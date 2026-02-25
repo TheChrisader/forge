@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Folder, Server, FileText, BarChart3, Settings } from "lucide-react";
+import { Home, Folder, Server, FileText, BarChart3, Settings, Package } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Projects", href: "/projects", icon: Folder },
   { name: "Services", href: "/services", icon: Server },
+  { name: "Images", href: "/images", icon: Package },
   { name: "Logs", href: "/logs", icon: FileText },
   { name: "Metrics", href: "/metrics", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },

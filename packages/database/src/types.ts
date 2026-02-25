@@ -58,6 +58,7 @@ import type {
   DeploymentStrategy,
   ActiveEnvironment,
   LogLevel,
+  BuildLogSource,
   SourceType,
   SslStatus,
   GitProvider,
@@ -82,10 +83,6 @@ import type {
   PolicyAction,
   TracingBackend,
 } from "./generated/client";
-
-// ============================================================================
-// MODEL TYPES
-// ============================================================================
 
 export type {
   Project,
@@ -137,10 +134,6 @@ export type {
   AuditLog,
 };
 
-// ============================================================================
-// ENUM TYPES
-// ============================================================================
-
 export type {
   ProjectStatus,
   DeploymentStatus,
@@ -151,6 +144,7 @@ export type {
   DeploymentStrategy,
   ActiveEnvironment,
   LogLevel,
+  BuildLogSource,
   SourceType,
   SslStatus,
   GitProvider,

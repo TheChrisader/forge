@@ -5,6 +5,7 @@ import { createProjectsCommand } from "./commands/projects/index.js";
 import { createDeployCommand } from "./commands/deploy.js";
 import { createLogsCommand } from "./commands/logs.js";
 import { createConfigCommand } from "./commands/config.js";
+import { createImagesCommand } from "./commands/images.js";
 
 const program = new Command();
 
@@ -17,6 +18,7 @@ program
 program.addCommand(createProjectsCommand());
 program.addCommand(createDeployCommand());
 program.addCommand(createLogsCommand());
+program.addCommand(createImagesCommand());
 program.addCommand(createConfigCommand());
 
 program.parse();

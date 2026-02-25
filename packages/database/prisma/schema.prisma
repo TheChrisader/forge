@@ -105,6 +105,15 @@ enum LogLevel {
   @@map("log_level")
 }
 
+enum BuildLogSource {
+  BUILD    // Build system output (docker build, npm run build, etc.)
+  SYSTEM   // System-level messages (worker events, state changes)
+  USER     // User-initiated actions
+  DEPLOY   // Deployment runtime logs
+
+  @@map("build_log_source")
+}
+
 enum SourceType {
   CONTAINER
   SERVICE
@@ -1012,18 +1021,22 @@ model Log {
 }
 
 model BuildLog {
-  id           String   @default(uuid()) @db.Uuid
-  deploymentId String   @map("deployment_id") @db.Uuid
-  timestamp    DateTime @default(now()) @db.Timestamptz
-  message      String   @db.Text
-  level        LogLevel @default(INFO)
+  id           String           @default(uuid()) @db.Uuid
+  deploymentId String           @map("deployment_id") @db.Uuid
+  lineNumber   Int              @map("line_number") @default(0)
+  timestamp    DateTime         @default(now()) @db.Timestamptz
+  message      String           @db.Text
+  level        LogLevel         @default(INFO)
+  source       BuildLogSource   @default(BUILD)
 
   deployment Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 
   @@map("build_logs")
   @@id([id, timestamp])
+  @@unique([deploymentId, lineNumber, timestamp])
   @@index([deploymentId, timestamp])
   @@index([timestamp])
+  @@index([level])
 }
 
 model Metric {

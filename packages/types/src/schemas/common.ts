@@ -1,9 +1,5 @@
 import { z } from "zod";
 
-// =============================================================================
-// Base Schemas
-// =============================================================================
-
 export const IdSchema = z.uuid();
 // export const TimestampSchema = z.iso.datetime({ offset: true });
 export const TimestampSchema = z.coerce.date();
@@ -54,6 +50,7 @@ export const VolumeModeSchema = z.enum(["RW", "RO"]);
 
 // Observability
 export const LogLevelSchema = z.enum(["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"]);
+export const BuildLogSourceSchema = z.enum(["BUILD", "SYSTEM", "USER", "DEPLOY"]);
 export const SourceTypeSchema = z.enum(["CONTAINER", "SERVICE", "SYSTEM", "BUILD", "DEPLOYMENT"]);
 export const TracingBackendSchema = z.enum([
   "JAEGER",

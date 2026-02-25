@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { LogLevelSchema, BuildLogSourceSchema } from "./common";
+
 export const ResponseMetaSchema = z.object({
   total: z.int().nonnegative().optional(),
   page: z.int().positive().optional(),
@@ -87,3 +89,35 @@ export const CacheClearResultSchema = z.object({
 });
 
 export type CacheClearResult = z.infer<typeof CacheClearResultSchema>;
+
+export const DeploymentLogsQuerySchema = z.object({
+  fromLine: z.coerce.number().int().nonnegative().optional(),
+  toLine: z.coerce.number().int().nonnegative().optional(),
+  level: LogLevelSchema.optional(),
+  source: BuildLogSourceSchema.optional(),
+  search: z.string().optional(),
+  tail: z.coerce.number().int().positive().default(100),
+});
+
+export const DeploymentLogsResponseSchema = z.object({
+  logs: z.array(
+    z.object({
+      id: z.string().uuid(),
+      deploymentId: z.string().uuid(),
+      lineNumber: z.number().int().nonnegative(),
+      timestamp: z.coerce.date(),
+      message: z.string(),
+      level: LogLevelSchema,
+      source: BuildLogSourceSchema,
+    })
+  ),
+  total: z.number().int().nonnegative(),
+  metadata: z.object({
+    fromLine: z.number().int().nonnegative(),
+    toLine: z.number().int().nonnegative(),
+    count: z.number().int().nonnegative(),
+  }),
+});
+
+export type DeploymentLogsQuery = z.infer<typeof DeploymentLogsQuerySchema>;
+export type DeploymentLogsResponse = z.infer<typeof DeploymentLogsResponseSchema>;

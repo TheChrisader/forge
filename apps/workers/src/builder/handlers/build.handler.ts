@@ -11,15 +11,12 @@ import {
   type BuildContext,
   type BuildProgressEvent,
 } from "@forge/build";
-import type { BuildJobData, DeploymentStatus } from "@forge/types";
+import type { BuildJobData, DeploymentStatus, LogLevel, BuildLogSource } from "@forge/types";
+import { BuildLogService, type BuildLogEntry } from "@forge/core";
 import { EventEmitter } from "eventemitter3";
 import pino from "pino";
 import * as fs from "node:fs/promises";
 
-/**
- * Minimal Job interface for queue job processing
- * Matches the bullmq Job interface signature used by JobProcessor
- */
 interface Job<T = unknown> {
   id?: string;
   name: string;
@@ -31,9 +28,6 @@ const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
 });
 
-/**
- * Ensure build directory exists
- */
 async function ensureBuildDir(buildDir: string): Promise<void> {
   try {
     await fs.mkdir(buildDir, { recursive: true });
@@ -43,9 +37,6 @@ async function ensureBuildDir(buildDir: string): Promise<void> {
   }
 }
 
-/**
- * Clean up build artifacts
- */
 async function cleanupBuildDir(repoPath: string): Promise<void> {
   try {
     await fs.rm(repoPath, { recursive: true, force: true });
@@ -55,9 +46,19 @@ async function cleanupBuildDir(repoPath: string): Promise<void> {
   }
 }
 
-/**
- * Handle build job
- */
+function mapProgressTypeToLogLevel(type: string): LogLevel {
+  switch (type) {
+    case "error":
+      return "ERROR" as LogLevel;
+    case "stage":
+      return "INFO" as LogLevel;
+    case "step":
+      return "DEBUG" as LogLevel;
+    default:
+      return "INFO" as LogLevel;
+  }
+}
+
 export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
   const { deploymentId, projectId, gitUrl, branch } = job.data;
 
@@ -70,6 +71,9 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
   const gitService = new GitService();
   const strategyRegistry = getBuildStrategyRegistry();
 
+  // Initialize BuildLogService for durable log storage
+  const buildLogService = new BuildLogService(db);
+
   // Use a consistent build directory
   const buildDir = process.env.FORGE_BUILD_DIR ?? "/tmp/forge-builds";
   await ensureBuildDir(buildDir);
@@ -80,8 +84,29 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
   const emitter = new EventEmitter();
   const buildLogs: string[] = [];
 
+  // Log buffer for batching database writes
+  let lineNumber = 0;
+  const logBuffer: BuildLogEntry[] = [];
+
+  const flushLogs = async (): Promise<void> => {
+    if (logBuffer.length === 0) return;
+    try {
+      await buildLogService.appendBatch([...logBuffer]);
+      logBuffer.length = 0;
+    } catch (error) {
+      logger.error({ error, deploymentId }, "Failed to flush logs to database");
+      // Don't throw - log failures shouldn't fail the build
+    }
+  };
+
+  // Flush every 2 seconds
+  const flushInterval = setInterval(flushLogs, 2000);
+
   // Listen to progress events for logging
   emitter.on("progress", (progress: BuildProgressEvent) => {
+    if (!progress.message) return;
+
+    // Existing in-memory logging (keep this)
     const logEntry = `[${progress.type.toUpperCase()}] ${progress.message}`;
     buildLogs.push(logEntry);
 
@@ -94,6 +119,21 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       },
       progress.message
     );
+
+    // NEW: Also buffer for database persistence
+    logBuffer.push({
+      deploymentId,
+      lineNumber: lineNumber++,
+      timestamp: new Date(),
+      level: mapProgressTypeToLogLevel(progress.type),
+      message: progress.message,
+      source: "BUILD" as BuildLogSource,
+    });
+
+    // Flush immediately if buffer gets large
+    if (logBuffer.length >= 50) {
+      void flushLogs();
+    }
   });
 
   try {
@@ -171,7 +211,7 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
     await db.deployment.update({
       where: { id: deploymentId },
       data: {
-        status: "COMPLETED" as DeploymentStatus,
+        status: "SUCCEEDED" as DeploymentStatus,
         buildCompletedAt: new Date(),
       },
     });
@@ -182,6 +222,20 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       { deploymentId, error: error instanceof Error ? error.message : error },
       "Build failed"
     );
+
+    // On error, also log the error message to the database
+    try {
+      await buildLogService.append({
+        deploymentId,
+        lineNumber: lineNumber++,
+        timestamp: new Date(),
+        level: "ERROR" as LogLevel,
+        message: error instanceof Error ? error.message : "Build failed",
+        source: "SYSTEM" as BuildLogSource,
+      });
+    } catch (logError) {
+      logger.error({ error: logError, deploymentId }, "Failed to log error to database");
+    }
 
     // Always update deployment status on failure
     try {
@@ -199,6 +253,10 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
 
     throw error;
   } finally {
+    // Flush any remaining logs before cleanup
+    await flushLogs();
+    clearInterval(flushInterval);
+
     await cleanupBuildDir(repoPath);
   }
 }
