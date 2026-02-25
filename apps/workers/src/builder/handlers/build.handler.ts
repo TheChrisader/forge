@@ -12,7 +12,7 @@ import {
   type BuildProgressEvent,
 } from "@forge/build";
 import type { BuildJobData, DeploymentStatus, LogLevel, BuildLogSource } from "@forge/types";
-import { BuildSourceType } from "@forge/types";
+import { ProjectSourceType } from "@forge/types";
 import {
   BuildLogService,
   ForgeError,
@@ -67,9 +67,6 @@ function mapProgressTypeToLogLevel(type: string): LogLevel {
   }
 }
 
-/**
- * Acquire source from local filesystem
- */
 async function acquireFromLocal(
   sourcePath: string,
   destinationPath: string,
@@ -114,9 +111,6 @@ async function acquireFromLocal(
   }
 }
 
-/**
- * Handle pre-built image (skip build, mark for deployment)
- */
 async function handlePreBuiltImage(
   data: BuildJobData,
   deploymentId: string,
@@ -171,7 +165,7 @@ async function handlePreBuiltImage(
 export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
   const { deploymentId, projectId } = job.data;
 
-  const sourceType = job.data.sourceType ?? BuildSourceType.GIT;
+  const sourceType = job.data.sourceType ?? ProjectSourceType.GIT;
 
   logger.info({ deploymentId, projectId, sourceType }, "Processing build job");
 
@@ -247,7 +241,7 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
     let sourceDir: string;
 
     switch (sourceType) {
-      case BuildSourceType.GIT:
+      case ProjectSourceType.GIT:
         logger.info({ deploymentId, gitUrl: job.data.gitUrl, repoPath }, "Cloning repository...");
         await gitService.clone({
           url: job.data.gitUrl ?? "",
@@ -259,18 +253,18 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
         logger.info({ deploymentId }, "Repository cloned successfully");
         break;
 
-      case BuildSourceType.LOCAL:
+      case ProjectSourceType.LOCAL:
         logger.info({ deploymentId, localPath: job.data.localPath }, "Copying local files...");
         await acquireFromLocal(job.data.localPath ?? "", repoPath, emitter);
         sourceDir = repoPath;
         logger.info({ deploymentId }, "Local files copied successfully");
         break;
 
-      case BuildSourceType.IMAGE:
+      case ProjectSourceType.IMAGE:
         await handlePreBuiltImage(job.data, deploymentId, db, emitter, logger);
         return;
 
-      case BuildSourceType.DOCKER_COMPOSE:
+      case ProjectSourceType.DOCKER_COMPOSE:
         throw new ForgeError(
           "DOCKER_COMPOSE_NOT_SUPPORTED",
           501,

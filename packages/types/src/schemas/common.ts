@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ProjectSourceType } from "../enums";
 
 export const IdSchema = z.uuid();
 export const TimestampSchema = z.coerce.date();
@@ -27,6 +28,7 @@ export const DeploymentStatusSchema = z.enum([
 ]);
 export const DeploymentStrategySchema = z.enum(["ROLLING", "BLUE_GREEN", "CANARY", "RECREATE"]);
 export const ActiveEnvironmentSchema = z.enum(["BLUE", "GREEN"]);
+export const ProjectSourceTypeSchema = z.nativeEnum(ProjectSourceType); // Application-level enum
 
 // Container & Health
 export const ContainerStatusSchema = z.enum([
@@ -147,7 +149,6 @@ export const IntegrationTypeSchema = z.enum([
 
 // Git
 export const GitProviderSchema = z.enum(["GITHUB", "GITLAB", "BITBUCKET"]);
-export const BuildSourceTypeSchema = z.enum(["git", "local", "image", "docker-compose"]);
 export const WebhookEventSchema = z.enum([
   "DEPLOYMENT_CREATED",
   "DEPLOYMENT_BUILDING",

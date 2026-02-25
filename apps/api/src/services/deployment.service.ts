@@ -11,7 +11,7 @@ import {
   DeploymentStatusSchema,
   type DeploymentStatus,
   type BuildJobData,
-  BuildSourceType,
+  ProjectSourceType,
 } from "@forge/types";
 
 /**
@@ -82,9 +82,6 @@ export class DeploymentService implements IDeploymentService {
     private readonly queueService: QueueService
   ) {}
 
-  /**
-   * Lists deployments with optional filtering and pagination
-   */
   async list(filters?: {
     projectId?: string;
     status?: DeploymentStatus;
@@ -265,7 +262,7 @@ export class DeploymentService implements IDeploymentService {
         select: { sourceType: true, sourceUrl: true },
       });
 
-      const sourceType = (project?.sourceType as BuildSourceType) || BuildSourceType.GIT;
+      const sourceType = (project?.sourceType as ProjectSourceType) || ProjectSourceType.GIT;
 
       const jobData: BuildJobData = {
         deploymentId: result.id,
@@ -274,15 +271,15 @@ export class DeploymentService implements IDeploymentService {
         sourceType,
       };
 
-      if (sourceType === BuildSourceType.GIT) {
+      if (sourceType === ProjectSourceType.GIT) {
         const gitIntegration = await this.db.gitIntegration.findUnique({
           where: { projectId },
         });
         jobData.gitUrl = project?.sourceUrl ?? gitIntegration?.repository;
         jobData.branch = gitIntegration?.branch ?? "main";
-      } else if (sourceType === BuildSourceType.LOCAL) {
+      } else if (sourceType === ProjectSourceType.LOCAL) {
         jobData.localPath = project?.sourceUrl ?? "";
-      } else if (sourceType === BuildSourceType.IMAGE) {
+      } else if (sourceType === ProjectSourceType.IMAGE) {
         jobData.imageUrl = project?.sourceUrl ?? "";
       }
 

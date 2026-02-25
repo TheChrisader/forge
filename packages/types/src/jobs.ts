@@ -3,23 +3,14 @@
  * Defines data structures for jobs that can be queued and processed
  */
 
-/**
- * Build source type enumeration
- * Defines the supported source types for build jobs
- */
-export enum BuildSourceType {
-  GIT = "git",
-  LOCAL = "local",
-  IMAGE = "image",
-  DOCKER_COMPOSE = "docker-compose",
-}
+import type { ProjectSourceType } from "./enums";
 
 export interface BuildJobData {
   deploymentId: string;
   projectId: string;
   version: string;
 
-  sourceType?: BuildSourceType;
+  sourceType?: ProjectSourceType;
 
   gitUrl?: string;
   branch?: string;

@@ -47,6 +47,7 @@ tmp/
 !packages/build/
 
 # Temporarily disable from Git
+task-old.md
 task.md
 task2.md
 task3.md

@@ -11,5 +11,6 @@ export * from "./modules";
 export * from "./services/interfaces";
 export * from "./services/build-log.service";
 export * from "./plugins/interfaces";
+export * from "./validation";
 
 console.log(`${PLATFORM_NAME} v${PLATFORM_VERSION} - Core package loaded`);

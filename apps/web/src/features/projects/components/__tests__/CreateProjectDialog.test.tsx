@@ -61,8 +61,59 @@ describe("CreateProjectDialog", () => {
     render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
 
     expect(screen.getByLabelText(/project name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/git repository url/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/source type/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
+  });
+
+  it("shows git repository URL input when git is selected", async () => {
+    render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
+
+    const user = userEvent.setup();
+
+    // Open the source type selector
+    const sourceTypeTrigger = screen.getByRole("combobox");
+    await user.click(sourceTypeTrigger);
+
+    // Select git option
+    const gitOption = await screen.findByText("Git Repository");
+    await user.click(gitOption);
+
+    // Git URL input should now be visible
+    expect(screen.getByLabelText(/git repository url/i)).toBeInTheDocument();
+  });
+
+  it("shows local path input when local is selected", async () => {
+    render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
+
+    const user = userEvent.setup();
+
+    // Open the source type selector
+    const sourceTypeTrigger = screen.getByRole("combobox");
+    await user.click(sourceTypeTrigger);
+
+    // Select local option
+    const localOption = await screen.findByText("Local Path");
+    await user.click(localOption);
+
+    // Local path input should now be visible
+    expect(screen.getByLabelText(/local path/i)).toBeInTheDocument();
+  });
+
+  it("shows image reference input when image is selected", async () => {
+    render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
+
+    const user = userEvent.setup();
+
+    // Open the source type selector
+    const sourceTypeTrigger = screen.getByRole("combobox");
+    await user.click(sourceTypeTrigger);
+
+    // Select image option
+    const imageOption = await screen.findByText("Docker Registry");
+    await user.click(imageOption);
+
+    // Image reference input should now be visible
+    expect(screen.getByLabelText(/image reference/i)).toBeInTheDocument();
   });
 
   it("shows validation error for invalid name", async () => {
@@ -85,6 +136,13 @@ describe("CreateProjectDialog", () => {
     render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
 
     const user = userEvent.setup();
+
+    // Select git source type first
+    const sourceTypeTrigger = screen.getByRole("combobox");
+    await user.click(sourceTypeTrigger);
+    const gitOption = await screen.findByText("Git Repository");
+    await user.click(gitOption);
+
     const gitUrlInput = screen.getByLabelText(/git repository url/i);
 
     await user.click(gitUrlInput);
@@ -97,10 +155,63 @@ describe("CreateProjectDialog", () => {
     });
   });
 
+  it("shows validation error for local path with invalid format", async () => {
+    render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
+
+    const user = userEvent.setup();
+
+    // Select local source type first
+    const sourceTypeTrigger = screen.getByRole("combobox");
+    await user.click(sourceTypeTrigger);
+    const localOption = await screen.findByText("Local Path");
+    await user.click(localOption);
+
+    const localPathInput = screen.getByLabelText(/local path/i);
+
+    await user.click(localPathInput);
+    await user.keyboard("invalid-path");
+
+    localPathInput.blur();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid local path format/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows validation error for image with invalid format", async () => {
+    render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
+
+    const user = userEvent.setup();
+
+    // Select image source type first
+    const sourceTypeTrigger = screen.getByRole("combobox");
+    await user.click(sourceTypeTrigger);
+    const imageOption = await screen.findByText("Docker Registry");
+    await user.click(imageOption);
+
+    const imageInput = screen.getByLabelText(/image reference/i);
+
+    await user.click(imageInput);
+    await user.keyboard("Invalid_Image_Name");
+
+    imageInput.blur();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid image format/i)).toBeInTheDocument();
+    });
+  });
+
   it("does not show validation error for valid https URL", async () => {
     render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
 
     const user = userEvent.setup();
+
+    // Select git source type first
+    const sourceTypeTrigger = screen.getByRole("combobox");
+    await user.click(sourceTypeTrigger);
+    const gitOption = await screen.findByText("Git Repository");
+    await user.click(gitOption);
+
     const gitUrlInput = screen.getByLabelText(/git repository url/i);
 
     await user.click(gitUrlInput);
@@ -115,20 +226,17 @@ describe("CreateProjectDialog", () => {
     render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
 
     const user = userEvent.setup();
+
+    // Select git source type first
+    const sourceTypeTrigger = screen.getByRole("combobox");
+    await user.click(sourceTypeTrigger);
+    const gitOption = await screen.findByText("Git Repository");
+    await user.click(gitOption);
+
     const gitUrlInput = screen.getByLabelText(/git repository url/i);
 
     await user.click(gitUrlInput);
     await user.keyboard("git@github.com:username/repo.git");
-
-    gitUrlInput.blur();
-
-    expect(screen.queryByText(/Git URL must start with/i)).not.toBeInTheDocument();
-  });
-
-  it("does not show validation error for empty git URL (optional field)", async () => {
-    render(<CreateProjectDialog isOpen onClose={() => {}} />, { wrapper });
-
-    const gitUrlInput = screen.getByLabelText(/git repository url/i);
 
     gitUrlInput.blur();
 

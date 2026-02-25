@@ -17,7 +17,7 @@ import {
 import { LoaderIcon } from "lucide-react";
 import { useProject } from "@/core/api/hooks/useProjects";
 import { GeneralSettings } from "../components/settings/GeneralSettings";
-import { GitSettings } from "../components/settings/GitSettings";
+import { SourceSettings } from "../components/settings/SourceSettings";
 import { BuildSettings } from "../components/settings/BuildSettings";
 import { EnvVarsSettings } from "../components/settings/EnvVarsSettings";
 import { CacheSettings } from "../components/settings/CacheSettings";
@@ -85,10 +85,10 @@ export function ProjectSettingsPage(): React.ReactElement | null {
 
       <Card>
         <CardHeader>
-          <CardTitle>Git Repository</CardTitle>
+          <CardTitle>Source</CardTitle>
         </CardHeader>
         <CardContent>
-          <GitSettings project={project} />
+          <SourceSettings project={project} />
         </CardContent>
       </Card>
 

@@ -10,8 +10,16 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { useCreateProject } from "@/core/api/hooks/useProjects";
 import type { ApiClientError } from "@/core/api/client";
+import type { ProjectSourceType } from "@forge/types";
 
 interface CreateProjectDialogProps {
   isOpen: boolean;
@@ -20,13 +28,14 @@ interface CreateProjectDialogProps {
 
 interface FormData {
   name: string;
-  gitUrl: string;
+  sourceType: "git" | "local" | "image" | "";
+  sourceUrl: string;
   description: string;
 }
 
 interface FormErrors {
   name?: string;
-  gitUrl?: string;
+  sourceUrl?: string;
   general?: string;
 }
 
@@ -34,8 +43,12 @@ const NAME_PATTERN = /^[a-z0-9-]+$/;
 const MAX_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 500;
 
+// Simplified patterns for UX validation (backend uses stricter patterns)
 const HTTPS_PATTERN = /^https:\/\//;
 const SSH_PATTERN = /^git@/;
+const IMAGE_PATTERN =
+  /^[a-z0-9][a-z0-9._-]*[a-z0-9](\/[a-z0-9][a-z0-9._-]*[a-z0-9])?(:[\w][\w.-]*)?$/i;
+const LOCAL_PATH_PATTERN = /^(\/[\w.~-]+)+|^[a-zA-Z]:\\(?:[\w.~-]+\\?)*$/;
 
 export function CreateProjectDialog({
   isOpen,
@@ -46,22 +59,24 @@ export function CreateProjectDialog({
 
   const [formData, setFormData] = useState<FormData>({
     name: "",
-    gitUrl: "",
+    sourceType: "",
+    sourceUrl: "",
     description: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<keyof FormData, boolean>>({
     name: false,
-    gitUrl: false,
+    sourceType: false,
+    sourceUrl: false,
     description: false,
   });
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({ name: "", gitUrl: "", description: "" });
+      setFormData({ name: "", sourceType: "", sourceUrl: "", description: "" });
       setErrors({});
-      setTouched({ name: false, gitUrl: false, description: false });
+      setTouched({ name: false, sourceType: false, sourceUrl: false, description: false });
     }
   }, [isOpen]);
 
@@ -78,13 +93,25 @@ export function CreateProjectDialog({
     return undefined;
   }, []);
 
-  const validateGitUrl = useCallback((url: string): string | undefined => {
+  const validateSourceUrl = useCallback((url: string, sourceType: string): string | undefined => {
     if (!url) {
-      return undefined;
+      return sourceType === "" ? undefined : "Source URL is required";
     }
-    if (!HTTPS_PATTERN.test(url) && !SSH_PATTERN.test(url)) {
-      return "Git URL must start with https:// or git@";
+
+    if (sourceType === "git") {
+      if (!HTTPS_PATTERN.test(url) && !SSH_PATTERN.test(url)) {
+        return "Git URL must start with https:// or git@";
+      }
+    } else if (sourceType === "local") {
+      if (!LOCAL_PATH_PATTERN.test(url)) {
+        return "Invalid local path format. Use /path/to/dir or C:\\path\\to\\dir";
+      }
+    } else if (sourceType === "image") {
+      if (!IMAGE_PATTERN.test(url)) {
+        return "Invalid image format. Use registry/image:tag";
+      }
     }
+
     return undefined;
   }, []);
 
@@ -100,10 +127,10 @@ export function CreateProjectDialog({
       }
     }
 
-    if (field === "gitUrl" && formData.gitUrl) {
-      const urlError = validateGitUrl(formData.gitUrl);
+    if (field === "sourceUrl" && formData.sourceUrl) {
+      const urlError = validateSourceUrl(formData.sourceUrl, formData.sourceType);
       if (urlError) {
-        newErrors.gitUrl = urlError;
+        newErrors.sourceUrl = urlError;
       }
     }
 
@@ -115,7 +142,7 @@ export function CreateProjectDialog({
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
-    setTouched({ name: true, gitUrl: true, description: true });
+    setTouched({ name: true, sourceType: true, sourceUrl: true, description: true });
 
     const newErrors: FormErrors = {};
 
@@ -124,9 +151,9 @@ export function CreateProjectDialog({
       newErrors.name = nameError;
     }
 
-    const urlError = validateGitUrl(formData.gitUrl);
+    const urlError = validateSourceUrl(formData.sourceUrl, formData.sourceType);
     if (urlError) {
-      newErrors.gitUrl = urlError;
+      newErrors.sourceUrl = urlError;
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -139,7 +166,8 @@ export function CreateProjectDialog({
     try {
       const result = await createProject.mutateAsync({
         name: formData.name,
-        sourceUrl: formData.gitUrl || undefined,
+        sourceType: (formData.sourceType || undefined) as ProjectSourceType | undefined,
+        sourceUrl: formData.sourceUrl || undefined,
         metadata: formData.description ? { description: formData.description } : undefined,
       });
 
@@ -203,25 +231,67 @@ export function CreateProjectDialog({
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="gitUrl" className="text-sm font-medium">
-                Git Repository URL
+              <label htmlFor="sourceType" className="text-sm font-medium">
+                Source Type <span className="text-destructive">*</span>
               </label>
-              <Input
-                id="gitUrl"
-                value={formData.gitUrl}
-                onChange={(e) => setFormData({ ...formData, gitUrl: e.target.value })}
-                onBlur={() => handleFieldBlur("gitUrl")}
-                placeholder="https://github.com/username/repo"
+              <Select
+                value={formData.sourceType}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    sourceType: value as "git" | "local" | "image",
+                    sourceUrl: "",
+                  })
+                }
                 disabled={createProject.isPending}
-                aria-invalid={touched.gitUrl && !!errors.gitUrl}
-              />
-              {touched.gitUrl && errors.gitUrl && (
-                <p className="text-sm text-destructive">{errors.gitUrl}</p>
-              )}
+              >
+                <SelectTrigger id="sourceType" className="w-full">
+                  <SelectValue placeholder="Select source type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="git">Git Repository</SelectItem>
+                  <SelectItem value="local">Local Path</SelectItem>
+                  <SelectItem value="image">Docker Registry</SelectItem>
+                </SelectContent>
+              </Select>
               <p className="text-xs text-muted-foreground">
-                Optional. Leave empty to upload code later.
+                Choose where your project source is located
               </p>
             </div>
+
+            {formData.sourceType && (
+              <div className="space-y-2">
+                <label htmlFor="sourceUrl" className="text-sm font-medium">
+                  {formData.sourceType === "git" && "Git Repository URL"}
+                  {formData.sourceType === "local" && "Local Path"}
+                  {formData.sourceType === "image" && "Image Reference"}
+                  <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  id="sourceUrl"
+                  value={formData.sourceUrl}
+                  onChange={(e) => setFormData({ ...formData, sourceUrl: e.target.value })}
+                  onBlur={() => handleFieldBlur("sourceUrl")}
+                  placeholder={
+                    formData.sourceType === "git"
+                      ? "https://github.com/username/repo"
+                      : formData.sourceType === "local"
+                        ? "/path/to/project"
+                        : "registry.example.com/image:tag"
+                  }
+                  disabled={createProject.isPending}
+                  aria-invalid={touched.sourceUrl && !!errors.sourceUrl}
+                />
+                {touched.sourceUrl && errors.sourceUrl && (
+                  <p className="text-sm text-destructive">{errors.sourceUrl}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {formData.sourceType === "git" && "Enter HTTPS or SSH URL"}
+                  {formData.sourceType === "local" && "Absolute path to project directory"}
+                  {formData.sourceType === "image" && "Docker image with registry and tag"}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label htmlFor="description" className="text-sm font-medium">

@@ -6,6 +6,7 @@ import {
   ConfigSchema,
   JsonSchema,
   ProjectStatusSchema,
+  ProjectSourceTypeSchema,
   DeploymentStatusSchema,
   DeploymentStrategySchema,
   ActiveEnvironmentSchema,
@@ -31,14 +32,12 @@ import {
 // COMMON QUERY PARAMS
 // =============================================================================
 
-// Single resource delete with options: DELETE /users/:id?force=true
 export const DeleteQuerySchema = z
   .object({
     force: z.coerce.boolean().optional(),
   })
   .strict();
 
-// Batch delete by IDs: DELETE /users?ids=1&ids=2&ids=3
 export const BatchDeleteQuerySchema = z
   .object({
     ids: z.array(IdSchema).min(1),
@@ -46,7 +45,6 @@ export const BatchDeleteQuerySchema = z
   })
   .strict();
 
-// Filter-based delete: DELETE /logs?projectId=123&before=2024-01-01
 export const FilteredDeleteQuerySchema = z
   .object({
     projectId: IdSchema.optional(),
@@ -186,7 +184,7 @@ export const CreateProjectRequestSchema = z
     name: NonEmptyStringSchema.max(255),
     teamId: IdSchema.nullable().optional(),
     type: z.string().max(100).nullable().optional(),
-    sourceType: z.string().max(100).nullable().optional(),
+    sourceType: ProjectSourceTypeSchema.nullable().optional(),
     sourceUrl: z.string().nullable().optional(),
     status: ProjectStatusSchema.optional(),
     config: ConfigSchema.optional(),
@@ -199,6 +197,8 @@ export const UpdateProjectRequestSchema = z
     name: NonEmptyStringSchema.max(255).optional(),
     teamId: IdSchema.nullable().optional(),
     type: z.string().max(100).nullable().optional(),
+    sourceType: ProjectSourceTypeSchema.nullable().optional(),
+    sourceUrl: z.string().nullable().optional(),
     status: ProjectStatusSchema.optional(),
     config: ConfigSchema.optional(),
     metadata: MetadataSchema.optional(),

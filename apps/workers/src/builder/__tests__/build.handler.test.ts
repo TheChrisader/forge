@@ -89,6 +89,7 @@ const mockJob: Partial<Job<BuildJobData>> = {
   data: {
     deploymentId: "deploy-123",
     projectId: "project-456",
+    sourceType: "git" as const,
     gitUrl: "https://github.com/test/repo.git",
     branch: "main",
     version: "v1.0.0",

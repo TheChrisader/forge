@@ -1,5 +1,12 @@
 import type { PrismaClient } from "@forge/database";
-import { ValidationError, ConflictError, type IProjectService } from "@forge/core";
+import {
+  ValidationError,
+  ConflictError,
+  type IProjectService,
+  isValidGitUrl,
+  isValidImageUrl,
+  isValidLocalPath,
+} from "@forge/core";
 import {
   type Project,
   type CreateProjectRequest,
@@ -7,16 +14,8 @@ import {
   type ProjectStatus,
   type ProjectWithRelations,
   ProjectWithRelationsSchema,
+  ProjectSourceType,
 } from "@forge/types";
-
-const GIT_URL_PATTERNS = [
-  /^https:\/\/[^/\s]+\/[^/\s]+\/[^/\s]+\.git$/,
-  /^git@[^:\s]+:[^:\s]+\/[^:\s]+\.git$/,
-];
-
-function isValidGitUrl(url: string): boolean {
-  return GIT_URL_PATTERNS.some((pattern) => pattern.test(url));
-}
 
 function isUniqueNameViolation(err: unknown): err is { meta: { target: string[] } } {
   return (
@@ -84,12 +83,32 @@ export class ProjectService implements IProjectService {
   async create(data: CreateProjectRequest): Promise<Project> {
     const { name, type, sourceType, sourceUrl, config, metadata } = data;
 
-    if (config?.gitUrl && typeof config.gitUrl === "string") {
-      if (!isValidGitUrl(config.gitUrl)) {
+    if (sourceType) {
+      if (!sourceUrl || typeof sourceUrl !== "string") {
+        throw new ValidationError(`Source URL is required when source type is "${sourceType}"`);
+      }
+
+      if (sourceType === ProjectSourceType.GIT && !isValidGitUrl(sourceUrl)) {
         throw new ValidationError(
           "Invalid git URL format. Expected: https://host/user/repo.git or git@host:user/repo.git"
         );
       }
+      if (sourceType === ProjectSourceType.IMAGE && !isValidImageUrl(sourceUrl)) {
+        throw new ValidationError("Invalid image format. Expected: registry/image:tag");
+      }
+      if (sourceType === ProjectSourceType.LOCAL && !isValidLocalPath(sourceUrl)) {
+        throw new ValidationError(
+          "Invalid local path format. Expected: /absolute/path or C:\\path"
+        );
+      }
+      if (sourceType === ProjectSourceType.DOCKER_COMPOSE && !isValidLocalPath(sourceUrl)) {
+        throw new ValidationError(
+          "Invalid docker-compose path format. Expected: /absolute/path or C:\\path"
+        );
+      }
+    } else if (sourceUrl && typeof sourceUrl === "string") {
+      // If sourceUrl is provided without sourceType, that's an error
+      throw new ValidationError("Source type must be specified when providing a source URL");
     }
 
     try {
@@ -112,14 +131,34 @@ export class ProjectService implements IProjectService {
   }
 
   async update(id: string, data: UpdateProjectRequest): Promise<Project> {
-    const { name, type, config, metadata } = data;
+    const { name, type, sourceType, sourceUrl, config, metadata } = data;
 
-    if (config?.gitUrl && typeof config.gitUrl === "string") {
-      if (!isValidGitUrl(config.gitUrl)) {
+    if (sourceType) {
+      if (!sourceUrl || typeof sourceUrl !== "string") {
+        throw new ValidationError(`Source URL is required when source type is "${sourceType}"`);
+      }
+
+      if (sourceType === ProjectSourceType.GIT && !isValidGitUrl(sourceUrl)) {
         throw new ValidationError(
           "Invalid git URL format. Expected: https://host/user/repo.git or git@host:user/repo.git"
         );
       }
+      if (sourceType === ProjectSourceType.IMAGE && !isValidImageUrl(sourceUrl)) {
+        throw new ValidationError("Invalid image format. Expected: registry/image:tag");
+      }
+      if (sourceType === ProjectSourceType.LOCAL && !isValidLocalPath(sourceUrl)) {
+        throw new ValidationError(
+          "Invalid local path format. Expected: /absolute/path or C:\\path"
+        );
+      }
+      if (sourceType === ProjectSourceType.DOCKER_COMPOSE && !isValidLocalPath(sourceUrl)) {
+        throw new ValidationError(
+          "Invalid docker-compose path format. Expected: /absolute/path or C:\\path"
+        );
+      }
+    } else if (sourceUrl && typeof sourceUrl === "string") {
+      // If sourceUrl is provided without sourceType, that's an error
+      throw new ValidationError("Source type must be specified when providing a source URL");
     }
 
     try {
@@ -128,6 +167,8 @@ export class ProjectService implements IProjectService {
         data: {
           ...(name !== undefined && { name }),
           ...(type !== undefined && { type }),
+          ...(sourceType !== undefined && { sourceType }),
+          ...(sourceUrl !== undefined && { sourceUrl }),
           ...(config !== undefined && { config: config as never }),
           ...(metadata !== undefined && { metadata: metadata as never }),
           updatedAt: new Date(),
