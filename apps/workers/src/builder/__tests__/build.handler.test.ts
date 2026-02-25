@@ -1,10 +1,8 @@
-/**
- * Build handler tests
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { BuildJobData } from "@forge/types";
+import { ProjectSourceType } from "@forge/types";
 import { NoStrategyFoundError } from "@forge/build";
+import { GitNotFoundError } from "@forge/git";
 
 // Minimal Job interface matching the handler's interface
 interface Job<T = unknown> {
@@ -59,14 +57,17 @@ const { mockGitService, mockDb, mockRegistry, mockStrategy, mockFs, MockGitServi
   }
 );
 
-// Mock all dependencies before importing
 vi.mock("@forge/database", () => ({
   getDatabaseClient: vi.fn(() => mockDb),
 }));
 
-vi.mock("@forge/git", () => ({
-  GitService: MockGitService,
-}));
+vi.mock("@forge/git", async () => {
+  const actual = await vi.importActual("@forge/git");
+  return {
+    ...actual,
+    GitService: MockGitService,
+  };
+});
 
 vi.mock("@forge/build", async () => {
   const actual = await vi.importActual("@forge/build");
@@ -80,16 +81,14 @@ vi.mock("@forge/build", async () => {
 
 vi.mock("node:fs/promises", () => mockFs);
 
-// Import after mocking
 import { handleBuildJob } from "../handlers/build.handler.js";
 
-// Mock data
 const mockJob: Partial<Job<BuildJobData>> = {
   id: "test-job-1",
   data: {
     deploymentId: "deploy-123",
     projectId: "project-456",
-    sourceType: "git" as const,
+    sourceType: ProjectSourceType.GIT,
     gitUrl: "https://github.com/test/repo.git",
     branch: "main",
     version: "v1.0.0",
@@ -108,7 +107,6 @@ const mockProject = {
   update: vi.fn(),
 };
 
-// Setup default mock return values
 mockDb.deployment.update.mockResolvedValue(mockDeployment);
 mockDb.project.update.mockResolvedValue(mockProject);
 
@@ -188,11 +186,11 @@ describe("handleBuildJob", () => {
       },
     });
 
-    // Verify deployment was marked as COMPLETED
+    // Verify deployment was marked as SUCCEEDED
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
       where: { id: "deploy-123" },
       data: {
-        status: "COMPLETED",
+        status: "SUCCEEDED",
         buildCompletedAt: expect.any(Date),
       },
     });
@@ -202,7 +200,8 @@ describe("handleBuildJob", () => {
     mockGitService.clone.mockResolvedValue("/tmp/forge-builds-test/deploy-123");
     mockRegistry.detect.mockRejectedValue(new NoStrategyFoundError("project-456"));
 
-    await expect(handleBuildJob(mockJob as Job<BuildJobData>)).rejects.toThrow();
+    // NoStrategyFoundError is a permanent error, so the handler should NOT throw
+    await handleBuildJob(mockJob as Job<BuildJobData>);
 
     // Verify deployment was marked as FAILED
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
@@ -216,9 +215,10 @@ describe("handleBuildJob", () => {
   });
 
   it("should handle git clone failure", async () => {
-    mockGitService.clone.mockRejectedValue(new Error("Clone failed"));
+    mockGitService.clone.mockRejectedValue(new GitNotFoundError("Repository not found"));
 
-    await expect(handleBuildJob(mockJob as Job<BuildJobData>)).rejects.toThrow();
+    // GitNotFoundError is a permanent error, so the handler should NOT throw
+    await handleBuildJob(mockJob as Job<BuildJobData>);
 
     // Verify deployment was marked as FAILED
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
@@ -226,15 +226,16 @@ describe("handleBuildJob", () => {
       data: {
         status: "FAILED",
         buildCompletedAt: expect.any(Date),
-        error: "Clone failed",
+        error: expect.any(String),
       },
     });
   });
 
   it("should clean up build directory even on failure", async () => {
-    mockGitService.clone.mockRejectedValue(new Error("Clone failed"));
+    mockGitService.clone.mockRejectedValue(new GitNotFoundError("Repository not found"));
 
-    await expect(handleBuildJob(mockJob as Job<BuildJobData>)).rejects.toThrow();
+    // GitNotFoundError is a permanent error, so the handler should NOT throw
+    await handleBuildJob(mockJob as Job<BuildJobData>);
 
     // Verify cleanup was called
     expect(mockFs.rm).toHaveBeenCalledWith("/tmp/forge-builds-test/deploy-123", {

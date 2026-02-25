@@ -1,8 +1,3 @@
-/**
- * Build job handler
- * Processes individual build jobs from the queue
- */
-
 import { getDatabaseClient, type PrismaClient } from "@forge/database";
 import { GitService } from "@forge/git";
 import {
@@ -24,6 +19,10 @@ import { EventEmitter } from "eventemitter3";
 import pino from "pino";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+
+import { withTimeout, TIMEOUTS } from "../timeouts/wrapper.js";
+import { BuildErrorHandler } from "../error-handling/handler.js";
+import { BuildMetricsService } from "../metrics/service.js";
 
 interface Job<T = unknown> {
   id?: string;
@@ -174,8 +173,10 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
   const db = getDatabaseClient();
   const gitService = new GitService();
   const strategyRegistry = getBuildStrategyRegistry();
-
   const buildLogService = new BuildLogService(db);
+
+  const errorHandler = new BuildErrorHandler();
+  const metricsService = new BuildMetricsService(db);
 
   const buildDir = process.env.FORGE_BUILD_DIR ?? "/tmp/forge-builds";
   await ensureBuildDir(buildDir);
@@ -195,7 +196,6 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       logBuffer.length = 0;
     } catch (error) {
       logger.error({ error, deploymentId }, "Failed to flush logs to database");
-      // Don't throw - log failures shouldn't fail the build
     }
   };
 
@@ -232,6 +232,8 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
   });
 
   try {
+    await metricsService.recordBuildStart(deploymentId);
+
     logger.info({ deploymentId }, "Updating deployment status to BUILDING");
     await db.deployment.update({
       where: { id: deploymentId },
@@ -243,19 +245,27 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
     switch (sourceType) {
       case ProjectSourceType.GIT:
         logger.info({ deploymentId, gitUrl: job.data.gitUrl, repoPath }, "Cloning repository...");
-        await gitService.clone({
-          url: job.data.gitUrl ?? "",
-          branch: job.data.branch,
-          destinationPath: repoPath,
-          depth: 1,
-        });
+        await withTimeout(
+          gitService.clone({
+            url: job.data.gitUrl ?? "",
+            branch: job.data.branch,
+            destinationPath: repoPath,
+            depth: 1,
+          }),
+          TIMEOUTS.GIT_CLONE,
+          "Git clone"
+        );
         sourceDir = repoPath;
         logger.info({ deploymentId }, "Repository cloned successfully");
         break;
 
       case ProjectSourceType.LOCAL:
         logger.info({ deploymentId, localPath: job.data.localPath }, "Copying local files...");
-        await acquireFromLocal(job.data.localPath ?? "", repoPath, emitter);
+        await withTimeout(
+          acquireFromLocal(job.data.localPath ?? "", repoPath, emitter),
+          TIMEOUTS.GIT_CLONE, // Same timeout as git clone
+          "Local file copy"
+        );
         sourceDir = repoPath;
         logger.info({ deploymentId }, "Local files copied successfully");
         break;
@@ -284,8 +294,11 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
     };
 
     logger.info({ deploymentId }, "Detecting framework...");
-    // No null check needed - throws NoStrategyFoundError if not found
-    const strategy = await strategyRegistry.detect(buildContext);
+    const strategy = await withTimeout(
+      strategyRegistry.detect(buildContext),
+      TIMEOUTS.FRAMEWORK_DETECT,
+      "Framework detection"
+    );
 
     const detectionResult = await strategy.detect(buildContext);
     logger.info(
@@ -320,7 +333,11 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       stage: "build",
     } as BuildProgressEvent);
 
-    const result = await strategy.build(buildContext, config, emitter);
+    const result = await withTimeout(
+      strategy.build(buildContext, config, emitter),
+      TIMEOUTS.DOCKER_BUILD,
+      "Docker build"
+    );
 
     logger.info(
       {
@@ -330,6 +347,14 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       },
       "Build completed"
     );
+
+    await metricsService.recordBuildComplete({
+      deploymentId,
+      projectId,
+      startedAt: new Date(Date.now() - (result.duration ?? 0)),
+      completedAt: new Date(),
+      status: "SUCCEEDED" as DeploymentStatus,
+    });
 
     await db.deployment.update({
       where: { id: deploymentId },
@@ -341,45 +366,16 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
 
     logger.info({ deploymentId }, "Deployment marked as COMPLETED");
   } catch (error) {
-    logger.error(
-      { deploymentId, error: error instanceof Error ? error.message : error },
-      "Build failed"
-    );
-
-    // On error, also log the error message to the database
-    try {
-      await buildLogService.append({
-        deploymentId,
-        lineNumber: lineNumber++,
-        timestamp: new Date(),
-        level: "ERROR" as LogLevel,
-        message: error instanceof Error ? error.message : "Build failed",
-        source: "SYSTEM" as BuildLogSource,
-      });
-    } catch (logError) {
-      logger.error({ error: logError, deploymentId }, "Failed to log error to database");
-    }
-
-    // Always update deployment status on failure
-    try {
-      await db.deployment.update({
-        where: { id: deploymentId },
-        data: {
-          status: "FAILED" as DeploymentStatus,
-          buildCompletedAt: new Date(),
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-    } catch (dbError) {
-      logger.error({ deploymentId, dbError }, "Failed to update deployment status");
-    }
-
-    throw error;
+    await errorHandler.handle({
+      deploymentId,
+      projectId,
+      logger,
+      db,
+      error,
+    });
   } finally {
-    // Flush any remaining logs before cleanup
     await flushLogs();
     clearInterval(flushInterval);
-
     await cleanupBuildDir(repoPath);
   }
 }

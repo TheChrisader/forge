@@ -3,18 +3,15 @@
  * Extend the core BuildError with build-domain-specific errors
  */
 
-import { BuildError } from "@forge/core";
+import { ForgeError, BuildError } from "@forge/core";
 
-/**
- * Thrown when the registry cannot find any strategy capable of building the project
- */
-export class NoStrategyFoundError extends BuildError {
+export class NoStrategyFoundError extends ForgeError {
   constructor(projectId: string, framework?: string) {
     const message = framework
       ? `No build strategy available for project "${projectId}" (detected framework: ${framework})`
       : `No build strategy available for project "${projectId}". Ensure your project has a recognizable configuration file.`;
 
-    super(message, {
+    super("NO_STRATEGY_FOUND", 400, message, {
       projectId,
       framework,
       hint: "Supported: Dockerfile, package.json, requirements.txt, go.mod, or index.html",
@@ -22,18 +19,12 @@ export class NoStrategyFoundError extends BuildError {
   }
 }
 
-/**
- * Thrown when build configuration validation fails
- */
-export class BuildValidationError extends BuildError {
+export class BuildValidationError extends ForgeError {
   constructor(message: string, details?: unknown) {
-    super(`Build configuration validation failed: ${message}`, details);
+    super("BUILD_VALIDATION_ERROR", 400, `Build configuration validation failed: ${message}`, details);
   }
 }
 
-/**
- * Thrown when build execution fails
- */
 export class BuildExecutionError extends BuildError {
   constructor(
     strategy: string,
