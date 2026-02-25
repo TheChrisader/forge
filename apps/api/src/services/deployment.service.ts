@@ -6,7 +6,13 @@ import {
   type IDeploymentService,
 } from "@forge/core";
 import { QueueService } from "@forge/queue";
-import { Deployment, DeploymentStatusSchema, type DeploymentStatus } from "@forge/types";
+import {
+  Deployment,
+  DeploymentStatusSchema,
+  type DeploymentStatus,
+  type BuildJobData,
+  BuildSourceType,
+} from "@forge/types";
 
 /**
  * Active deployment statuses that block new deployments
@@ -184,9 +190,7 @@ export class DeploymentService implements IDeploymentService {
   async deploy(projectId: string, version?: string): Promise<Deployment> {
     const lockKey = uuidToLockKey(projectId);
 
-    // Acquire advisory lock and check for active deployments in one transaction
     const result = await this.db.$transaction(async (tx) => {
-      // Check project exists
       const project = await tx.project.findUnique({
         where: { id: projectId },
       });
@@ -228,7 +232,6 @@ export class DeploymentService implements IDeploymentService {
         throw new ConflictError("Version number exhausted for this project");
       }
 
-      // Create the deployment
       let deployment: Deployment;
       try {
         deployment = await tx.deployment.create({
@@ -240,7 +243,6 @@ export class DeploymentService implements IDeploymentService {
           },
         });
       } catch (err) {
-        // Convert P2002 unique constraint violation to ConflictError
         if (isUniqueVersionViolation(err)) {
           throw new ConflictError(
             `Deployment version ${nextVersion} already exists for this project`
@@ -249,7 +251,6 @@ export class DeploymentService implements IDeploymentService {
         throw err;
       }
 
-      // Update project status to indicate deployment is in progress
       await tx.project.update({
         where: { id: projectId },
         data: { status: "INACTIVE" }, // Using INACTIVE to indicate deployment in progress
@@ -258,13 +259,34 @@ export class DeploymentService implements IDeploymentService {
       return deployment;
     });
 
-    // Enqueue the build job OUTSIDE the transaction
-    // This ensures the deployment record is committed before the queue picks it up
     try {
-      await this.queueService.addJob("build", "build-deployment", {
+      const project = await this.db.project.findUnique({
+        where: { id: projectId },
+        select: { sourceType: true, sourceUrl: true },
+      });
+
+      const sourceType = (project?.sourceType as BuildSourceType) || BuildSourceType.GIT;
+
+      const jobData: BuildJobData = {
         deploymentId: result.id,
         projectId,
-      });
+        version: result.version.toString(),
+        sourceType,
+      };
+
+      if (sourceType === BuildSourceType.GIT) {
+        const gitIntegration = await this.db.gitIntegration.findUnique({
+          where: { projectId },
+        });
+        jobData.gitUrl = project?.sourceUrl ?? gitIntegration?.repository;
+        jobData.branch = gitIntegration?.branch ?? "main";
+      } else if (sourceType === BuildSourceType.LOCAL) {
+        jobData.localPath = project?.sourceUrl ?? "";
+      } else if (sourceType === BuildSourceType.IMAGE) {
+        jobData.imageUrl = project?.sourceUrl ?? "";
+      }
+
+      await this.queueService.addJob("build", "build-deployment", jobData);
     } catch {
       // Best-effort: update deployment to FAILED if enqueue fails
       // We don't want the deployment to be stuck in PENDING forever

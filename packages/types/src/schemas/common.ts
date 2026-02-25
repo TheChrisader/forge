@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const IdSchema = z.uuid();
-// export const TimestampSchema = z.iso.datetime({ offset: true });
 export const TimestampSchema = z.coerce.date();
 export const NonEmptyStringSchema = z.string().min(1);
 export const MetadataSchema = z.record(z.string(), z.unknown());
@@ -148,6 +147,7 @@ export const IntegrationTypeSchema = z.enum([
 
 // Git
 export const GitProviderSchema = z.enum(["GITHUB", "GITLAB", "BITBUCKET"]);
+export const BuildSourceTypeSchema = z.enum(["git", "local", "image", "docker-compose"]);
 export const WebhookEventSchema = z.enum([
   "DEPLOYMENT_CREATED",
   "DEPLOYMENT_BUILDING",

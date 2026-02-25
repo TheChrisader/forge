@@ -144,6 +144,36 @@ export class BuildError extends ForgeError {
 }
 
 /**
+ * 404 Not Found - Local source path doesn't exist
+ * Used when local filesystem source path is not found
+ */
+export class LocalPathNotFoundError extends ForgeError {
+  constructor(path: string, details?: unknown) {
+    super("LOCAL_PATH_NOT_FOUND", 404, `Local source path not found: ${path}`, details);
+  }
+}
+
+/**
+ * 403 Forbidden - Cannot access local source path
+ * Used when lacking permissions to read local source
+ */
+export class LocalPathPermissionError extends ForgeError {
+  constructor(path: string, details?: unknown) {
+    super("LOCAL_PATH_PERMISSION", 403, `Permission denied accessing local path: ${path}`, details);
+  }
+}
+
+/**
+ * 400 Bad Request - Invalid Docker image reference
+ * Used when pre-built image name format is invalid
+ */
+export class ImageValidationError extends ForgeError {
+  constructor(image: string, details?: unknown) {
+    super("IMAGE_VALIDATION_ERROR", 400, `Invalid image reference: ${image}`, details);
+  }
+}
+
+/**
  * Type guard to check if an error is a ForgeError instance
  * Used by global error handler to determine if error needs special handling
  */

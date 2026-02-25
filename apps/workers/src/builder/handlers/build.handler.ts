@@ -3,7 +3,7 @@
  * Processes individual build jobs from the queue
  */
 
-import { getDatabaseClient } from "@forge/database";
+import { getDatabaseClient, type PrismaClient } from "@forge/database";
 import { GitService } from "@forge/git";
 import {
   getBuildStrategyRegistry,
@@ -12,10 +12,18 @@ import {
   type BuildProgressEvent,
 } from "@forge/build";
 import type { BuildJobData, DeploymentStatus, LogLevel, BuildLogSource } from "@forge/types";
-import { BuildLogService, type BuildLogEntry } from "@forge/core";
+import { BuildSourceType } from "@forge/types";
+import {
+  BuildLogService,
+  ForgeError,
+  LocalPathNotFoundError,
+  ImageValidationError,
+  type BuildLogEntry,
+} from "@forge/core";
 import { EventEmitter } from "eventemitter3";
 import pino from "pino";
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
 interface Job<T = unknown> {
   id?: string;
@@ -59,32 +67,130 @@ function mapProgressTypeToLogLevel(type: string): LogLevel {
   }
 }
 
+/**
+ * Acquire source from local filesystem
+ */
+async function acquireFromLocal(
+  sourcePath: string,
+  destinationPath: string,
+  emitter: EventEmitter
+): Promise<void> {
+  emitter.emit("progress", {
+    type: "log",
+    message: `Copying files from local path: ${sourcePath}...`,
+    timestamp: new Date(),
+    stage: "local-copy",
+  } as BuildProgressEvent);
+
+  try {
+    const stats = await fs.stat(sourcePath);
+    if (!stats.isDirectory()) {
+      throw new LocalPathNotFoundError(sourcePath, "Source path must be a directory");
+    }
+
+    await fs.access(sourcePath, fs.constants.R_OK);
+
+    await fs.mkdir(destinationPath, { recursive: true });
+
+    await fs.cp(sourcePath, destinationPath, {
+      recursive: true,
+      filter: (src) => {
+        const basename = path.basename(src);
+        return !["node_modules", ".git", "dist", "build", ".env"].includes(basename);
+      },
+    });
+
+    emitter.emit("progress", {
+      type: "log",
+      message: "Local files copied successfully",
+      timestamp: new Date(),
+      stage: "local-copy",
+    } as BuildProgressEvent);
+  } catch (error) {
+    if (error instanceof ForgeError) {
+      throw error;
+    }
+    throw new LocalPathNotFoundError(sourcePath, error);
+  }
+}
+
+/**
+ * Handle pre-built image (skip build, mark for deployment)
+ */
+async function handlePreBuiltImage(
+  data: BuildJobData,
+  deploymentId: string,
+  db: PrismaClient,
+  emitter: EventEmitter,
+  logger: pino.Logger
+): Promise<void> {
+  const { imageUrl } = data;
+
+  logger.info({ deploymentId, imageUrl }, "Processing pre-built image");
+
+  emitter.emit("progress", {
+    type: "stage",
+    message: "Validating pre-built image...",
+    timestamp: new Date(),
+    stage: "image-validation",
+  } as BuildProgressEvent);
+
+  if (!imageUrl || !imageUrl.includes("/")) {
+    throw new ImageValidationError(
+      imageUrl ?? "missing",
+      "Image must be in format 'registry/repository:tag'"
+    );
+  }
+
+  emitter.emit("progress", {
+    type: "complete",
+    message: `Image validated: ${imageUrl}`,
+    timestamp: new Date(),
+    stage: "image-validation",
+  } as BuildProgressEvent);
+
+  await db.deployment.update({
+    where: { id: deploymentId },
+    data: {
+      status: "SUCCEEDED" as DeploymentStatus,
+      buildImage: imageUrl,
+      buildCompletedAt: new Date(),
+    },
+  });
+
+  // TODO: Enqueue deploy job directly when deployer worker is implemented
+  // await queueService.addJob("deploy", "deploy-image", {
+  //   deploymentId,
+  //   projectId: data.projectId,
+  //   image: imageUrl,
+  // });
+
+  logger.info({ deploymentId, imageUrl }, "Pre-built image ready for deployment");
+}
+
 export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
-  const { deploymentId, projectId, gitUrl, branch } = job.data;
+  const { deploymentId, projectId } = job.data;
 
-  logger.info({ deploymentId, projectId, gitUrl, branch }, "Processing build job");
+  const sourceType = job.data.sourceType ?? BuildSourceType.GIT;
 
-  // Register strategies if not already registered
+  logger.info({ deploymentId, projectId, sourceType }, "Processing build job");
+
   registerDefaultStrategies();
 
   const db = getDatabaseClient();
   const gitService = new GitService();
   const strategyRegistry = getBuildStrategyRegistry();
 
-  // Initialize BuildLogService for durable log storage
   const buildLogService = new BuildLogService(db);
 
-  // Use a consistent build directory
   const buildDir = process.env.FORGE_BUILD_DIR ?? "/tmp/forge-builds";
   await ensureBuildDir(buildDir);
 
   const repoPath = `${buildDir}/${deploymentId}`;
 
-  // Create EventEmitter for progress reporting
   const emitter = new EventEmitter();
   const buildLogs: string[] = [];
 
-  // Log buffer for batching database writes
   let lineNumber = 0;
   const logBuffer: BuildLogEntry[] = [];
 
@@ -99,14 +205,11 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
     }
   };
 
-  // Flush every 2 seconds
   const flushInterval = setInterval(flushLogs, 2000);
 
-  // Listen to progress events for logging
   emitter.on("progress", (progress: BuildProgressEvent) => {
     if (!progress.message) return;
 
-    // Existing in-memory logging (keep this)
     const logEntry = `[${progress.type.toUpperCase()}] ${progress.message}`;
     buildLogs.push(logEntry);
 
@@ -120,7 +223,6 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       progress.message
     );
 
-    // NEW: Also buffer for database persistence
     logBuffer.push({
       deploymentId,
       lineNumber: lineNumber++,
@@ -130,7 +232,6 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       source: "BUILD" as BuildLogSource,
     });
 
-    // Flush immediately if buffer gets large
     if (logBuffer.length >= 50) {
       void flushLogs();
     }
@@ -143,20 +244,48 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       data: { status: "BUILDING" as DeploymentStatus },
     });
 
-    logger.info({ deploymentId, gitUrl, repoPath }, "Cloning repository...");
-    await gitService.clone({
-      url: gitUrl ?? "",
-      branch,
-      destinationPath: repoPath,
-      depth: 1,
-    });
-    logger.info({ deploymentId }, "Repository cloned successfully");
+    let sourceDir: string;
+
+    switch (sourceType) {
+      case BuildSourceType.GIT:
+        logger.info({ deploymentId, gitUrl: job.data.gitUrl, repoPath }, "Cloning repository...");
+        await gitService.clone({
+          url: job.data.gitUrl ?? "",
+          branch: job.data.branch,
+          destinationPath: repoPath,
+          depth: 1,
+        });
+        sourceDir = repoPath;
+        logger.info({ deploymentId }, "Repository cloned successfully");
+        break;
+
+      case BuildSourceType.LOCAL:
+        logger.info({ deploymentId, localPath: job.data.localPath }, "Copying local files...");
+        await acquireFromLocal(job.data.localPath ?? "", repoPath, emitter);
+        sourceDir = repoPath;
+        logger.info({ deploymentId }, "Local files copied successfully");
+        break;
+
+      case BuildSourceType.IMAGE:
+        await handlePreBuiltImage(job.data, deploymentId, db, emitter, logger);
+        return;
+
+      case BuildSourceType.DOCKER_COMPOSE:
+        throw new ForgeError(
+          "DOCKER_COMPOSE_NOT_SUPPORTED",
+          501,
+          "Docker Compose deployments are not yet supported. A separate compose worker will be implemented."
+        );
+
+      default:
+        throw new ForgeError("INVALID_SOURCE_TYPE", 400, `Unsupported source type: ${sourceType}`);
+    }
 
     const buildContext: BuildContext = {
       projectId,
       deploymentId,
       workDir: buildDir,
-      sourceDir: repoPath,
+      sourceDir: sourceDir,
       outputDir: `${buildDir}/${deploymentId}/output`,
     };
 
