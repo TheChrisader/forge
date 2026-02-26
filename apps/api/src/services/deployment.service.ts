@@ -180,11 +180,22 @@ export class DeploymentService implements IDeploymentService {
    * 5. Updates project status to DEPLOYING
    * 6. Enqueues build job (outside transaction)
    *
+   * @param projectId - ID of the project to deploy
+   * @param version - Optional version number (auto-incremented if not provided)
+   * @param options - Optional deployment configuration (git branch, commit, build args)
    * @throws NotFoundError if project doesn't exist
    * @throws ConflictError if project has an active deployment or lock can't be acquired
    * @throws ConflictError if version number is exhausted
    */
-  async deploy(projectId: string, version?: string): Promise<Deployment> {
+  async deploy(
+    projectId: string,
+    version?: string,
+    options?: {
+      gitBranch?: string;
+      gitCommit?: string;
+      buildArgs?: Record<string, string>;
+    }
+  ): Promise<Deployment> {
     const lockKey = uuidToLockKey(projectId);
 
     const result = await this.db.$transaction(async (tx) => {
@@ -196,7 +207,6 @@ export class DeploymentService implements IDeploymentService {
         throw new NotFoundError("Project");
       }
 
-      // Acquire advisory lock and check for active deployments
       const lockResult = await tx.$queryRaw<Array<{ acquired: boolean; has_active: boolean }>>`
         SELECT pg_try_advisory_xact_lock(${lockKey}::bigint) AS acquired,
                EXISTS(
@@ -215,7 +225,6 @@ export class DeploymentService implements IDeploymentService {
         throw new ConflictError("Project has an active deployment");
       }
 
-      // Get the next version number (max existing version + 1, or 1 if none exist)
       const maxVersionResult = await tx.$queryRaw<Array<{ max_version: number | null }>>`
         SELECT COALESCE(MAX(version), 0) AS max_version
         FROM deployments
@@ -269,6 +278,7 @@ export class DeploymentService implements IDeploymentService {
         projectId,
         version: result.version.toString(),
         sourceType,
+        buildArgs: options?.buildArgs,
       };
 
       if (sourceType === ProjectSourceType.GIT) {
@@ -276,7 +286,8 @@ export class DeploymentService implements IDeploymentService {
           where: { projectId },
         });
         jobData.gitUrl = project?.sourceUrl ?? gitIntegration?.repository;
-        jobData.branch = gitIntegration?.branch ?? "main";
+        jobData.branch = options?.gitBranch ?? gitIntegration?.branch ?? "main";
+        jobData.gitCommit = options?.gitCommit;
       } else if (sourceType === ProjectSourceType.LOCAL) {
         jobData.localPath = project?.sourceUrl ?? "";
       } else if (sourceType === ProjectSourceType.IMAGE) {

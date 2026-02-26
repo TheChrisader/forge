@@ -284,7 +284,6 @@ export class GitService {
       const git: SimpleGit = simpleGit(repoPath);
       const branches = await git.branch(["-r"]);
 
-      // Parse remote branches, filter out HEAD pointer
       const branchNames = Object.keys(branches.branches)
         .filter((name) => name !== "HEAD" && !name.includes("HEAD"))
         .map((name) => {
@@ -314,6 +313,17 @@ export class GitService {
       }
     } catch (error) {
       throw new GitCloneError(`Failed to checkout branch: ${branch}`, {
+        originalError: (error as Error).message,
+      });
+    }
+  }
+
+  async checkoutCommit(repoPath: string, sha: string): Promise<void> {
+    try {
+      const git: SimpleGit = simpleGit(repoPath);
+      await git.checkout(sha);
+    } catch (error) {
+      throw new GitCloneError(`Failed to checkout commit: ${sha}`, {
         originalError: (error as Error).message,
       });
     }

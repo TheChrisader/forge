@@ -22,6 +22,16 @@ export const projectsApi = {
     return apiClient.get(`/api/projects/${id}`);
   },
 
+  getWithGitIntegration: async (
+    id: string
+  ): Promise<{
+    data: Project & { gitIntegration?: { id: string; repository: string; branch: string } };
+  }> => {
+    return apiClient.get(`/api/projects/${id}`, {
+      params: { include: ["gitIntegration"] },
+    });
+  },
+
   create: async (data: CreateProjectRequest): Promise<{ data: Project }> => {
     return apiClient.post("/api/projects", data);
   },

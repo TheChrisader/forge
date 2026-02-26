@@ -40,6 +40,23 @@ export function useProject(id: string): ReturnType<typeof useQuery<Project>> {
   });
 }
 
+export type ProjectWithGit = Project & {
+  gitIntegration?: { id: string; repository: string; branch: string };
+};
+
+export function useProjectWithGitIntegration(
+  projectId: string
+): ReturnType<typeof useQuery<ProjectWithGit>> {
+  return useQuery<ProjectWithGit>({
+    queryKey: [...projectKeys.detail(projectId), "withGit"] as const,
+    queryFn: async () => {
+      const response = await projectsApi.getWithGitIntegration(projectId);
+      return response.data as ProjectWithGit;
+    },
+    enabled: !!projectId,
+  });
+}
+
 /**
  * DEPRECATED: Use useProjectDeployments from useDeployments instead
  * This endpoint may not exist

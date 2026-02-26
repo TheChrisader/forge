@@ -37,3 +37,14 @@ export interface GitCheckoutOptions {
   repoPath: string;
   ref: string;
 }
+
+export interface IGitService {
+  clone(options: GitCloneOptions): Promise<string>;
+  pull(options: GitPullOptions): Promise<void>;
+  checkout(repoPath: string, branch: string): Promise<void>;
+  checkoutCommit(repoPath: string, sha: string): Promise<void>;
+  getLatestCommit(repoPath: string): Promise<CommitInfo>;
+  getBranches(repoPath: string): Promise<string[]>;
+  getRemoteUrl(repoPath: string): Promise<string>;
+  getCurrentBranch(repoPath: string): Promise<string>;
+}

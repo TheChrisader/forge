@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { Config } from "@forge/core";
+import { z } from "zod";
 import { NotFoundError, SERVICE_KEY_STRINGS } from "@forge/core";
 import { requireAuth } from "../middleware/auth.js";
 import { ProjectService } from "../services/project.service.js";
@@ -19,6 +20,14 @@ import {
   CacheStatsSchema,
   CacheClearResultSchema,
 } from "@forge/types";
+
+// =============================================================================
+// Schemas
+// =============================================================================
+
+const ProjectIncludeQuerySchema = z.object({
+  include: z.array(z.enum(["gitIntegration", "deployments", "containers"])).optional(),
+});
 
 // =============================================================================
 // Routes
@@ -107,13 +116,14 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
 
   /**
    * GET /api/projects/:id
-   * Gets a single project by ID
+   * Gets a single project by ID with optional included relations
    */
-  server.get(
+  server.get<{ Params: { id: string }; Querystring: z.infer<typeof ProjectIncludeQuerySchema> }>(
     "/api/projects/:id",
     {
       schema: {
         params: ProjectIdParamsSchema,
+        querystring: ProjectIncludeQuerySchema,
         response: {
           200: ApiResponseSchema(ProjectSchema),
         },
@@ -122,8 +132,9 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
       const params = request.params;
+      const query = request.query ?? {};
 
-      const project = await projectService.getById(params.id);
+      const project = await projectService.getById(params.id, { include: query.include });
 
       if (!project) {
         throw new NotFoundError("Project");

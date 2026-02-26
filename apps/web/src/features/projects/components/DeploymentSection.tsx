@@ -9,11 +9,14 @@ import {
 } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
-import { RocketIcon, LoaderIcon } from "lucide-react";
+import { RocketIcon, LoaderIcon, SettingsIcon } from "lucide-react";
 import { useCreateDeployment } from "@/core/api/hooks/useDeployments";
+import { useProjectWithGitIntegration } from "@/core/api/hooks/useProjects";
 import { ApiClientError } from "@/core/api/client";
 import { DeploymentStatus } from "./DeploymentStatus";
 import { DeploymentList } from "./DeploymentList";
+import { DeploymentProgress } from "./DeploymentProgress";
+import { DeployConfigModal } from "./DeployConfigModal";
 import type { Project, Deployment } from "@forge/types";
 
 interface DeploymentSectionProps {
@@ -29,6 +32,7 @@ export function DeploymentSection({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const createDeployment = useCreateDeployment();
+  const { data: projectWithGit } = useProjectWithGitIntegration(project.id);
 
   const latestDeployment = useMemo(() => {
     if (deployments.length === 0) return null;
@@ -40,18 +44,21 @@ export function DeploymentSection({
     return sorted[0];
   }, [deployments]);
 
-  const hasActiveDeployment = useMemo(() => {
-    return deployments.some((d) =>
+  const activeDeployment = useMemo(() => {
+    return deployments.find((d) =>
       ["PENDING", "QUEUED", "BUILDING", "DEPLOYING"].includes(d.status)
     );
   }, [deployments]);
 
-  const handleDeploy = async (): Promise<void> => {
+  const defaultBranch = projectWithGit?.gitIntegration?.branch ?? "main";
+
+  const handleQuickDeploy = async (): Promise<void> => {
     setErrorMessage(null);
 
     try {
       await createDeployment.mutateAsync({
         projectId: project.id,
+        gitBranch: defaultBranch,
       });
     } catch (err) {
       const error = err as ApiClientError;
@@ -66,7 +73,7 @@ export function DeploymentSection({
     }
   };
 
-  const canDeploy = !hasActiveDeployment && !createDeployment.isPending;
+  const canDeploy = !activeDeployment && !createDeployment.isPending;
 
   return (
     <div className="space-y-6">
@@ -85,7 +92,7 @@ export function DeploymentSection({
 
               <Button
                 onClick={() => {
-                  void handleDeploy();
+                  void handleQuickDeploy();
                 }}
                 disabled={!canDeploy}
                 variant="default"
@@ -96,7 +103,7 @@ export function DeploymentSection({
                     <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
                     Creating...
                   </>
-                ) : hasActiveDeployment ? (
+                ) : activeDeployment ? (
                   <>
                     <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
                     Deploying...
@@ -108,6 +115,19 @@ export function DeploymentSection({
                   </>
                 )}
               </Button>
+
+              <DeployConfigModal
+                projectId={project.id}
+                defaultBranch={defaultBranch}
+                onSuccess={() => {
+                  setErrorMessage(null);
+                }}
+              >
+                <Button disabled={!canDeploy} variant="outline" size="sm">
+                  <SettingsIcon className="mr-2 h-4 w-4" />
+                  Configure
+                </Button>
+              </DeployConfigModal>
             </div>
           </div>
         </CardHeader>
@@ -121,7 +141,12 @@ export function DeploymentSection({
         )}
       </Card>
 
-      {latestDeployment && (
+      {activeDeployment && (
+        <DeploymentProgress deployment={activeDeployment} projectId={project.id} />
+      )}
+
+      {/* Latest Deployment Info (if not active) */}
+      {latestDeployment && !activeDeployment && (
         <Card>
           <CardHeader>
             <CardTitle>Latest Deployment</CardTitle>

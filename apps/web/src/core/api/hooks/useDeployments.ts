@@ -51,13 +51,40 @@ export function useDeployment(deploymentId: string): ReturnType<typeof useQuery<
 }
 
 export function useCreateDeployment(): ReturnType<
-  typeof useMutation<Deployment, unknown, { projectId: string; version?: string }>
+  typeof useMutation<
+    Deployment,
+    unknown,
+    {
+      projectId: string;
+      version?: string;
+      gitBranch?: string;
+      gitCommit?: string;
+      buildArgs?: Record<string, string>;
+    }
+  >
 > {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ projectId, version }: { projectId: string; version?: string }) => {
-      const response = await deploymentsApi.create(projectId, { version });
+    mutationFn: async ({
+      projectId,
+      version,
+      gitBranch,
+      gitCommit,
+      buildArgs,
+    }: {
+      projectId: string;
+      version?: string;
+      gitBranch?: string;
+      gitCommit?: string;
+      buildArgs?: Record<string, string>;
+    }) => {
+      const response = await deploymentsApi.create(projectId, {
+        version,
+        gitBranch,
+        gitCommit,
+        buildArgs,
+      });
       return response.data;
     },
     onSuccess: (_, { projectId }) => {

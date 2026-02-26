@@ -177,7 +177,7 @@ async function handlePreBuiltImage(
   };
 
   await queueService.addJob("deploy", "deploy-container", deployJobData);
-  await queueService.close(); // Close connection after enqueuing
+  await queueService.close();
 
   logger.info(
     { deploymentId, imageUrl },
@@ -279,6 +279,16 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
           TIMEOUTS.GIT_CLONE,
           "Git clone"
         );
+
+        if (job.data.gitCommit) {
+          logger.info(
+            { deploymentId, gitCommit: job.data.gitCommit },
+            "Checking out specific commit"
+          );
+          await gitService.checkoutCommit(repoPath, job.data.gitCommit);
+          logger.info({ deploymentId }, "Checked out specific commit successfully");
+        }
+
         sourceDir = repoPath;
         logger.info({ deploymentId }, "Repository cloned successfully");
         break;
@@ -399,7 +409,7 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
     };
 
     await queueService.addJob("deploy", "deploy-container", deployJobData);
-    await queueService.close(); // Close connection after enqueuing
+    await queueService.close();
 
     logger.info({ deploymentId, imageTag }, "Build completed, deploy job enqueued");
   } catch (error) {

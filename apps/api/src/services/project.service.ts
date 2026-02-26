@@ -71,11 +71,28 @@ export class ProjectService implements IProjectService {
     };
   }
 
-  async getById(id: string): Promise<ProjectWithRelations | null> {
+  async getById(
+    id: string,
+    options?: { include?: string[] }
+  ): Promise<ProjectWithRelations | null> {
+    const include = options?.include ?? [];
+
     const project = await this.db.project.findUnique({
       where: { id },
-      include: { containers: true, deployments: true },
+      include: {
+        gitIntegration: include.includes("gitIntegration"),
+        containers: include.includes("containers")
+          ? { take: 5, orderBy: { createdAt: "desc" } }
+          : false,
+        deployments: include.includes("deployments")
+          ? { take: 5, orderBy: { createdAt: "desc" } }
+          : false,
+      },
     });
+
+    if (!project) {
+      return null;
+    }
 
     return ProjectWithRelationsSchema.parse(project);
   }
@@ -107,7 +124,6 @@ export class ProjectService implements IProjectService {
         );
       }
     } else if (sourceUrl && typeof sourceUrl === "string") {
-      // If sourceUrl is provided without sourceType, that's an error
       throw new ValidationError("Source type must be specified when providing a source URL");
     }
 
@@ -157,7 +173,6 @@ export class ProjectService implements IProjectService {
         );
       }
     } else if (sourceUrl && typeof sourceUrl === "string") {
-      // If sourceUrl is provided without sourceType, that's an error
       throw new ValidationError("Source type must be specified when providing a source URL");
     }
 

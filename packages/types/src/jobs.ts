@@ -14,6 +14,7 @@ export interface BuildJobData {
 
   gitUrl?: string;
   branch?: string;
+  gitCommit?: string;
 
   localPath?: string;
 
