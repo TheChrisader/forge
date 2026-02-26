@@ -44,16 +44,16 @@ export function useProject(id: string): ReturnType<typeof useQuery<Project>> {
  * DEPRECATED: Use useProjectDeployments from useDeployments instead
  * This endpoint may not exist
  */
-export function useProjectDeployments(id: string): ReturnType<typeof useQuery<unknown[]>> {
-  return useQuery<unknown[]>({
-    queryKey: projectKeys.deployments(id),
-    queryFn: async () => {
-      const response = await projectsApi.getDeployments(id);
-      return response.deployments;
-    },
-    enabled: !!id,
-  });
-}
+// export function useProjectDeployments(id: string): ReturnType<typeof useQuery<unknown[]>> {
+//   return useQuery<unknown[]>({
+//     queryKey: projectKeys.deployments(id),
+//     queryFn: async () => {
+//       const response = await projectsApi.getDeployments(id);
+//       return response.deployments;
+//     },
+//     enabled: !!id,
+//   });
+// }
 
 export function useCreateProject(): ReturnType<
   typeof useMutation<Project, unknown, CreateProjectRequest>

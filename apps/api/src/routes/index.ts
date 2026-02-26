@@ -4,6 +4,7 @@ import { registerAuthRoutes } from "./auth.routes.js";
 import { registerProjectRoutes } from "./projects.routes.js";
 import { registerDeploymentRoutes } from "./deployments.routes.js";
 import { registerImageRoutes } from "./images.routes.js";
+import { registerContainerRoutes } from "./containers.routes.js";
 
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
@@ -11,4 +12,5 @@ export function setupRoutes(server: FastifyInstance): void {
   registerProjectRoutes(server, server.config);
   registerDeploymentRoutes(server, server.config);
   registerImageRoutes(server, server.config);
+  registerContainerRoutes(server, server.config);
 }

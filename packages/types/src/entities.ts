@@ -96,12 +96,15 @@ export type {
   ResourceLimits,
   HealthCheckConfig as ContainerHealthCheckConfig,
   RestartPolicy,
+  ExecResult,
+  ExecOptions,
   Network,
   Volume,
   Image,
   NetworkEndpoint,
   PullOptions,
   BuildOptions,
+  LogOptions,
   HealthCheckResult,
 } from "@forge/docker";
 

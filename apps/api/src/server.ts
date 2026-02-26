@@ -20,6 +20,7 @@ import { ProjectModule } from "./modules/project.module.js";
 import { DeploymentModule } from "./modules/deployment.module.js";
 import { BuildCacheModule } from "./modules/build-cache.module.js";
 import { BuildLogModule } from "./modules/build-log.module.js";
+import { ImageModule } from "./modules/image.module.js";
 import { ContainerModule } from "./modules/container.module.js";
 
 declare module "fastify" {
@@ -47,6 +48,7 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   registry.registerModule("deployments", new DeploymentModule());
   registry.registerModule("buildCache", new BuildCacheModule());
   registry.registerModule("buildLog", new BuildLogModule());
+  registry.registerModule("image", new ImageModule());
   registry.registerModule("container", new ContainerModule());
 
   await registry.initialize();

@@ -8,6 +8,7 @@ import { LogsPage } from "@/features/logging";
 import { MetricsPage } from "@/features/metrics";
 import { SettingsPage } from "@/features/settings";
 import { ImagesPage } from "@/features/images";
+import { ContainerDetailPage, ContainerLogsPage } from "@/features/containers";
 import { NotFoundPage } from "@/shared/components/NotFoundPage";
 import { AuthProvider, ProtectedRoute } from "@/core/auth";
 import { LoginPage } from "@/features/auth";
@@ -90,6 +91,18 @@ const imagesRoute = createRoute({
   component: ImagesPage,
 });
 
+const containerDetailRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "/containers/$containerId",
+  component: ContainerDetailPage,
+});
+
+const containerLogsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "/containers/$containerId/logs",
+  component: ContainerLogsPage,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: "/logs",
@@ -125,6 +138,8 @@ const routeTree = rootRoute.addChildren([
     servicesRoute,
     deploymentsRoute,
     imagesRoute,
+    containerDetailRoute,
+    containerLogsRoute,
     logsRoute,
     metricsRoute,
     settingsRoute,

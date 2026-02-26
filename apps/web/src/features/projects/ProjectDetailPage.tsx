@@ -24,6 +24,7 @@ import { useProject } from "@/core/api/hooks/useProjects";
 import { useProjectDeployments } from "@/core/api/hooks/useDeployments";
 import { DeploymentSection } from "./components/DeploymentSection";
 import { mapProjectStatusToServiceStatus } from "@/shared/lib/utils";
+import { ContainersPage } from "@/features/containers";
 
 function formatTimestamp(timestamp: Date | string | null | undefined): string {
   if (!timestamp) return "Never";
@@ -131,6 +132,7 @@ export function ProjectDetailPage(): React.ReactElement {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
+          <TabsTrigger value="containers">Containers</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -194,6 +196,10 @@ export function ProjectDetailPage(): React.ReactElement {
           ) : (
             <DeploymentSection project={project} deployments={deployments} />
           )}
+        </TabsContent>
+
+        <TabsContent value="containers" className="space-y-6">
+          <ContainersPage projectId={projectId} />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
