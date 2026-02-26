@@ -30,6 +30,7 @@
     "@forge/build": "workspace:*",
     "@forge/core": "workspace:*",
     "@forge/database": "workspace:*",
+    "@forge/docker": "workspace:*",
     "@forge/git": "workspace:*",
     "@forge/queue": "workspace:*",
     "@forge/types": "workspace:*",

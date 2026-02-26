@@ -6,7 +6,13 @@ import {
   type BuildContext,
   type BuildProgressEvent,
 } from "@forge/build";
-import type { BuildJobData, DeploymentStatus, LogLevel, BuildLogSource } from "@forge/types";
+import type {
+  BuildJobData,
+  DeploymentStatus,
+  LogLevel,
+  BuildLogSource,
+  DeployJobData,
+} from "@forge/types";
 import { ProjectSourceType } from "@forge/types";
 import {
   BuildLogService,
@@ -15,6 +21,7 @@ import {
   ImageValidationError,
   type BuildLogEntry,
 } from "@forge/core";
+import { QueueService, type QueueConfig } from "@forge/queue";
 import { EventEmitter } from "eventemitter3";
 import pino from "pino";
 import * as fs from "node:fs/promises";
@@ -34,6 +41,17 @@ const logger = pino({
   name: "build-handler",
   level: process.env.LOG_LEVEL ?? "info",
 });
+
+function getQueueConfig(): QueueConfig {
+  return {
+    redis: {
+      host: process.env.REDIS_HOST ?? "localhost",
+      port: Number.parseInt(process.env.REDIS_PORT ?? "6379", 10),
+      password: process.env.REDIS_PASSWORD,
+      db: Number.parseInt(process.env.REDIS_DB ?? "0", 10),
+    },
+  };
+}
 
 async function ensureBuildDir(buildDir: string): Promise<void> {
   try {
@@ -117,7 +135,7 @@ async function handlePreBuiltImage(
   emitter: EventEmitter,
   logger: pino.Logger
 ): Promise<void> {
-  const { imageUrl } = data;
+  const { imageUrl, projectId } = data;
 
   logger.info({ deploymentId, imageUrl }, "Processing pre-built image");
 
@@ -145,20 +163,26 @@ async function handlePreBuiltImage(
   await db.deployment.update({
     where: { id: deploymentId },
     data: {
-      status: "SUCCEEDED" as DeploymentStatus,
+      status: "DEPLOYING" as DeploymentStatus,
       buildImage: imageUrl,
       buildCompletedAt: new Date(),
     },
   });
 
-  // TODO: Enqueue deploy job directly when deployer worker is implemented
-  // await queueService.addJob("deploy", "deploy-image", {
-  //   deploymentId,
-  //   projectId: data.projectId,
-  //   image: imageUrl,
-  // });
+  const queueService = new QueueService(getQueueConfig());
+  const deployJobData: DeployJobData = {
+    deploymentId,
+    projectId,
+    image: imageUrl,
+  };
 
-  logger.info({ deploymentId, imageUrl }, "Pre-built image ready for deployment");
+  await queueService.addJob("deploy", "deploy-container", deployJobData);
+  await queueService.close(); // Close connection after enqueuing
+
+  logger.info(
+    { deploymentId, imageUrl },
+    "Pre-built image ready for deployment, deploy job enqueued"
+  );
 }
 
 export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
@@ -356,15 +380,28 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       status: "SUCCEEDED" as DeploymentStatus,
     });
 
+    const imageTag = result.image ?? `forge/${projectId}:${deploymentId}`;
+
     await db.deployment.update({
       where: { id: deploymentId },
       data: {
-        status: "SUCCEEDED" as DeploymentStatus,
+        status: "DEPLOYING" as DeploymentStatus,
         buildCompletedAt: new Date(),
+        buildImage: imageTag,
       },
     });
 
-    logger.info({ deploymentId }, "Deployment marked as COMPLETED");
+    const queueService = new QueueService(getQueueConfig());
+    const deployJobData: DeployJobData = {
+      deploymentId,
+      projectId,
+      image: imageTag,
+    };
+
+    await queueService.addJob("deploy", "deploy-container", deployJobData);
+    await queueService.close(); // Close connection after enqueuing
+
+    logger.info({ deploymentId, imageTag }, "Build completed, deploy job enqueued");
   } catch (error) {
     await errorHandler.handle({
       deploymentId,
