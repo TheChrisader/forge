@@ -1,50 +1,62 @@
-import type { QueueConfig, QueueOptions } from "./client";
+/**
+ * Queue Service
+ */
+
+import type { JobOptions, JobInfo } from "@forge/types";
+import type { IQueueAdapter, IWorkerAdapter } from "../domain/interfaces";
+import type { QueueConfig, WorkerOptions, QueueOptions, QueueHealth } from "../domain/types";
+import { createAdapterFactory } from "../factory";
+import { QUEUE_NAMES } from "../constants";
 import {
-  QueueClient,
-  WorkerClient,
   closeAllRedisConnectionsForConfig,
   getActiveConnectionCount,
-  type JobProcessor,
-  type WorkerOptions,
-} from "./client";
-import type { JobOptions } from "./types";
-import { QUEUE_NAMES } from "./queues";
+  extractRedisConfig,
+} from "../adapters/bullmq/redis";
 
 export class QueueService {
-  private queues = new Map<string, QueueClient>();
-  private workers = new Map<string, WorkerClient>();
-  private config: QueueConfig;
+  private queues = new Map<string, IQueueAdapter>();
+  private workers = new Map<string, IWorkerAdapter>();
+  private readonly config: QueueConfig;
 
   constructor(config: QueueConfig) {
     this.config = config;
   }
 
-  getQueue<T = unknown, R = unknown>(name: string, options?: QueueOptions): QueueClient<T, R> {
+  /**
+   * Get or create a queue adapter
+   */
+  getQueue<_T = unknown, _R = unknown>(name: string, options?: QueueOptions): IQueueAdapter {
     if (!this.queues.has(name)) {
-      const queue = new QueueClient<T, R>(name, this.config, options);
-
-      this.queues.set(name, queue as QueueClient);
+      const adapterFactory = createAdapterFactory(this.config);
+      const queue = adapterFactory.createQueue(name, this.config, options);
+      this.queues.set(name, queue);
     }
 
-    return this.queues.get(name) as QueueClient<T, R>;
+    return this.queues.get(name)!;
   }
 
+  /**
+   * Register a worker for a queue
+   */
   registerWorker<T = unknown, R = unknown>(
     name: string,
-    processor: JobProcessor<T, R>,
+    processor: (job: JobInfo<T>) => Promise<R>,
     options?: WorkerOptions
-  ): WorkerClient<T, R> {
+  ): IWorkerAdapter {
     if (this.workers.has(name)) {
       throw new Error(`Worker already registered for queue: ${name}`);
     }
 
-    const worker = new WorkerClient<T, R>(name, processor, this.config, options);
+    const adapterFactory = createAdapterFactory(this.config);
+    const worker = adapterFactory.createWorker<T, R>(name, processor, this.config, options);
 
-    this.workers.set(name, worker as WorkerClient);
-
+    this.workers.set(name, worker);
     return worker;
   }
 
+  /**
+   * Add a job to a queue
+   */
   async addJob<T = unknown>(
     queueName: string,
     jobName: string,
@@ -52,22 +64,13 @@ export class QueueService {
     options?: JobOptions
   ): Promise<string> {
     const queue = this.getQueue<T>(queueName);
-    const job = await queue.addJob(jobName, data, options);
-    return job.id!;
+    return queue.add(jobName, data, options);
   }
 
-  async getHealth(queueName: string): Promise<{
-    healthy: boolean;
-    counts: {
-      waiting: number;
-      active: number;
-      completed: number;
-      failed: number;
-      delayed: number;
-      paused: number;
-    };
-    isPaused: boolean;
-  }> {
+  /**
+   * Get health status for a queue
+   */
+  async getHealth(queueName: string): Promise<QueueHealth> {
     const queue = this.getQueue(queueName);
     const counts = await queue.getJobCounts();
     const isPaused = await queue.isPaused();
@@ -76,22 +79,35 @@ export class QueueService {
 
     return {
       healthy,
-      counts,
+      counts: {
+        ...counts,
+        paused: 0,
+      },
       isPaused,
     };
   }
 
-  async getAllHealth(): Promise<Map<string, unknown>> {
-    const healths = new Map();
+  /**
+   * Get health status for all queues
+   */
+  async getAllHealth(): Promise<Map<string, QueueHealth>> {
+    const healths = new Map<string, QueueHealth>();
 
     for (const queueName of Object.values(QUEUE_NAMES)) {
-      const health = await this.getHealth(queueName);
-      healths.set(queueName, health);
+      try {
+        const health = await this.getHealth(queueName);
+        healths.set(queueName, health);
+      } catch {
+        // Queue may not be initialized yet, skip
+      }
     }
 
     return healths;
   }
 
+  /**
+   * Clean old jobs from all queues
+   */
   async cleanQueues(grace: number = 24 * 3600 * 1000, limit: number = 1000): Promise<void> {
     for (const queue of this.queues.values()) {
       await queue.clean(grace, limit, "completed");
@@ -99,27 +115,39 @@ export class QueueService {
     }
   }
 
+  /**
+   * Clean dead letter queues
+   */
   async cleanDeadLetterQueues(
     grace: number = 7 * 24 * 3600 * 1000,
     limit: number = 1000
   ): Promise<void> {
     for (const queue of this.queues.values()) {
-      await queue.cleanDeadLetterQueue(grace, limit);
+      await queue.clean(grace, limit, "failed");
     }
   }
 
+  /**
+   * Pause all queues
+   */
   async pauseAll(): Promise<void> {
     for (const queue of this.queues.values()) {
       await queue.pause();
     }
   }
 
+  /**
+   * Resume all queues
+   */
   async resumeAll(): Promise<void> {
     for (const queue of this.queues.values()) {
       await queue.resume();
     }
   }
 
+  /**
+   * Close all queues and workers
+   */
   async close(): Promise<void> {
     for (const worker of this.workers.values()) {
       await worker.close();
@@ -131,9 +159,15 @@ export class QueueService {
     }
     this.queues.clear();
 
-    await closeAllRedisConnectionsForConfig(this.config.redis);
+    if (this.config.connection.type === "redis") {
+      const redisConfig = extractRedisConfig(this.config.connection);
+      await closeAllRedisConnectionsForConfig(redisConfig);
+    }
   }
 
+  /**
+   * Get metrics for all queues
+   */
   async getMetrics(): Promise<{
     queues: number;
     workers: number;
@@ -171,6 +205,9 @@ export class QueueService {
     };
   }
 
+  /**
+   * Get connection health
+   */
   getConnectionHealth(): {
     activeConnections: number;
   } {
@@ -181,40 +218,58 @@ export class QueueService {
 
   /**
    * Subscribe to job progress events for a queue
-   * @param queueName - Name of the queue to listen to
-   * @param handler - Callback receiving event args from BullMQ QueueEvents
    */
   onProgress(queueName: string, handler: (...args: unknown[]) => void): void {
     const queue = this.getQueue(queueName);
     const events = queue.getEvents();
-    events.on("progress", handler);
+    events.onProgress(handler);
   }
 
   /**
    * Subscribe to job completed events for a queue
-   * @param queueName - Name of the queue to listen to
-   * @param handler - Callback receiving event args from BullMQ QueueEvents
    */
   onCompleted(queueName: string, handler: (...args: unknown[]) => void): void {
     const queue = this.getQueue(queueName);
     const events = queue.getEvents();
-    events.on("completed", handler);
+    events.onCompleted(handler);
   }
 
   /**
    * Subscribe to job failed events for a queue
-   * @param queueName - Name of the queue to listen to
-   * @param handler - Callback receiving event args from BullMQ QueueEvents
    */
   onFailed(queueName: string, handler: (...args: unknown[]) => void): void {
     const queue = this.getQueue(queueName);
     const events = queue.getEvents();
-    events.on("failed", handler);
+    events.onFailed(handler);
+  }
+
+  /**
+   * Get a worker by name
+   */
+  getWorker(name: string): IWorkerAdapter | undefined {
+    return this.workers.get(name);
+  }
+
+  /**
+   * Get all registered workers
+   */
+  getAllWorkers(): Map<string, IWorkerAdapter> {
+    return new Map(this.workers);
+  }
+
+  /**
+   * Get all queues
+   */
+  getAllQueues(): Map<string, IQueueAdapter> {
+    return new Map(this.queues);
   }
 }
 
 let queueService: QueueService | undefined;
 
+/**
+ * Get the singleton queue service instance
+ */
 export function getQueueService(config: QueueConfig): QueueService {
   if (!queueService) {
     queueService = new QueueService(config);
@@ -222,6 +277,9 @@ export function getQueueService(config: QueueConfig): QueueService {
   return queueService;
 }
 
+/**
+ * Close the singleton queue service instance
+ */
 export async function closeQueueService(): Promise<void> {
   if (queueService) {
     await queueService.close();

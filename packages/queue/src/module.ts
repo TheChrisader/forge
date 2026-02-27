@@ -1,9 +1,12 @@
 import type { ServiceContainer } from "@forge/core";
 import type { ServiceModule } from "@forge/core";
 import { SERVICE_KEY_STRINGS } from "@forge/core";
-import { getQueueService, closeQueueService } from "./service";
-import type { QueueConfig } from "./client";
+import { getQueueService, closeQueueService } from "./services/queue.service";
+import type { QueueConfig } from "./domain/types";
 
+/**
+ * Queue module configuration
+ */
 export interface QueueModuleConfig {
   redis: {
     host: string;
@@ -13,11 +16,19 @@ export interface QueueModuleConfig {
   };
 }
 
+/**
+ * Queue Module
+ */
 export class QueueModule implements ServiceModule {
   private config: QueueConfig;
 
   constructor(config: QueueModuleConfig) {
-    this.config = { redis: config.redis };
+    this.config = {
+      connection: {
+        type: "redis",
+        redis: config.redis,
+      },
+    };
   }
 
   register(container: ServiceContainer): void {

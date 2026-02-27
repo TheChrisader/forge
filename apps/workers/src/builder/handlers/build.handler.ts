@@ -12,6 +12,7 @@ import type {
   LogLevel,
   BuildLogSource,
   DeployJobData,
+  JobInfo,
 } from "@forge/types";
 import { ProjectSourceType } from "@forge/types";
 import {
@@ -31,12 +32,6 @@ import { withTimeout, TIMEOUTS } from "../timeouts/wrapper.js";
 import { BuildErrorHandler } from "../error-handling/handler.js";
 import { BuildMetricsService } from "../metrics/service.js";
 
-interface Job<T = unknown> {
-  id?: string;
-  name: string;
-  data: T;
-}
-
 const logger = pino({
   name: "build-handler",
   level: process.env.LOG_LEVEL ?? "info",
@@ -44,11 +39,14 @@ const logger = pino({
 
 function getQueueConfig(): QueueConfig {
   return {
-    redis: {
-      host: process.env.REDIS_HOST ?? "localhost",
-      port: Number.parseInt(process.env.REDIS_PORT ?? "6379", 10),
-      password: process.env.REDIS_PASSWORD,
-      db: Number.parseInt(process.env.REDIS_DB ?? "0", 10),
+    connection: {
+      type: "redis",
+      redis: {
+        host: process.env.REDIS_HOST ?? "localhost",
+        port: Number.parseInt(process.env.REDIS_PORT ?? "6379", 10),
+        password: process.env.REDIS_PASSWORD,
+        db: Number.parseInt(process.env.REDIS_DB ?? "0", 10),
+      },
     },
   };
 }
@@ -185,7 +183,7 @@ async function handlePreBuiltImage(
   );
 }
 
-export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
+export async function handleBuildJob(job: JobInfo<BuildJobData>): Promise<void> {
   const { deploymentId, projectId } = job.data;
 
   const sourceType = job.data.sourceType ?? ProjectSourceType.GIT;

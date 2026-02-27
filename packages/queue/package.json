@@ -11,8 +11,10 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "test:connection": "tsx src/test-connection.ts",
-    "test:service": "tsx src/test-queue.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@forge/core": "workspace:*",
@@ -21,8 +23,8 @@
     "ioredis": "^5.9.2"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.18",
     "typescript": "^5.9.3",
-    "@types/node": "^20.11.0",
-    "tsx": "^4.21.0"
+    "vitest": "^4.0.18"
   }
 }

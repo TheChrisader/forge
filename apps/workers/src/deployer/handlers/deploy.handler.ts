@@ -6,15 +6,9 @@
 
 import { getDatabaseClient } from "@forge/database";
 import { DockerRuntime } from "@forge/docker";
-import type { DeployJobData } from "@forge/types";
+import type { DeployJobData, JobInfo } from "@forge/types";
 import { DeploymentOrchestrator } from "../deployment-orchestrator.service.js";
 import pino from "pino";
-
-interface Job<T = unknown> {
-  id?: string;
-  name: string;
-  data: T;
-}
 
 const logger = pino({
   name: "deploy-handler",
@@ -24,7 +18,7 @@ const logger = pino({
 /**
  * Main handler for deploy jobs from the queue
  */
-export async function handleDeployJob(job: Job<DeployJobData>): Promise<void> {
+export async function handleDeployJob(job: JobInfo<DeployJobData>): Promise<void> {
   const { deploymentId, projectId, image } = job.data;
 
   logger.info({ deploymentId, projectId, image }, "Processing deploy job");

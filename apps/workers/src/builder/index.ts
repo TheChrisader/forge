@@ -4,21 +4,23 @@ import { BuildWorker } from "./worker.js";
 import { registerDefaultStrategies } from "@forge/build";
 import { startCleanupJob } from "./jobs/cleanup.job.js";
 import { ServiceRegistry, DatabaseModule } from "@forge/core";
+import { QueueConfig } from "@forge/queue";
 
 const logger = pino({
   name: "forge-build-worker",
   level: process.env.LOG_LEVEL ?? "info",
 });
 
-function getQueueConfig(): {
-  redis: { host: string; port: number; password?: string; db: number };
-} {
+function getQueueConfig(): QueueConfig {
   return {
-    redis: {
-      host: process.env.REDIS_HOST ?? "localhost",
-      port: Number.parseInt(process.env.REDIS_PORT ?? "6379", 10),
-      password: process.env.REDIS_PASSWORD,
-      db: Number.parseInt(process.env.REDIS_DB ?? "0", 10),
+    connection: {
+      type: "redis",
+      redis: {
+        host: process.env.REDIS_HOST ?? "localhost",
+        port: Number.parseInt(process.env.REDIS_PORT ?? "6379", 10),
+        password: process.env.REDIS_PASSWORD,
+        db: Number.parseInt(process.env.REDIS_DB ?? "0", 10),
+      },
     },
   };
 }
@@ -31,7 +33,9 @@ async function main(): Promise<void> {
 
   const queueConfig = getQueueConfig();
   logger.info(
-    { redis: { host: queueConfig.redis.host, port: queueConfig.redis.port } },
+    {
+      redis: { host: queueConfig.connection.redis?.host, port: queueConfig.connection.redis?.port },
+    },
     "Connecting to Redis..."
   );
 

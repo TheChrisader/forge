@@ -1,4 +1,8 @@
-import type { QueueService } from "./service";
+/**
+ * Queue Monitor Service
+ */
+
+import type { QueueService } from "./queue.service";
 
 export interface QueueMetrics {
   queueName: string;
@@ -15,12 +19,18 @@ export interface QueueMetrics {
   };
 }
 
+/**
+ * Queue Monitor
+ */
 export class QueueMonitor {
   private metrics = new Map<string, QueueMetrics>();
   private lastCheck = new Map<string, { completed: number; timestamp: number }>();
 
   constructor(private queueService: QueueService) {}
 
+  /**
+   * Collect metrics for a specific queue
+   */
   async collectMetrics(queueName: string): Promise<QueueMetrics> {
     const health = await this.queueService.getHealth(queueName);
 
@@ -56,14 +66,23 @@ export class QueueMonitor {
     return metrics;
   }
 
+  /**
+   * Get cached metrics for a queue
+   */
   getMetrics(queueName: string): QueueMetrics | undefined {
     return this.metrics.get(queueName);
   }
 
+  /**
+   * Get all cached metrics
+   */
   getAllMetrics(): QueueMetrics[] {
     return Array.from(this.metrics.values());
   }
 
+  /**
+   * Check if a queue is healthy
+   */
   isHealthy(queueName: string): boolean {
     const metrics = this.metrics.get(queueName);
     if (!metrics) return false;
@@ -74,6 +93,9 @@ export class QueueMonitor {
     return metrics.failed < maxFailed && !metrics.isPaused && metrics.waiting < maxWaiting;
   }
 
+  /**
+   * Get alerts for a queue
+   */
   getAlerts(queueName: string): string[] {
     const alerts: string[] = [];
     const metrics = this.metrics.get(queueName);
@@ -100,5 +122,13 @@ export class QueueMonitor {
     }
 
     return alerts;
+  }
+
+  /**
+   * Clear all cached metrics
+   */
+  clearMetrics(): void {
+    this.metrics.clear();
+    this.lastCheck.clear();
   }
 }
