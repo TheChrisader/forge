@@ -60,9 +60,14 @@ export interface ContainerConfig {
   labels?: Record<string, string>;
   ports?: PortMapping[];
   volumes?: VolumeMount[];
+  readOnly?: boolean;
   network?: string;
   networkAliases?: string[];
   workingDir?: string;
+  capabilities?: {
+    add?: string[];
+    drop?: string[];
+  };
   user?: string;
   resources?: ResourceLimits;
   healthCheck?: HealthCheckConfig;

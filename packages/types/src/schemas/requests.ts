@@ -28,6 +28,7 @@ import {
   TracingBackendSchema,
 } from "./common";
 
+import { ProjectConfigSchema } from "./project-config";
 // =============================================================================
 // COMMON QUERY PARAMS
 // =============================================================================
@@ -187,7 +188,7 @@ export const CreateProjectRequestSchema = z
     sourceType: ProjectSourceTypeSchema.nullable().optional(),
     sourceUrl: z.string().nullable().optional(),
     status: ProjectStatusSchema.optional(),
-    config: ConfigSchema.optional(),
+    config: ProjectConfigSchema.optional(),
     metadata: MetadataSchema.optional(),
   })
   .strict();
@@ -200,7 +201,7 @@ export const UpdateProjectRequestSchema = z
     sourceType: ProjectSourceTypeSchema.nullable().optional(),
     sourceUrl: z.string().nullable().optional(),
     status: ProjectStatusSchema.optional(),
-    config: ConfigSchema.optional(),
+    config: ProjectConfigSchema.optional(),
     metadata: MetadataSchema.optional(),
   })
   .strict();

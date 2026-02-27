@@ -178,6 +178,39 @@ export class QueueService {
       activeConnections: getActiveConnectionCount(),
     };
   }
+
+  /**
+   * Subscribe to job progress events for a queue
+   * @param queueName - Name of the queue to listen to
+   * @param handler - Callback receiving event args from BullMQ QueueEvents
+   */
+  onProgress(queueName: string, handler: (...args: unknown[]) => void): void {
+    const queue = this.getQueue(queueName);
+    const events = queue.getEvents();
+    events.on("progress", handler);
+  }
+
+  /**
+   * Subscribe to job completed events for a queue
+   * @param queueName - Name of the queue to listen to
+   * @param handler - Callback receiving event args from BullMQ QueueEvents
+   */
+  onCompleted(queueName: string, handler: (...args: unknown[]) => void): void {
+    const queue = this.getQueue(queueName);
+    const events = queue.getEvents();
+    events.on("completed", handler);
+  }
+
+  /**
+   * Subscribe to job failed events for a queue
+   * @param queueName - Name of the queue to listen to
+   * @param handler - Callback receiving event args from BullMQ QueueEvents
+   */
+  onFailed(queueName: string, handler: (...args: unknown[]) => void): void {
+    const queue = this.getQueue(queueName);
+    const events = queue.getEvents();
+    events.on("failed", handler);
+  }
 }
 
 let queueService: QueueService | undefined;

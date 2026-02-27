@@ -13,3 +13,5 @@ export * from "./queries";
 export * from "./events";
 
 export * from "./utils";
+
+export * from "./project-config";

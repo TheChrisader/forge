@@ -27,7 +27,8 @@ interface FormErrors {
 
 export function EnvVarsSettings({ project }: EnvVarsSettingsProps): React.ReactElement {
   const config = (project.config as Record<string, unknown> | null | undefined) || {};
-  const envVars = (config.envVars as Record<string, string> | undefined) || {};
+  const runtimeConfig = (config.runtime as Record<string, unknown> | undefined) || {};
+  const envVars = (runtimeConfig.env as Record<string, string> | undefined) || {};
 
   const [localEnvVars, setLocalEnvVars] = useState<Record<string, string>>(envVars);
   const [dialog, setDialog] = useState<EnvVarDialog>({
@@ -107,7 +108,10 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): React.ReactE
         data: {
           config: {
             ...(typeof config === "object" ? config : {}),
-            envVars: localEnvVars,
+            runtime: {
+              ...(typeof runtimeConfig === "object" ? runtimeConfig : {}),
+              env: localEnvVars,
+            },
           } as Record<string, unknown>,
         },
       });

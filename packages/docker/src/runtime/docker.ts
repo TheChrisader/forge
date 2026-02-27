@@ -251,12 +251,15 @@ export class DockerRuntime implements IContainerRuntime {
       User: config.user,
       HostConfig: {
         AutoRemove: config.autoRemove,
+        CapAdd: config.capabilities?.add ?? [],
+        CapDrop: config.capabilities?.drop ?? [],
         RestartPolicy: config.restartPolicy
           ? {
               Name: config.restartPolicy.name,
               MaximumRetryCount: config.restartPolicy.maximumRetryCount,
             }
           : undefined,
+        ReadonlyRootfs: config.readOnly,
         Memory: config.resources?.memory ? this.parseMemory(config.resources.memory) : undefined,
         NanoCpus: config.resources?.cpus ? config.resources.cpus * 1e9 : undefined,
         CpuShares: config.resources?.cpuShares,

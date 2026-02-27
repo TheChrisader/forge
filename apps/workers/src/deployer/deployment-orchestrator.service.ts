@@ -10,48 +10,19 @@
 
 import pino from "pino";
 import type { PrismaClient } from "@forge/database";
-import type { DockerRuntime, VolumeMount as DockerVolumeMount } from "@forge/docker";
-import type { DeploymentStatus, ContainerConfig, ContainerHealthCheckConfig } from "@forge/types";
+import type {
+  DockerRuntime,
+  VolumeMount as DockerVolumeMount,
+  RestartPolicy as DockerRestartPolicy,
+} from "@forge/docker";
+import type {
+  DeploymentStatus,
+  ContainerConfig,
+  ProjectConfig,
+  ProjectVolumeConfig,
+  ProjectHealthCheckConfig,
+} from "@forge/types";
 import { toPrismaJson } from "@forge/types";
-
-/**
- * Project configuration from Project.config (JSON field in database)
- */
-interface ProjectConfig {
-  port?: number;
-  env?: Record<string, string>;
-  startCommand?: string;
-  entrypoint?: string[];
-  workingDir?: string;
-  user?: string;
-  volumes?: ProjectVolumeConfig[];
-  resources?: ProjectResourceConfig;
-  healthCheck?: ContainerHealthCheckConfig;
-  restartPolicy?: "no" | "always" | "on-failure" | "unless-stopped";
-  restartRetries?: number;
-  autoRemove?: boolean;
-}
-
-/**
- * Volume configuration from Project.config.volumes
- * This is how volumes are defined in the project config (user-facing)
- */
-interface ProjectVolumeConfig {
-  mountPath: string;
-  hostPath?: string; // If present, it's a bind mount, not a named volume
-  volumeName?: string; // Custom name for the volume
-  mode?: "RW" | "RO";
-}
-
-/**
- * Resource limits configuration from Project.config.resources
- */
-interface ProjectResourceConfig {
-  memory?: string;
-  memorySwap?: string;
-  cpus?: number;
-  cpuShares?: number;
-}
 
 /**
  * Deployment data returned from Prisma query
@@ -195,12 +166,7 @@ export class DeploymentOrchestrator {
       volumes: volumeMounts,
       name: containerName,
       network: networkName,
-      labels: {
-        "forge.managed": "true",
-        "forge.projectId": project.id,
-        "forge.deploymentId": deployment.id,
-        "forge.type": "deployment-container",
-      },
+      // labels,
     });
 
     const container = await this.createContainerDatabaseRecords(
@@ -458,49 +424,92 @@ export class DeploymentOrchestrator {
     image: string
   ): InternalContainerConfig {
     const config = project.config || {};
+    const runtime = config.runtime || {};
+    const lifecycle = config.lifecycle || {};
+    const networking = config.networking;
+    const resources = config.resources;
+    const container = config.container;
 
-    const port = config.port || 3000;
-    const env = config.env || {};
+    const labels = {
+      "forge.managed": "true",
+      "forge.projectId": project.id,
+      "forge.deploymentId": deployment.id,
+      "forge.type": "deployment-container",
+      ...container?.labels,
+    };
 
-    return {
-      image: image,
-      cmd: config.startCommand ? config.startCommand.split(" ") : undefined,
-      entrypoint: config.entrypoint,
-      env: {
-        NODE_ENV: "production",
-        PORT: port.toString(),
-        FORGE_PROJECT_ID: project.id,
-        FORGE_DEPLOYMENT_ID: deployment.id,
-        ...env,
-      },
-      ports: [
+    const port = runtime.port || 3000;
+    const baseEnv = runtime.env || {};
+    let ports: Array<{ containerPort: number; hostPort?: number; protocol?: "tcp" | "udp" }> = [];
+    if (networking?.ports && networking.ports.length > 0) {
+      ports = networking.ports
+        .filter((p) => !p.exposedOnly) // Only publish ports that aren't exposedOnly
+        .map((p) => ({
+          containerPort: p.containerPort,
+          hostPort: p.hostPort,
+          protocol: p.protocol === "udp" ? "udp" : "tcp",
+        }));
+    } else {
+      ports = [
         {
           containerPort: port,
           protocol: "tcp",
-          // hostPort auto-assigned by Docker
         },
-      ],
+      ];
+    }
+
+    let cmd: string[] | undefined;
+    if (runtime.command) {
+      cmd = typeof runtime.command === "string" ? runtime.command.split(" ") : runtime.command;
+    }
+
+    const restartPolicy: DockerRestartPolicy = {
+      name: (lifecycle.restart || "unless-stopped") as
+        | "no"
+        | "always"
+        | "on-failure"
+        | "unless-stopped",
+      maximumRetryCount: lifecycle.restartRetries,
+    };
+
+    return {
+      image: image,
+      cmd,
+      entrypoint: runtime.entrypoint,
+      env: {
+        // TODO: default env vars per framework/language - node only, for now
+        // NODE_ENV: "production",
+        PORT: port.toString(),
+        FORGE_PROJECT_ID: project.id,
+        FORGE_DEPLOYMENT_ID: deployment.id,
+        ...baseEnv,
+      },
+      ports,
       volumes: config.volumes || [],
-      workingDir: config.workingDir,
-      user: config.user,
-      resources: config.resources
+      workingDir: runtime.workingDir,
+      user: runtime.user,
+      resources: resources
         ? {
-            memory: config.resources.memory,
-            memorySwap: config.resources.memorySwap,
-            cpus: config.resources.cpus,
-            cpuShares: config.resources.cpuShares,
+            memory: resources.memory,
+            memorySwap: resources.memorySwap,
+            cpus: resources.cpus,
+            cpuShares: resources.cpuShares,
           }
         : undefined,
       healthCheck: this.getHealthCheckConfig(project),
-      restartPolicy: {
-        name: (config.restartPolicy || "unless-stopped") as
-          | "no"
-          | "always"
-          | "on-failure"
-          | "unless-stopped",
-        maximumRetryCount: config.restartRetries,
-      },
-      autoRemove: config.autoRemove || false,
+      restartPolicy,
+      autoRemove: lifecycle.autoRemove || false,
+      readOnly: container?.readOnlyRootFs,
+      capabilities: container?.capabilities,
+      // TODO: Add them to ContainerConfig, then use them in the create method - Don't delete
+      // securityOpts: container?.securityOpts,
+      // privileged: container?.privileged,
+      // hostPid: container?.hostPid,
+      // hostNetwork: container?.hostNetwork,
+      // shmSize: container?.shmSize,
+      // tmpfs: container?.tmpfs,
+      // logging: container?.logging,
+      labels,
     };
   }
 
@@ -508,14 +517,14 @@ export class DeploymentOrchestrator {
    * Extracts health check config from Project.config
    * Derives sensible defaults if not specified
    */
-  private getHealthCheckConfig(project: ProjectData): ContainerHealthCheckConfig | undefined {
+  private getHealthCheckConfig(project: ProjectData): ProjectHealthCheckConfig | undefined {
     const config = project.config || {};
 
     if (config.healthCheck) {
       return config.healthCheck;
     }
 
-    const port = config.port || 3000;
+    const port = config.runtime?.port || 3000;
     return {
       test: ["CMD", "curl", "-f", `http://localhost:${port}/health`],
       interval: "10s",

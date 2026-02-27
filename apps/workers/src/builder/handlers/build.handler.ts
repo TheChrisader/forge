@@ -297,7 +297,7 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
         logger.info({ deploymentId, localPath: job.data.localPath }, "Copying local files...");
         await withTimeout(
           acquireFromLocal(job.data.localPath ?? "", repoPath, emitter),
-          TIMEOUTS.GIT_CLONE, // Same timeout as git clone
+          TIMEOUTS.GIT_CLONE,
           "Local file copy"
         );
         sourceDir = repoPath;
@@ -351,10 +351,15 @@ export async function handleBuildJob(job: Job<BuildJobData>): Promise<void> {
       data: {
         type: strategy.name,
         config: {
-          buildCommand: config.buildCommand,
-          startCommand: config.startCommand,
-          installCommand: config.installCommand,
-          port: config.port,
+          build: {
+            buildCommand: config.buildCommand,
+            installCommand: config.installCommand,
+            framework: detectionResult.framework,
+          },
+          runtime: {
+            startCommand: config.startCommand,
+            port: config.port,
+          },
         },
       },
     });

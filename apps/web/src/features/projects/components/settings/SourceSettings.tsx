@@ -16,7 +16,6 @@ interface SourceSettingsProps {
   project: Project;
 }
 
-// Simplified patterns for UX validation (backend uses stricter patterns)
 const HTTPS_PATTERN = /^https:\/\//;
 const SSH_PATTERN = /^git@/;
 const IMAGE_PATTERN =
@@ -30,20 +29,20 @@ interface FormErrors {
 
 export function SourceSettings({ project }: SourceSettingsProps): React.ReactElement {
   const config = (project.config as Record<string, unknown> | null | undefined) || {};
+  const buildConfig = (config.build as Record<string, unknown> | undefined) || {};
 
   const currentSourceType = (project.sourceType || "git") as "git" | "local" | "image";
 
   const [formData, setFormData] = useState({
     sourceType: currentSourceType,
     sourceUrl: project.sourceUrl || "",
-    branch: (config.branch as string | undefined) || "",
+    branch: (buildConfig.branch as string | undefined) || "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [sourceTypeChanged, setSourceTypeChanged] = useState(false);
 
   const updateProject = usePatchProject();
 
-  // Reset sourceUrl when sourceType changes and track the change
   useEffect(() => {
     if (formData.sourceType !== currentSourceType) {
       setFormData((prev) => ({ ...prev, sourceUrl: "" }));
@@ -78,12 +77,13 @@ export function SourceSettings({ project }: SourceSettingsProps): React.ReactEle
         id: project.id,
         data: {
           sourceType: formData.sourceType as ProjectSourceType,
-          // If sourceType changed, always send sourceUrl (even if empty) to clear old value
-          // Otherwise only send if non-empty to avoid accidental clears
           sourceUrl: sourceTypeChanged || formData.sourceUrl ? formData.sourceUrl || "" : undefined,
           config: {
             ...(typeof config === "object" ? config : {}),
-            branch: formData.sourceType === "git" ? formData.branch || undefined : undefined,
+            build: {
+              ...(typeof buildConfig === "object" ? buildConfig : {}),
+              branch: formData.sourceType === "git" ? formData.branch || undefined : undefined,
+            },
           } as Record<string, unknown>,
         },
       });

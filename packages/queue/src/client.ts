@@ -353,7 +353,7 @@ export class QueueClient<T = unknown, R = unknown> {
     if (job) {
       await job.remove();
       if (job.data.originalQueue) {
-        await this.queue.add(job.data.originalQueue as any, job.data.data);
+        await this.queue.add(job.data.originalQueue, job.data.data);
       }
     }
     await dlq.close();

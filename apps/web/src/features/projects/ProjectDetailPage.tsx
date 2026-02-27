@@ -1,4 +1,4 @@
-import { useParams, useRouter } from "@tanstack/react-router";
+import { useParams, useRouter, Link } from "@tanstack/react-router";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -70,9 +70,9 @@ export function ProjectDetailPage(): React.ReactElement {
     );
   }
 
-  const framework = (project.config as Record<string, unknown> | undefined)?.framework as
-    | string
-    | undefined;
+  const config = (project.config as Record<string, unknown> | undefined) || {};
+  const buildConfig = (config.build as Record<string, unknown> | undefined) || {};
+  const framework = buildConfig.framework as string | undefined;
   const repository = project.sourceUrl || "No repository configured";
   const createdAt = formatTimestamp(project.createdAt);
   const updatedAt = formatTimestamp(project.updatedAt);
@@ -85,7 +85,9 @@ export function ProjectDetailPage(): React.ReactElement {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/projects">Projects</BreadcrumbLink>
+            <BreadcrumbLink asChild>
+              <Link to="/projects">Projects</Link>
+            </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
