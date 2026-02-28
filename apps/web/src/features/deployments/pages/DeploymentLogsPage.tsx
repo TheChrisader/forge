@@ -1,10 +1,10 @@
 import { useParams } from "@tanstack/react-router";
-import { useDeployment, useDeploymentLogs } from "@/core/api/hooks/useDeployments";
+import { useDeployment } from "@/core/api/hooks/useDeployments";
+import { useDeploymentLogsStream } from "@/core/api/hooks/useDeploymentLogsStream";
 import { LogsHeader } from "../components/LogsHeader";
 import { LogsViewer } from "../components/LogsViewer";
 import { LoaderIcon } from "lucide-react";
 
-// TODO Sprint 4: Replace with WebSocket connection
 export function DeploymentLogsPage(): React.ReactElement {
   const { projectId, deploymentId } = useParams({
     from: "/authenticated/projects/$projectId/deployments/$deploymentId",
@@ -16,9 +16,7 @@ export function DeploymentLogsPage(): React.ReactElement {
     error: deploymentError,
   } = useDeployment(deploymentId);
 
-  const { data: logsData, isLoading: logsLoading } = useDeploymentLogs(deploymentId);
-
-  const logs = logsData?.logs ?? "";
+  const { logs, isConnected, progress, error: streamError } = useDeploymentLogsStream(deploymentId);
 
   if (deploymentLoading) {
     return (
@@ -48,7 +46,7 @@ export function DeploymentLogsPage(): React.ReactElement {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <LogsViewer logs={logs} isLoading={logsLoading} />
+        <LogsViewer logs={logs} isConnected={isConnected} progress={progress} error={streamError} />
       </div>
     </div>
   );

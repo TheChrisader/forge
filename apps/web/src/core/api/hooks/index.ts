@@ -1,5 +1,6 @@
 export * from "./useProjects";
 export * from "./useDeployments";
+export * from "./useDeploymentLogsStream";
 export * from "./useServices";
 export * from "./useLogs";
 export * from "./useMetrics";

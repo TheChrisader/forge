@@ -41,3 +41,31 @@ export interface LogEvent extends BaseEvent {
 }
 
 export type ForgeEvent = DeploymentEvent | LogEvent | BaseEvent;
+
+/**
+ * SSE deployment log event data structure
+ * This represents a single log line from the build process
+ */
+export interface SSEDeploymentLogData {
+  lineNumber: number;
+  timestamp: string;
+  level: string;
+  source: string;
+  message: string;
+  stage?: string;
+  progress?: number;
+}
+
+/**
+ * SSE deployment completion event data
+ */
+export interface SSEDeploymentCompletedData {
+  status: "SUCCEEDED";
+}
+
+/**
+ * SSE deployment error event data
+ */
+export interface SSEDeploymentErrorData {
+  message: string;
+}

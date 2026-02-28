@@ -9,6 +9,7 @@ import {
 } from "@forge/core";
 import { requireAuth } from "../middleware/auth.js";
 import { DeploymentService } from "../services/deployment.service.js";
+import { SSEManagerService } from "../services/sse-manager.service.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 import {
   DeploymentSchema,
@@ -45,6 +46,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     SERVICE_KEY_STRINGS.DEPLOYMENT_SERVICE
   );
   const buildLogService = container.resolveSync<BuildLogService>(SERVICE_KEY_STRINGS.LOG_SERVICE);
+  const sseManager = container.resolveSync<SSEManagerService>(SERVICE_KEY_STRINGS.SSE_MANAGER);
 
   /**
    * GET /api/deployments
@@ -268,6 +270,43 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
         server.log.error({ error, deploymentId: params.id }, "Failed to export deployment logs");
         throw new InternalError("Failed to export deployment logs");
       }
+    }
+  );
+
+  /**
+   * GET /api/deployments/:id/logs/stream
+   * Server-Sent Events endpoint for real-time deployment log streaming
+   *
+   * This endpoint establishes an SSE connection and streams logs as they're
+   * emitted by the builder worker via BullMQ progress events.
+   */
+  server.get(
+    "/api/deployments/:id/logs/stream",
+    {
+      sse: true, // Enable @fastify/sse plugin for this route
+      schema: {
+        params: DeploymentIdParamsSchema,
+      },
+    },
+    async (request, reply) => {
+      requireAuth((request as { userId?: string }).userId);
+      const params = DeploymentIdParamsSchema.parse(request.params);
+
+      const deployment = await deploymentService.getById(params.id);
+      if (!deployment) {
+        throw new NotFoundError("Deployment");
+      }
+
+      await reply.sse.send({
+        event: "connected",
+        data: { deploymentId: params.id, timestamp: new Date().toISOString() },
+      });
+
+      sseManager.subscribe(`deployment:${params.id}`, reply);
+
+      reply.raw.on("close", () => {
+        sseManager.unsubscribe(`deployment:${params.id}`, reply);
+      });
     }
   );
 }

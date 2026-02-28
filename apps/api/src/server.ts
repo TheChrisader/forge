@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
+import fastifySSE from "@fastify/sse";
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-type-provider-zod";
 import {
   ServiceRegistry,
@@ -20,6 +21,7 @@ import { ProjectModule } from "./modules/project.module.js";
 import { DeploymentModule } from "./modules/deployment.module.js";
 import { BuildCacheModule } from "./modules/build-cache.module.js";
 import { BuildLogModule } from "./modules/build-log.module.js";
+import { SSEModule } from "./modules/sse.module.js";
 import { ImageModule } from "./modules/image.module.js";
 import { ContainerModule } from "./modules/container.module.js";
 
@@ -47,6 +49,7 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   registry.registerModule("projects", new ProjectModule());
   registry.registerModule("deployments", new DeploymentModule());
   registry.registerModule("buildCache", new BuildCacheModule());
+  registry.registerModule("sse", new SSEModule());
   registry.registerModule("buildLog", new BuildLogModule());
   registry.registerModule("image", new ImageModule());
   registry.registerModule("container", new ContainerModule());
@@ -88,6 +91,10 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   server.decorate("registry", registry);
   server.decorate("db", db);
   server.decorate("redis", redis);
+
+  await server.register(fastifySSE, {
+    heartbeatInterval: 30000, // 30 second keep-alive
+  });
 
   await setupSwagger(server);
 
