@@ -12,9 +12,9 @@ import type {
   LogLevel,
   BuildLogSource,
   DeployJobData,
-  JobInfo,
 } from "@forge/types";
 import { ProjectSourceType } from "@forge/types";
+import type { IJobContext } from "@forge/queue";
 import {
   BuildLogService,
   ForgeError,
@@ -183,10 +183,10 @@ async function handlePreBuiltImage(
   );
 }
 
-export async function handleBuildJob(job: JobInfo<BuildJobData>): Promise<void> {
-  const { deploymentId, projectId } = job.data;
+export async function handleBuildJob(context: IJobContext<BuildJobData>): Promise<void> {
+  const { deploymentId, projectId } = context.job.data;
 
-  const sourceType = job.data.sourceType ?? ProjectSourceType.GIT;
+  const sourceType = context.job.data.sourceType ?? ProjectSourceType.GIT;
 
   logger.info({ deploymentId, projectId, sourceType }, "Processing build job");
 
@@ -266,11 +266,14 @@ export async function handleBuildJob(job: JobInfo<BuildJobData>): Promise<void> 
 
     switch (sourceType) {
       case ProjectSourceType.GIT:
-        logger.info({ deploymentId, gitUrl: job.data.gitUrl, repoPath }, "Cloning repository...");
+        logger.info(
+          { deploymentId, gitUrl: context.job.data.gitUrl, repoPath },
+          "Cloning repository..."
+        );
         await withTimeout(
           gitService.clone({
-            url: job.data.gitUrl ?? "",
-            branch: job.data.branch,
+            url: context.job.data.gitUrl ?? "",
+            branch: context.job.data.branch,
             destinationPath: repoPath,
             depth: 1,
           }),
@@ -278,12 +281,12 @@ export async function handleBuildJob(job: JobInfo<BuildJobData>): Promise<void> 
           "Git clone"
         );
 
-        if (job.data.gitCommit) {
+        if (context.job.data.gitCommit) {
           logger.info(
-            { deploymentId, gitCommit: job.data.gitCommit },
+            { deploymentId, gitCommit: context.job.data.gitCommit },
             "Checking out specific commit"
           );
-          await gitService.checkoutCommit(repoPath, job.data.gitCommit);
+          await gitService.checkoutCommit(repoPath, context.job.data.gitCommit);
           logger.info({ deploymentId }, "Checked out specific commit successfully");
         }
 
@@ -292,9 +295,12 @@ export async function handleBuildJob(job: JobInfo<BuildJobData>): Promise<void> 
         break;
 
       case ProjectSourceType.LOCAL:
-        logger.info({ deploymentId, localPath: job.data.localPath }, "Copying local files...");
+        logger.info(
+          { deploymentId, localPath: context.job.data.localPath },
+          "Copying local files..."
+        );
         await withTimeout(
-          acquireFromLocal(job.data.localPath ?? "", repoPath, emitter),
+          acquireFromLocal(context.job.data.localPath ?? "", repoPath, emitter),
           TIMEOUTS.GIT_CLONE,
           "Local file copy"
         );
@@ -303,7 +309,7 @@ export async function handleBuildJob(job: JobInfo<BuildJobData>): Promise<void> 
         break;
 
       case ProjectSourceType.IMAGE:
-        await handlePreBuiltImage(job.data, deploymentId, db, emitter, logger);
+        await handlePreBuiltImage(context.job.data, deploymentId, db, emitter, logger);
         return;
 
       case ProjectSourceType.DOCKER_COMPOSE:

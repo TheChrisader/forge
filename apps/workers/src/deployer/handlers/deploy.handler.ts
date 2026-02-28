@@ -1,12 +1,7 @@
-/**
- * Deploy Job Handler
- *
- * Processes deploy jobs from the queue and coordinates container deployment.
- */
-
 import { getDatabaseClient } from "@forge/database";
 import { DockerRuntime } from "@forge/docker";
-import type { DeployJobData, JobInfo } from "@forge/types";
+import type { DeployJobData } from "@forge/types";
+import type { IJobContext } from "@forge/queue";
 import { DeploymentOrchestrator } from "../deployment-orchestrator.service.js";
 import pino from "pino";
 
@@ -15,11 +10,8 @@ const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
 });
 
-/**
- * Main handler for deploy jobs from the queue
- */
-export async function handleDeployJob(job: JobInfo<DeployJobData>): Promise<void> {
-  const { deploymentId, projectId, image } = job.data;
+export async function handleDeployJob(context: IJobContext<DeployJobData>): Promise<void> {
+  const { deploymentId, projectId, image } = context.job.data;
 
   logger.info({ deploymentId, projectId, image }, "Processing deploy job");
 

@@ -6,6 +6,18 @@ import type { JobOptions, JobStatus, JobInfo } from "@forge/types";
 import type { BulkJob, WorkerOptions, QueueOptions, QueueConfig } from "./types";
 
 /**
+ * Job context provided to job processors
+ * Provides readonly job data and ability to emit progress updates
+ */
+export interface IJobContext<T> {
+  /** Readonly job information */
+  readonly job: JobInfo<T>;
+
+  /** Emit a progress update - accepts either a percentage number or an arbitrary object */
+  updateProgress(progress: number | Record<string, unknown>): Promise<void>;
+}
+
+/**
  * Queue adapter interface
  */
 export interface IQueueAdapter {
@@ -179,7 +191,7 @@ export interface IQueueAdapterFactory {
    */
   createWorker<T, R>(
     name: string,
-    processor: (job: JobInfo<T>) => Promise<R>,
+    processor: (context: IJobContext<T>) => Promise<R>,
     config: QueueConfig,
     options?: WorkerOptions
   ): IWorkerAdapter;

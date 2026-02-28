@@ -3,16 +3,33 @@
  */
 
 import type { JobInfo } from "@forge/types";
-import type { IWorkerAdapter } from "../../domain/interfaces";
+import type { IWorkerAdapter, IJobContext } from "../../domain/interfaces";
 import type { QueueConfig, WorkerOptions } from "../../domain/types";
+
+/**
+ * In-memory Job Context implementation
+ */
+class InMemoryJobContext<T> implements IJobContext<T> {
+  constructor(
+    private readonly worker: InMemoryWorkerAdapter,
+    public readonly job: JobInfo<T>
+  ) {}
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async updateProgress(progress: number | Record<string, unknown>): Promise<void> {
+    for (const handler of this.worker.progressHandlers) {
+      callHandlerSafely(
+        () => handler(this.job, progress),
+        "[InMemoryWorker] onProgress handler error:"
+      );
+    }
+  }
+}
 
 /**
  * Call a handler that may return void or Promise<void>, catching any errors
  */
-function callHandlerSafely(
-  handler: () => void | Promise<void>,
-  errorMessage: string
-): void {
+function callHandlerSafely(handler: () => void | Promise<void>, errorMessage: string): void {
   const result = handler();
   if (result && typeof result.then === "function") {
     // It's a Promise
@@ -29,18 +46,29 @@ export class InMemoryWorkerAdapter implements IWorkerAdapter {
   private running = true;
   private paused = false;
   private completedHandlers: Array<(job: JobInfo, result: unknown) => void | Promise<void>> = [];
-  private failedHandlers: Array<(job: JobInfo | undefined, error: Error) => void | Promise<void>> = [];
-  private progressHandlers: Array<(job: JobInfo, progress: number | object) => void | Promise<void>> = [];
+  private failedHandlers: Array<(job: JobInfo | undefined, error: Error) => void | Promise<void>> =
+    [];
+
+  /** Expose progress handlers for context to use (must be public readonly) */
+  public readonly progressHandlers: Array<
+    (job: JobInfo, progress: number | object) => void | Promise<void>
+  > = [];
 
   constructor(
     _name: string,
-    private readonly processor: (job: JobInfo) => Promise<unknown>,
+    rawProcessor: (context: IJobContext<unknown>) => Promise<unknown>,
     _config: QueueConfig,
     options?: WorkerOptions
   ) {
-    if (options?.concurrency) {
-    }
+    void options?.concurrency;
+
+    this.processor = async (job: JobInfo): Promise<unknown> => {
+      const context = new InMemoryJobContext<unknown>(this, job);
+      return rawProcessor(context);
+    };
   }
+
+  private readonly processor: (job: JobInfo) => Promise<unknown>;
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async pause(): Promise<void> {
@@ -57,7 +85,6 @@ export class InMemoryWorkerAdapter implements IWorkerAdapter {
     this.running = false;
     this.completedHandlers = [];
     this.failedHandlers = [];
-    this.progressHandlers = [];
   }
 
   isRunning(): boolean {
@@ -73,13 +100,17 @@ export class InMemoryWorkerAdapter implements IWorkerAdapter {
   }
 
   onFailed<T>(handler: (job: JobInfo<T> | undefined, error: Error) => void | Promise<void>): void {
-    this.failedHandlers.push(handler as (job: JobInfo | undefined, error: Error) => void | Promise<void>);
+    this.failedHandlers.push(
+      handler as (job: JobInfo | undefined, error: Error) => void | Promise<void>
+    );
   }
 
   onProgress<T>(
     handler: (job: JobInfo<T>, progress: number | object) => void | Promise<void>
   ): void {
-    this.progressHandlers.push(handler as (job: JobInfo, progress: number | object) => void | Promise<void>);
+    this.progressHandlers.push(
+      handler as (job: JobInfo, progress: number | object) => void | Promise<void>
+    );
   }
 
   /**
@@ -90,7 +121,10 @@ export class InMemoryWorkerAdapter implements IWorkerAdapter {
     try {
       const result = await this.processor(job);
       for (const handler of this.completedHandlers) {
-        callHandlerSafely(() => handler(job, result), "[InMemoryWorker] onCompleted handler error:");
+        callHandlerSafely(
+          () => handler(job, result),
+          "[InMemoryWorker] onCompleted handler error:"
+        );
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -104,6 +138,7 @@ export class InMemoryWorkerAdapter implements IWorkerAdapter {
    * Emit a progress event (for testing purposes)
    * @internal
    */
+  // eslint-disable-next-line @typescript-eslint/require-await
   async emitProgress(job: JobInfo, progress: number | object): Promise<void> {
     for (const handler of this.progressHandlers) {
       callHandlerSafely(() => handler(job, progress), "[InMemoryWorker] onProgress handler error:");

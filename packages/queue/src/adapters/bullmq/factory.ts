@@ -2,9 +2,13 @@
  * BullMQ adapter factory
  */
 
-import type { IQueueAdapterFactory, IQueueAdapter, IWorkerAdapter } from "../../domain/interfaces";
+import type {
+  IQueueAdapterFactory,
+  IQueueAdapter,
+  IWorkerAdapter,
+  IJobContext,
+} from "../../domain/interfaces";
 import type { QueueConfig, WorkerOptions, QueueOptions } from "../../domain/types";
-import type { JobInfo } from "@forge/types";
 import { BullMQQueueAdapter } from "./queue.adapter";
 import { BullMQWorkerAdapter } from "./worker.adapter";
 
@@ -20,13 +24,13 @@ export class BullMQAdapterFactory implements IQueueAdapterFactory {
 
   createWorker<T, R>(
     name: string,
-    processor: (job: JobInfo<T>) => Promise<R>,
+    processor: (context: IJobContext<T>) => Promise<R>,
     _config: QueueConfig,
     options?: WorkerOptions
   ): IWorkerAdapter {
     return new BullMQWorkerAdapter(
       name,
-      processor as (job: JobInfo<unknown>) => Promise<unknown>,
+      processor as (context: IJobContext<unknown>) => Promise<unknown>,
       this.config,
       options
     );

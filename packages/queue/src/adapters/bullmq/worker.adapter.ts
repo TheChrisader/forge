@@ -4,9 +4,28 @@
 
 import { Worker, Job } from "bullmq";
 import type { JobInfo } from "@forge/types";
-import type { IWorkerAdapter } from "../../domain/interfaces";
+import type { IWorkerAdapter, IJobContext } from "../../domain/interfaces";
 import type { QueueConfig, WorkerOptions } from "../../domain/types";
 import { getRedisConnection, extractRedisConfig, type RedisConfig } from "./redis";
+
+/**
+ * BullMQ Job Context implementation
+ */
+class BullMQJobContext<T> implements IJobContext<T> {
+  constructor(
+    private readonly bullJob: Job,
+    public readonly job: JobInfo<T>
+  ) {}
+
+  async updateProgress(progress: number | Record<string, unknown>): Promise<void> {
+    try {
+      await this.bullJob.updateProgress(progress);
+    } catch (error) {
+      // Log but don't fail the job if progress update fails
+      console.error("[BullMQ] Failed to update job progress:", error);
+    }
+  }
+}
 
 /**
  * Convert BullMQ Job to domain JobInfo
@@ -17,7 +36,7 @@ function toJobInfo<T>(bullmqJob: Job<T, any, string>): JobInfo<T> {
     id: bullmqJob.id!,
     name: bullmqJob.name,
     data: bullmqJob.data,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
     opts: bullmqJob.opts as any,
 
     progress: bullmqJob.progress as number,
@@ -32,24 +51,22 @@ function toJobInfo<T>(bullmqJob: Job<T, any, string>): JobInfo<T> {
 }
 
 /**
- * Wrap a domain processor to convert BullMQ Job to JobInfo
+ * Wrap a domain processor to convert BullMQ Job to IJobContext
  */
 function wrapProcessor<T, R>(
-  processor: (job: JobInfo<T>) => Promise<R>
+  processor: (context: IJobContext<T>) => Promise<R>
 ): (job: Job<T, R, string>) => Promise<R> {
   return async (bullmqJob: Job<T, R, string>) => {
     const jobInfo = toJobInfo(bullmqJob);
-    return processor(jobInfo);
+    const context = new BullMQJobContext(bullmqJob, jobInfo);
+    return processor(context);
   };
 }
 
 /**
  * Call a handler that may return void or Promise<void>, catching any errors
  */
-function callHandlerSafely(
-  handler: () => void | Promise<void>,
-  errorMessage: string
-): void {
+function callHandlerSafely(handler: () => void | Promise<void>, errorMessage: string): void {
   const result = handler();
   if (result && typeof result.then === "function") {
     // It's a Promise
@@ -68,7 +85,7 @@ export class BullMQWorkerAdapter implements IWorkerAdapter {
 
   constructor(
     name: string,
-    processor: (job: JobInfo<unknown>) => Promise<unknown>,
+    processor: (context: IJobContext<unknown>) => Promise<unknown>,
     config: QueueConfig,
     options?: WorkerOptions
   ) {
@@ -89,6 +106,7 @@ export class BullMQWorkerAdapter implements IWorkerAdapter {
     await this.worker.pause();
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async resume(): Promise<void> {
     void this.worker.resume();
   }
@@ -126,6 +144,7 @@ export class BullMQWorkerAdapter implements IWorkerAdapter {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.worker.on("progress", (bullmqJob: Job<T, any, string>, progress: any) => {
       const jobInfo = toJobInfo(bullmqJob);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       callHandlerSafely(() => handler(jobInfo, progress), "[Worker] onProgress handler error:");
     });
   }

@@ -20,6 +20,7 @@ export type {
   IWorkerAdapter,
   IEventEmitter,
   IQueueAdapterFactory,
+  IJobContext,
 } from "./domain/interfaces";
 
 export { createAdapterFactory } from "./factory";

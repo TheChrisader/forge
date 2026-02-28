@@ -1,107 +1,94 @@
-/**
- * Tests for deploy job handler
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { DeployJobData } from "@forge/types";
-
-// Minimal Job interface matching the handler's interface
-interface Job<T = unknown> {
-  id?: string;
-  name: string;
-  data: T;
-}
+import type { IJobContext } from "@forge/queue";
 
 // Create mock objects using hoisted so they can be used in vi.mock
-const {
-  mockDb,
-  mockRuntime,
-  mockQueueService,
-  MockDockerRuntime,
-  getDatabaseClientMock,
-  createTransactionMock,
-} = vi.hoisted(() => {
-  const mockRuntime = {
-    create: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    remove: vi.fn(),
-    waitForHealthy: vi.fn(),
-    listNetworks: vi.fn(),
-    createNetwork: vi.fn(),
-    listVolumes: vi.fn(),
-    createVolume: vi.fn(),
-  };
+const { mockDb, mockRuntime, MockDockerRuntime, getDatabaseClientMock, createTransactionMock } =
+  vi.hoisted(() => {
+    const mockRuntime = {
+      create: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+      remove: vi.fn(),
+      waitForHealthy: vi.fn(),
+      listNetworks: vi.fn(),
+      createNetwork: vi.fn(),
+      listVolumes: vi.fn(),
+      createVolume: vi.fn(),
+    };
 
-  class MockDockerRuntime {
-    constructor() {
-      return mockRuntime;
+    class MockDockerRuntime {
+      constructor() {
+        return mockRuntime;
+      }
     }
-  }
 
-  const getDatabaseClientMock = vi.fn(() => mockDb);
+    const getDatabaseClientMock = vi.fn(() => mockDb);
 
-  // Create a transaction mock that provides all Prisma methods
-  const createTransactionMock = () => {
-    const txMock = {
+    // Create a transaction mock that provides all Prisma methods
+    const createTransactionMock = (): {
+      mock: (callback: (tx: unknown) => Promise<unknown>) => Promise<unknown>;
+      txMock: unknown;
+    } => {
+      const txMock = {
+        container: {
+          create: vi.fn(),
+        },
+        portMapping: {
+          createMany: vi.fn(),
+        },
+        volumeMapping: {
+          createMany: vi.fn(),
+        },
+        healthCheckConfig: {
+          create: vi.fn(),
+        },
+        networkAttachment: {
+          create: vi.fn(),
+        },
+        resourceLimit: {
+          create: vi.fn(),
+        },
+      };
+
+      const mock = async (callback: (tx: unknown) => Promise<unknown>): Promise<unknown> => {
+        return await callback(txMock);
+      };
+
+      Object.assign(mock, txMock);
+
+      return { mock, txMock };
+    };
+
+    const mockDb = {
+      deployment: {
+        findUnique: vi.fn(),
+        update: vi.fn(),
+      },
+      project: {
+        update: vi.fn(),
+      },
       container: {
-        create: vi.fn(),
+        update: vi.fn(),
+        updateMany: vi.fn(),
       },
-      portMapping: {
-        createMany: vi.fn(),
-      },
-      volumeMapping: {
-        createMany: vi.fn(),
-      },
-      healthCheckConfig: {
-        create: vi.fn(),
-      },
-      networkAttachment: {
-        create: vi.fn(),
-      },
-      resourceLimit: {
-        create: vi.fn(),
-      },
+      $transaction: vi.fn(),
     };
 
-    const mock = async (callback: any) => {
-      return await callback(txMock);
+    const _mockQueueService = {
+      addJob: vi.fn(),
+      close: vi.fn(),
     };
 
-    Object.assign(mock, txMock);
-
-    return { mock, txMock };
-  };
-
-  const mockDb = {
-    deployment: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    project: {
-      update: vi.fn(),
-    },
-    container: {
-      update: vi.fn(),
-      updateMany: vi.fn(),
-    },
-    $transaction: vi.fn(),
-  };
-
-  const mockQueueService = {
-    addJob: vi.fn(),
-    close: vi.fn(),
-  };
-
-  return {
-    mockDb,
-    mockRuntime,
-    mockQueueService,
-    MockDockerRuntime,
-    getDatabaseClientMock,
-    createTransactionMock,
-  };
-});
+    return {
+      mockDb,
+      mockRuntime,
+      _mockQueueService,
+      MockDockerRuntime,
+      getDatabaseClientMock,
+      createTransactionMock,
+    };
+  });
 
 vi.mock("@forge/database", () => ({
   getDatabaseClient: getDatabaseClientMock,
@@ -114,7 +101,14 @@ vi.mock("@forge/docker", () => ({
 import { handleDeployJob } from "../deploy.handler.js";
 
 describe("handleDeployJob", () => {
-  let transactionMock: any;
+  let transactionMock: {
+    container: { create: ReturnType<typeof vi.fn> };
+    portMapping: { createMany: ReturnType<typeof vi.fn> };
+    volumeMapping: { createMany: ReturnType<typeof vi.fn> };
+    healthCheckConfig: { create: ReturnType<typeof vi.fn> };
+    networkAttachment: { create: ReturnType<typeof vi.fn> };
+    resourceLimit: { create: ReturnType<typeof vi.fn> };
+  };
 
   const mockDeployment = {
     id: "deploy-123",
@@ -141,24 +135,30 @@ describe("handleDeployJob", () => {
     containerId: "docker-container-abc",
   };
 
-  const mockJob: Partial<Job<DeployJobData>> = {
-    id: "test-job-1",
-    data: {
-      deploymentId: "deploy-123",
-      projectId: "project-456",
-      image: "forge/test-project:v1.0.0",
+  const mockContext: IJobContext<DeployJobData> = {
+    job: {
+      id: "test-job-1",
+      name: "deploy",
+      data: {
+        deploymentId: "deploy-123",
+        projectId: "project-456",
+        image: "forge/test-project:v1.0.0",
+      },
+      progress: 0,
+      attemptsMade: 0,
+      timestamp: Date.now(),
+      opts: {},
     },
+    updateProgress: vi.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Create fresh transaction mocks
-    const { mock: txMock, txMock: tx } = createTransactionMock();
-    transactionMock = txMock;
-    mockDb.$transaction = txMock;
+    const { mock: txMock } = createTransactionMock();
+    transactionMock = txMock as unknown as typeof transactionMock;
+    mockDb.$transaction = txMock as any;
 
-    // Setup default mock behaviors
     mockDb.deployment.findUnique.mockResolvedValue(mockDeployment);
     mockDb.deployment.update.mockResolvedValue({});
     mockDb.project.update.mockResolvedValue({});
@@ -179,9 +179,8 @@ describe("handleDeployJob", () => {
   });
 
   it("should process deploy job successfully", async () => {
-    await handleDeployJob(mockJob as Job<DeployJobData>);
+    await handleDeployJob(mockContext);
 
-    // Verify deployment was found
     expect(mockDb.deployment.findUnique).toHaveBeenCalledWith({
       where: { id: "deploy-123" },
       include: {
@@ -191,7 +190,6 @@ describe("handleDeployJob", () => {
       },
     });
 
-    // Verify deployment status was updated to DEPLOYING
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
       where: { id: "deploy-123" },
       data: {
@@ -201,18 +199,14 @@ describe("handleDeployJob", () => {
       },
     });
 
-    // Verify container was created
     expect(mockRuntime.create).toHaveBeenCalled();
 
-    // Verify container was started
     expect(mockRuntime.start).toHaveBeenCalledWith("docker-container-abc");
 
-    // Verify health check was awaited
     expect(mockRuntime.waitForHealthy).toHaveBeenCalledWith("docker-container-abc", {
       timeout: 120_000,
     });
 
-    // Verify deployment was marked as RUNNING
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
       where: { id: "deploy-123" },
       data: {
@@ -221,13 +215,11 @@ describe("handleDeployJob", () => {
       },
     });
 
-    // Verify project was marked as ACTIVE
     expect(mockDb.project.update).toHaveBeenCalledWith({
       where: { id: "project-456" },
       data: { status: "ACTIVE" },
     });
 
-    // Verify container was marked as HEALTHY
     expect(mockDb.container.update).toHaveBeenCalledWith({
       where: { id: "container-789" },
       data: { status: "HEALTHY", healthStatus: "HEALTHY" },
@@ -237,17 +229,14 @@ describe("handleDeployJob", () => {
   it("should handle deployment not found error", async () => {
     mockDb.deployment.findUnique.mockResolvedValue(null);
 
-    await expect(handleDeployJob(mockJob as Job<DeployJobData>)).rejects.toThrow(
-      "Deployment deploy-123 not found"
-    );
+    await expect(handleDeployJob(mockContext)).rejects.toThrow("Deployment deploy-123 not found");
   });
 
   it("should handle health check failure", async () => {
     mockRuntime.waitForHealthy.mockRejectedValue(new Error("Health check timeout"));
 
-    await expect(handleDeployJob(mockJob as Job<DeployJobData>)).rejects.toThrow();
+    await expect(handleDeployJob(mockContext)).rejects.toThrow();
 
-    // Verify cleanup happened
     expect(mockRuntime.stop).toHaveBeenCalledWith("docker-container-abc", {
       timeout: 10_000,
     });
@@ -255,7 +244,6 @@ describe("handleDeployJob", () => {
       force: true,
     });
 
-    // Verify deployment was marked as FAILED
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
       where: { id: "deploy-123" },
       data: {
@@ -269,16 +257,14 @@ describe("handleDeployJob", () => {
   it("should handle container creation failure", async () => {
     mockRuntime.create.mockRejectedValue(new Error("Docker daemon not available"));
 
-    await expect(handleDeployJob(mockJob as Job<DeployJobData>)).rejects.toThrow();
+    await expect(handleDeployJob(mockContext)).rejects.toThrow();
 
-    // Verify deployment status was updated (handleFailure is called by orchestrator)
     expect(mockDb.deployment.update).toHaveBeenCalled();
   });
 
   it("should use the image from job data", async () => {
-    await handleDeployJob(mockJob as Job<DeployJobData>);
+    await handleDeployJob(mockContext);
 
-    // Verify the image from job data was used
     expect(mockRuntime.create).toHaveBeenCalledWith(
       expect.objectContaining({
         image: "forge/test-project:v1.0.0",
@@ -287,14 +273,12 @@ describe("handleDeployJob", () => {
   });
 
   it("should create project network", async () => {
-    await handleDeployJob(mockJob as Job<DeployJobData>);
+    await handleDeployJob(mockContext);
 
-    // Verify network was checked
     expect(mockRuntime.listNetworks).toHaveBeenCalledWith({
       name: ["forge-project-project-456"],
     });
 
-    // Verify network was created (since mock returned empty array)
     expect(mockRuntime.createNetwork).toHaveBeenCalledWith({
       name: "forge-project-project-456",
       driver: "bridge",
@@ -309,7 +293,7 @@ describe("handleDeployJob", () => {
   });
 
   it("should apply container labels for Forge tracking", async () => {
-    await handleDeployJob(mockJob as Job<DeployJobData>);
+    await handleDeployJob(mockContext);
 
     expect(mockRuntime.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -324,7 +308,7 @@ describe("handleDeployJob", () => {
   });
 
   it("should set environment variables including Forge metadata", async () => {
-    await handleDeployJob(mockJob as Job<DeployJobData>);
+    await handleDeployJob(mockContext);
 
     expect(mockRuntime.create).toHaveBeenCalledWith(
       expect.objectContaining({

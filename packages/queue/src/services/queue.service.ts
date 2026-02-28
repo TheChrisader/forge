@@ -1,9 +1,5 @@
-/**
- * Queue Service
- */
-
-import type { JobOptions, JobInfo } from "@forge/types";
-import type { IQueueAdapter, IWorkerAdapter } from "../domain/interfaces";
+import type { JobOptions } from "@forge/types";
+import type { IQueueAdapter, IWorkerAdapter, IJobContext } from "../domain/interfaces";
 import type { QueueConfig, WorkerOptions, QueueOptions, QueueHealth } from "../domain/types";
 import { createAdapterFactory } from "../factory";
 import { QUEUE_NAMES } from "../constants";
@@ -40,7 +36,7 @@ export class QueueService {
    */
   registerWorker<T = unknown, R = unknown>(
     name: string,
-    processor: (job: JobInfo<T>) => Promise<R>,
+    processor: (context: IJobContext<T>) => Promise<R>,
     options?: WorkerOptions
   ): IWorkerAdapter {
     if (this.workers.has(name)) {
@@ -98,7 +94,7 @@ export class QueueService {
         const health = await this.getHealth(queueName);
         healths.set(queueName, health);
       } catch {
-        // Queue may not be initialized yet, skip
+        // Queue may not be initialized yet
       }
     }
 

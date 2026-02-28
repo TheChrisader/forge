@@ -3,13 +3,7 @@ import type { BuildJobData } from "@forge/types";
 import { ProjectSourceType } from "@forge/types";
 import { NoStrategyFoundError } from "@forge/build";
 import { GitNotFoundError } from "@forge/git";
-
-// Minimal Job interface matching the handler's interface
-interface Job<T = unknown> {
-  id?: string;
-  name: string;
-  data: T;
-}
+import type { IJobContext } from "@forge/queue";
 
 // Create mock objects using hoisted so they can be used in vi.mock
 const { mockGitService, mockDb, mockRegistry, mockStrategy, mockFs, MockGitService } = vi.hoisted(
@@ -83,16 +77,24 @@ vi.mock("node:fs/promises", () => mockFs);
 
 import { handleBuildJob } from "../handlers/build.handler.js";
 
-const mockJob: Partial<Job<BuildJobData>> = {
-  id: "test-job-1",
-  data: {
-    deploymentId: "deploy-123",
-    projectId: "project-456",
-    sourceType: ProjectSourceType.GIT,
-    gitUrl: "https://github.com/test/repo.git",
-    branch: "main",
-    version: "v1.0.0",
+const mockContext: IJobContext<BuildJobData> = {
+  job: {
+    id: "test-job-1",
+    name: "build",
+    data: {
+      deploymentId: "deploy-123",
+      projectId: "project-456",
+      sourceType: ProjectSourceType.GIT,
+      gitUrl: "https://github.com/test/repo.git",
+      branch: "main",
+      version: "v1.0.0",
+    },
+    progress: 0,
+    attemptsMade: 0,
+    timestamp: Date.now(),
+    opts: {},
   },
+  updateProgress: vi.fn().mockResolvedValue(undefined),
 };
 
 const mockDeployment = {
@@ -153,15 +155,13 @@ describe("handleBuildJob", () => {
   it("should process build job successfully", async () => {
     mockGitService.clone.mockResolvedValue("/tmp/forge-builds-test/deploy-123");
 
-    await handleBuildJob(mockJob as Job<BuildJobData>);
+    await handleBuildJob(mockContext);
 
-    // Verify deployment was updated to BUILDING
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
       where: { id: "deploy-123" },
       data: { status: "BUILDING" },
     });
 
-    // Verify git clone was called
     expect(mockGitService.clone).toHaveBeenCalledWith({
       url: "https://github.com/test/repo.git",
       branch: "main",
@@ -169,10 +169,8 @@ describe("handleBuildJob", () => {
       depth: 1,
     });
 
-    // Verify framework detection was called
     expect(mockRegistry.detect).toHaveBeenCalled();
 
-    // Verify project was updated with framework info
     expect(mockDb.project.update).toHaveBeenCalledWith({
       where: { id: "project-456" },
       data: {
@@ -186,7 +184,6 @@ describe("handleBuildJob", () => {
       },
     });
 
-    // Verify deployment was marked as SUCCEEDED
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
       where: { id: "deploy-123" },
       data: {
@@ -201,7 +198,7 @@ describe("handleBuildJob", () => {
     mockRegistry.detect.mockRejectedValue(new NoStrategyFoundError("project-456"));
 
     // NoStrategyFoundError is a permanent error, so the handler should NOT throw
-    await handleBuildJob(mockJob as Job<BuildJobData>);
+    await handleBuildJob(mockContext);
 
     // Verify deployment was marked as FAILED
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
@@ -218,9 +215,8 @@ describe("handleBuildJob", () => {
     mockGitService.clone.mockRejectedValue(new GitNotFoundError("Repository not found"));
 
     // GitNotFoundError is a permanent error, so the handler should NOT throw
-    await handleBuildJob(mockJob as Job<BuildJobData>);
+    await handleBuildJob(mockContext);
 
-    // Verify deployment was marked as FAILED
     expect(mockDb.deployment.update).toHaveBeenCalledWith({
       where: { id: "deploy-123" },
       data: {
@@ -234,10 +230,8 @@ describe("handleBuildJob", () => {
   it("should clean up build directory even on failure", async () => {
     mockGitService.clone.mockRejectedValue(new GitNotFoundError("Repository not found"));
 
-    // GitNotFoundError is a permanent error, so the handler should NOT throw
-    await handleBuildJob(mockJob as Job<BuildJobData>);
+    await handleBuildJob(mockContext);
 
-    // Verify cleanup was called
     expect(mockFs.rm).toHaveBeenCalledWith("/tmp/forge-builds-test/deploy-123", {
       recursive: true,
       force: true,
@@ -247,10 +241,8 @@ describe("handleBuildJob", () => {
   it("should use default config when detection returns no config", async () => {
     mockGitService.clone.mockResolvedValue("/tmp/forge-builds-test/deploy-123");
 
-    // strategyRegistry.detect returns the strategy
     mockRegistry.detect.mockResolvedValue(mockStrategy);
 
-    // strategy.detect returns result with undefined config
     mockStrategy.detect.mockResolvedValue({
       detected: true,
       framework: "Node.js",
@@ -258,12 +250,10 @@ describe("handleBuildJob", () => {
       config: undefined,
     });
 
-    await handleBuildJob(mockJob as Job<BuildJobData>);
+    await handleBuildJob(mockContext);
 
-    // Verify getDefaultConfig was called
     expect(mockStrategy.getDefaultConfig).toHaveBeenCalled();
 
-    // Verify project was updated with default config
     expect(mockDb.project.update).toHaveBeenCalledWith({
       where: { id: "project-456" },
       data: expect.objectContaining({

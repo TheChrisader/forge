@@ -1,7 +1,3 @@
-/**
- * In-memory adapter tests
- */
-
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { InMemoryQueueAdapter } from "../adapters/memory/queue.adapter";
 import { InMemoryWorkerAdapter } from "../adapters/memory/worker.adapter";
@@ -89,7 +85,6 @@ describe("InMemoryQueueAdapter", () => {
       const job1 = await queue.getJob<{ foo: string }>(jobId);
       const job2 = await queue.getJob<{ foo: string }>(jobId);
 
-      // Modifying one shouldn't affect the other
       if (job1) {
         job1.data.foo = "modified";
       }
@@ -164,7 +159,6 @@ describe("InMemoryQueueAdapter", () => {
     it("should reset job status to waiting", async () => {
       const jobId = await queue.add("test-job", { data: "test" });
 
-      // Mark job as failed using internal method
       queue.markJobFailed(jobId, new Error("Test error"));
 
       const jobBefore = await queue.getJob(jobId);
@@ -172,7 +166,6 @@ describe("InMemoryQueueAdapter", () => {
 
       await queue.retryJob(jobId);
 
-      // Cast to access internal status property
       const jobAfter = (await queue.getJob(jobId)) as
         | { id: string; status?: string; failedReason?: string }
         | undefined;
@@ -186,7 +179,6 @@ describe("InMemoryQueueAdapter", () => {
       const jobId1 = await queue.add("job1", { data: 1 });
       const jobId2 = await queue.add("job2", { data: 2 });
 
-      // Mark both jobs as completed using internal method
       queue.markJobCompleted(jobId1, { result: "test1" });
       queue.markJobCompleted(jobId2, { result: "test2" });
 
@@ -235,7 +227,6 @@ describe("InMemoryQueueAdapter", () => {
       const jobId1 = await queue.add("job1", { data: 1 });
       const jobId2 = await queue.add("job2", { data: 2 });
 
-      // Mark jobs as completed using job IDs
       queue.markJobCompleted(jobId1, {});
       queue.markJobCompleted(jobId2, {});
 
@@ -275,7 +266,7 @@ describe("InMemoryWorkerAdapter", () => {
     worker = new InMemoryWorkerAdapter(
       "test-worker",
       // eslint-disable-next-line @typescript-eslint/require-await
-      async (job) => ({ success: true, jobId: job.id }),
+      async (jobContext) => ({ success: true, jobId: jobContext.job.id }),
       config
     );
   });
@@ -350,7 +341,6 @@ describe("InMemoryWorkerAdapter", () => {
 
       await worker.processJob(testJob);
 
-      // Give time for async handlers to execute
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(handler).toHaveBeenCalled();

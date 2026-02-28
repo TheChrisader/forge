@@ -1,11 +1,8 @@
-/**
- * Queue Service tests
- */
-
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { QueueService, getQueueService, closeQueueService } from "../services/queue.service";
 import { QUEUE_NAMES } from "../constants";
 import type { QueueConfig, WorkerOptions } from "../domain/types";
+import type { IJobContext } from "../domain/interfaces";
 import type { JobOptions } from "@forge/types";
 import { createTestMemoryConfig } from "./helpers";
 
@@ -47,7 +44,9 @@ describe("QueueService", () => {
   describe("registerWorker", () => {
     it("should register a worker for a queue", () => {
       // eslint-disable-next-line @typescript-eslint/require-await
-      const processor = async (): Promise<{ success: boolean }> => ({ success: true });
+      const processor = async (_context: IJobContext<unknown>): Promise<{ success: boolean }> => {
+        return { success: true };
+      };
 
       const worker = service.registerWorker("test-worker", processor);
 
@@ -57,7 +56,9 @@ describe("QueueService", () => {
 
     it("should throw when registering duplicate worker", () => {
       // eslint-disable-next-line @typescript-eslint/require-await
-      const processor = async (): Promise<{ success: boolean }> => ({ success: true });
+      const processor = async (_context: IJobContext<unknown>): Promise<{ success: boolean }> => {
+        return { success: true };
+      };
 
       service.registerWorker("test-worker", processor);
 
@@ -68,7 +69,9 @@ describe("QueueService", () => {
 
     it("should accept worker options", () => {
       // eslint-disable-next-line @typescript-eslint/require-await
-      const processor = async (): Promise<{ success: boolean }> => ({ success: true });
+      const processor = async (_context: IJobContext<unknown>): Promise<{ success: boolean }> => {
+        return { success: true };
+      };
       const options: WorkerOptions = {
         concurrency: 10,
         limiter: { max: 100, duration: 60000 },
@@ -111,7 +114,6 @@ describe("QueueService", () => {
     });
 
     it("should return unhealthy when many jobs failed", async () => {
-      // Add and mark jobs as failed
       const queue = service.getQueue("test-queue");
       for (let i = 0; i < 101; i++) {
         const jobId = await queue.add(`job${i}`, { data: i });
@@ -129,7 +131,6 @@ describe("QueueService", () => {
 
   describe("getAllHealth", () => {
     it("should return health for all queue names", async () => {
-      // Add a job to each queue to initialize them
       await service.addJob(QUEUE_NAMES.BUILD, "test", { data: 1 });
       await service.addJob(QUEUE_NAMES.DEPLOY, "test", { data: 1 });
       await service.addJob(QUEUE_NAMES.JOBS, "test", { data: 1 });
@@ -147,7 +148,6 @@ describe("QueueService", () => {
       const jobId1 = await service.addJob("queue1", "job1", { data: 1 });
       const jobId2 = await service.addJob("queue2", "job2", { data: 2 });
 
-      // Mark jobs as completed (pass job ID, not JobInfo object)
       const queue1 = service.getQueue("queue1");
       const queue2 = service.getQueue("queue2");
       (queue1 as any).markJobCompleted(jobId1, {});
@@ -210,12 +210,10 @@ describe("QueueService", () => {
 
       service.onProgress("test-queue", handler);
 
-      // Emit event through the queue
       const queue = service.getQueue("test-queue");
       const events = queue.getEvents();
       (events as any).emitProgress("job1", 50);
 
-      // Need to verify handler was called - this tests the wiring
       expect(handler).toBeDefined();
     });
 
@@ -240,11 +238,12 @@ describe("QueueService", () => {
     it("should close all queues and workers", async () => {
       await service.addJob("queue1", "job1", { data: 1 });
       // eslint-disable-next-line @typescript-eslint/require-await
-      service.registerWorker("worker1", async () => ({ success: true }));
+      service.registerWorker("worker1", async (_context: IJobContext<unknown>) => ({
+        success: true,
+      }));
 
       await service.close();
 
-      // After close, getQueue should create new instances
       const newQueue = service.getQueue("queue1");
       expect(newQueue).toBeDefined();
     });
@@ -253,7 +252,9 @@ describe("QueueService", () => {
   describe("getWorker", () => {
     it("should return registered worker", () => {
       // eslint-disable-next-line @typescript-eslint/require-await
-      const processor = async (): Promise<{ success: boolean }> => ({ success: true });
+      const processor = async (_context: IJobContext<unknown>): Promise<{ success: boolean }> => {
+        return { success: true };
+      };
       service.registerWorker("test-worker", processor);
 
       const worker = service.getWorker("test-worker");
@@ -271,7 +272,9 @@ describe("QueueService", () => {
   describe("getAllWorkers", () => {
     it("should return all registered workers", () => {
       // eslint-disable-next-line @typescript-eslint/require-await
-      const processor = async (): Promise<{ success: boolean }> => ({ success: true });
+      const processor = async (_context: IJobContext<unknown>): Promise<{ success: boolean }> => {
+        return { success: true };
+      };
       service.registerWorker("worker1", processor);
       service.registerWorker("worker2", processor);
 
@@ -299,7 +302,6 @@ describe("QueueService", () => {
 
 describe("getQueueService singleton", () => {
   afterEach(async () => {
-    // Clean up the singleton
     await closeQueueService();
   });
 
