@@ -5,16 +5,14 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { EventEmitter as EventEmitterType } from "eventemitter3";
-import EventEmitter from "eventemitter3";
 import type {
   IBuildStrategy,
   BuildContext,
   DetectionResult,
   BuildResult as StrategyResult,
   BuildConfig,
+  BuildProgressCallback,
 } from "../interfaces/strategy.js";
-import type { BuildProgressEvent } from "../interfaces/strategy.js";
 import type { BuildResult as DockerBuildResult } from "@forge/docker";
 import { DockerRuntime } from "@forge/docker";
 import { ProgressAdapter } from "../utils/progress-adapter.js";
@@ -47,36 +45,36 @@ export class DockerfileBuildStrategy implements IBuildStrategy {
   async build(
     context: BuildContext,
     config?: BuildConfig,
-    emitter?: EventEmitterType
+    onProgress?: BuildProgressCallback
   ): Promise<StrategyResult> {
     const startTime = Date.now();
     const dockerfilePath = path.join(context.sourceDir, config?.dockerfile || "Dockerfile");
 
-    const adapter = new ProgressAdapter(emitter ?? new EventEmitter());
+    const adapter = new ProgressAdapter(onProgress);
     adapter.emitStart("docker-build");
 
-    emitter?.emit("progress", {
+    void onProgress?.({
       type: "stage",
       message: "Starting Docker build...",
       timestamp: new Date(),
       stage: "init",
-    } as BuildProgressEvent);
+    });
 
     // Validate Dockerfile exists
     try {
       await fs.access(dockerfilePath);
-      emitter?.emit("progress", {
+      void onProgress?.({
         type: "log",
         message: `Dockerfile found at ${dockerfilePath}`,
         timestamp: new Date(),
-      } as BuildProgressEvent);
+      });
     } catch {
       const error = `Dockerfile not found at ${dockerfilePath}`;
-      emitter?.emit("progress", {
+      void onProgress?.({
         type: "error",
         message: error,
         timestamp: new Date(),
-      } as BuildProgressEvent);
+      });
       throw new BuildValidationError(error);
     }
 
@@ -146,12 +144,12 @@ export class DockerfileBuildStrategy implements IBuildStrategy {
 
       adapter.emitComplete(result.imageId);
 
-      emitter?.emit("progress", {
+      void onProgress?.({
         type: "complete",
         message: `Build complete. Image: ${result.imageId.slice(0, 12)}`,
         timestamp: new Date(),
         progress: 100,
-      } as BuildProgressEvent);
+      });
 
       return {
         success: true,
@@ -163,11 +161,11 @@ export class DockerfileBuildStrategy implements IBuildStrategy {
           : undefined,
       };
     } catch (err) {
-      emitter?.emit("progress", {
+      void onProgress?.({
         type: "error",
         message: err instanceof Error ? err.message : "Build failed",
         timestamp: new Date(),
-      } as BuildProgressEvent);
+      });
       throw err;
     }
   }

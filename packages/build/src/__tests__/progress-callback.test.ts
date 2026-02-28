@@ -1,13 +1,27 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { EventEmitter } from "eventemitter3";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DockerfileBuildStrategy } from "../strategies/dockerfile.strategy.js";
 import { NodeJsBuildStrategy } from "../strategies/nodejs.strategy.js";
 import { BuildStrategyRegistry, type BuildProgressEvent } from "../index.js";
+import type { BuildProgressCallback } from "../interfaces/strategy.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 
-describe("Build Strategy EventEmitter Integration", () => {
+// Mock DockerRuntime
+const mockDockerRuntime = {
+  buildImage: vi.fn().mockResolvedValue({
+    imageId: "sha256:test123",
+    warnings: [],
+  }),
+};
+
+vi.mock("@forge/docker", () => ({
+  DockerRuntime: vi.fn(function () {
+    return mockDockerRuntime;
+  }),
+}));
+
+describe("Build Strategy Progress Callback Integration", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -20,14 +34,14 @@ describe("Build Strategy EventEmitter Integration", () => {
   });
 
   describe("DockerfileBuildStrategy", () => {
-    it("emits progress events during build", async () => {
+    it("calls progress callback during build", async () => {
       const strategy = new DockerfileBuildStrategy();
       await fs.writeFile(path.join(tempDir, "Dockerfile"), "FROM node:20");
 
-      const emitter = new EventEmitter();
-      const events: unknown[] = [];
-
-      emitter.on("progress", (data: BuildProgressEvent) => events.push(data));
+      const events: BuildProgressEvent[] = [];
+      const onProgress: BuildProgressCallback = (event) => {
+        events.push(event);
+      };
 
       const result = await strategy.build(
         {
@@ -38,39 +52,41 @@ describe("Build Strategy EventEmitter Integration", () => {
           outputDir: path.join(tempDir, "output"),
         },
         undefined,
-        emitter
+        onProgress
       );
 
       expect(result.success).toBe(true);
       expect(events.length).toBeGreaterThan(0);
-      expect(events.some((e: any) => e.type === "complete")).toBe(true);
-      expect(events.some((e: any) => e.type === "stage")).toBe(true);
+      expect(events.some((e) => e.type === "complete")).toBe(true);
+      expect(events.some((e) => e.type === "stage")).toBe(true);
     });
 
-    it("emits error when Dockerfile not found", async () => {
+    it("calls progress callback with error when Dockerfile not found", async () => {
       const strategy = new DockerfileBuildStrategy();
 
-      const emitter = new EventEmitter();
-      const events: unknown[] = [];
+      const events: BuildProgressEvent[] = [];
+      const onProgress: BuildProgressCallback = (event) => {
+        events.push(event);
+      };
 
-      emitter.on("progress", (data: BuildProgressEvent) => events.push(data));
+      await expect(
+        strategy.build(
+          {
+            projectId: "test-project",
+            deploymentId: "test-deployment",
+            sourceDir: tempDir,
+            workDir: tempDir,
+            outputDir: path.join(tempDir, "output"),
+          },
+          undefined,
+          onProgress
+        )
+      ).rejects.toThrow();
 
-      await expect(strategy.build(
-        {
-          projectId: "test-project",
-          deploymentId: "test-deployment",
-          sourceDir: tempDir,
-          workDir: tempDir,
-          outputDir: path.join(tempDir, "output"),
-        },
-        undefined,
-        emitter
-      )).rejects.toThrow();
-
-      expect(events.some((e: any) => e.type === "error")).toBe(true);
+      expect(events.some((e) => e.type === "error")).toBe(true);
     });
 
-    it("works without emitter (backward compatibility)", async () => {
+    it("works without callback (backward compatibility)", async () => {
       const strategy = new DockerfileBuildStrategy();
       await fs.writeFile(path.join(tempDir, "Dockerfile"), "FROM node:20");
 
@@ -83,7 +99,6 @@ describe("Build Strategy EventEmitter Integration", () => {
           outputDir: path.join(tempDir, "output"),
         },
         undefined
-        // No emitter
       );
 
       expect(result.success).toBe(true);
@@ -91,17 +106,17 @@ describe("Build Strategy EventEmitter Integration", () => {
   });
 
   describe("NodeJsBuildStrategy", () => {
-    it("emits progress events during build", async () => {
+    it("calls progress callback during build", async () => {
       const strategy = new NodeJsBuildStrategy();
       await fs.writeFile(
         path.join(tempDir, "package.json"),
         JSON.stringify({ name: "test", dependencies: { express: "^4.0.0" } })
       );
 
-      const emitter = new EventEmitter();
-      const events: unknown[] = [];
-
-      emitter.on("progress", (data: BuildProgressEvent) => events.push(data));
+      const events: BuildProgressEvent[] = [];
+      const onProgress: BuildProgressCallback = (event) => {
+        events.push(event);
+      };
 
       const result = await strategy.build(
         {
@@ -112,15 +127,15 @@ describe("Build Strategy EventEmitter Integration", () => {
           outputDir: path.join(tempDir, "output"),
         },
         undefined,
-        emitter
+        onProgress
       );
 
       expect(result.success).toBe(true);
       expect(events.length).toBeGreaterThan(0);
-      expect(events.some((e: any) => e.type === "complete")).toBe(true);
+      expect(events.some((e) => e.type === "complete")).toBe(true);
     });
 
-    it("works without emitter (backward compatibility)", async () => {
+    it("works without callback (backward compatibility)", async () => {
       const strategy = new NodeJsBuildStrategy();
       await fs.writeFile(
         path.join(tempDir, "package.json"),
@@ -145,15 +160,16 @@ describe("Build Strategy EventEmitter Integration", () => {
   describe("BuildStrategyRegistry", () => {
     it("throws NoStrategyFoundError when no strategy matches", async () => {
       const registry = new BuildStrategyRegistry();
-      // Empty registry
 
-      await expect(registry.detect({
-        projectId: "test",
-        deploymentId: "test",
-        sourceDir: tempDir,
-        workDir: tempDir,
-        outputDir: path.join(tempDir, "output"),
-      })).rejects.toThrow("No build strategy available");
+      await expect(
+        registry.detect({
+          projectId: "test",
+          deploymentId: "test",
+          sourceDir: tempDir,
+          workDir: tempDir,
+          outputDir: path.join(tempDir, "output"),
+        })
+      ).rejects.toThrow("No build strategy available");
     });
   });
 });

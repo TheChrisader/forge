@@ -3,8 +3,6 @@
  * Allows pluggable build strategies for different frameworks/languages
  */
 
-import type { EventEmitter } from "eventemitter3";
-
 /**
  * Progress event emitted during build
  * Consumers can listen to these events for real-time build updates
@@ -88,6 +86,8 @@ export interface DetectionResult {
   };
 }
 
+export type BuildProgressCallback = (event: BuildProgressEvent) => Promise<void> | void;
+
 export interface IBuildStrategy {
   readonly name: string;
   detect(context: BuildContext): Promise<DetectionResult>;
@@ -101,7 +101,7 @@ export interface IBuildStrategy {
   build(
     context: BuildContext,
     config?: BuildConfig,
-    emitter?: EventEmitter
+    onProgress?: BuildProgressCallback
   ): Promise<BuildResult>;
 
   getDefaultConfig(): BuildConfig;

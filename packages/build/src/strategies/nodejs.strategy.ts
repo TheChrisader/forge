@@ -6,15 +6,14 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { EventEmitter } from "eventemitter3";
 import type {
   IBuildStrategy,
   BuildContext,
   DetectionResult,
   BuildResult,
   BuildConfig,
+  BuildProgressCallback,
 } from "../interfaces/strategy.js";
-import type { BuildProgressEvent } from "../interfaces/strategy.js";
 import {
   discoverNodeJSScripts,
   analyzeDiscoveredScripts,
@@ -238,30 +237,30 @@ export class NodeJsBuildStrategy implements IBuildStrategy {
   async build(
     context: BuildContext,
     config?: BuildConfig,
-    emitter?: EventEmitter
+    onProgress?: BuildProgressCallback
   ): Promise<BuildResult> {
     const startTime = Date.now();
     const nodeVersion = config?.nodeVersion ?? "20";
 
-    emitter?.emit("progress", {
+    void onProgress?.({
       type: "stage",
       message: `Starting ${this.name} build...`,
       timestamp: new Date(),
       stage: "init",
-    } as BuildProgressEvent);
+    });
 
-    emitter?.emit("progress", {
+    void onProgress?.({
       type: "log",
       message: `${this.name} build stub for ${context.projectId} (will use node ${nodeVersion})`,
       timestamp: new Date(),
-    } as BuildProgressEvent);
+    });
 
-    emitter?.emit("progress", {
+    void onProgress?.({
       type: "complete",
       message: `${this.name} build completed (stub)`,
       timestamp: new Date(),
       progress: 100,
-    } as BuildProgressEvent);
+    });
 
     return {
       success: true,

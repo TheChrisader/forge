@@ -5,7 +5,6 @@ import { NoStrategyFoundError } from "@forge/build";
 import { GitNotFoundError } from "@forge/git";
 import type { IJobContext } from "@forge/queue";
 
-// Create mock objects using hoisted so they can be used in vi.mock
 const { mockGitService, mockDb, mockRegistry, mockStrategy, mockFs, MockGitService } = vi.hoisted(
   () => {
     const mockGitService = {
@@ -176,10 +175,15 @@ describe("handleBuildJob", () => {
       data: {
         type: "nodejs",
         config: {
-          buildCommand: undefined,
-          installCommand: "npm ci",
-          startCommand: "npm start",
-          port: 3000,
+          build: {
+            buildCommand: undefined,
+            installCommand: "npm ci",
+            framework: "Node.js",
+          },
+          runtime: {
+            startCommand: "npm start",
+            port: 3000,
+          },
         },
       },
     });
@@ -258,11 +262,63 @@ describe("handleBuildJob", () => {
       where: { id: "project-456" },
       data: expect.objectContaining({
         config: expect.objectContaining({
-          installCommand: "npm ci",
-          startCommand: "npm start",
-          port: 3000,
+          build: expect.objectContaining({
+            installCommand: "npm ci",
+          }),
+          runtime: expect.objectContaining({
+            startCommand: "npm start",
+            port: 3000,
+          }),
         }),
       }),
     });
+  });
+
+  it("should pass progress callback to strategy build", async () => {
+    mockGitService.clone.mockResolvedValue("/tmp/forge-builds-test/deploy-123");
+
+    await handleBuildJob(mockContext);
+
+    // Verify strategy.build was called with a progress callback as the third argument
+    expect(mockStrategy.build).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-456",
+        deploymentId: "deploy-123",
+      }),
+      expect.anything(),
+      expect.any(Function)
+    );
+  });
+
+  it("should call updateProgress when strategy emits progress events", async () => {
+    mockGitService.clone.mockResolvedValue("/tmp/forge-builds-test/deploy-123");
+
+    // Make strategy.build call the progress callback
+    mockStrategy.build.mockImplementation(async (_context, _config, callback) => {
+      await callback?.({
+        type: "log",
+        message: "Test progress message",
+        timestamp: new Date(),
+        stage: "test",
+      });
+      return {
+        success: true,
+        logs: "",
+        duration: 100,
+      };
+    });
+
+    await handleBuildJob(mockContext);
+
+    // Verify updateProgress was called
+    expect(mockContext.updateProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "deployment.log",
+        deploymentId: "deploy-123",
+        data: expect.objectContaining({
+          message: "Test progress message",
+        }),
+      })
+    );
   });
 });

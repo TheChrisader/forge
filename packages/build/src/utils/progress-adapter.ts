@@ -1,14 +1,13 @@
-import type { EventEmitter } from "eventemitter3";
 import type { BuildProgress, BuildOptions } from "@forge/docker";
-import type { BuildProgressEvent } from "../interfaces/strategy.js";
+import type { BuildProgressCallback } from "../interfaces/strategy.js";
 
 /**
- * Adapter to convert EventEmitter-based progress to Docker onProgress callback
- * Allows strategies to use EventEmitter while Docker runtime uses callbacks
+ * Adapter to convert callback-based progress from Docker runtime to strategy progress callback
+ * Allows strategies to use callbacks while Docker runtime uses its own callback format
  *
- * Usage in Sprint 3:
+ * Usage:
  * ```typescript
- * const adapter = new ProgressAdapter(emitter);
+ * const adapter = new ProgressAdapter(onProgress);
  * adapter.emitStart("docker-build");
  *
  * const imageTag = await runtime.buildImage(context.sourceDir, {
@@ -19,21 +18,15 @@ import type { BuildProgressEvent } from "../interfaces/strategy.js";
  *
  * adapter.emitComplete(imageTag);
  * ```
- *
- * Sprint 2 note: emitComplete() requires an actual image ID from Docker runtime.
- * For Sprint 2 stub builds, emit a "complete" event directly without calling emitComplete().
  */
 export class ProgressAdapter {
-  private emitter: EventEmitter;
   private currentStage: string = "init";
 
-  constructor(emitter: EventEmitter) {
-    this.emitter = emitter;
-  }
+  constructor(private readonly onProgress?: BuildProgressCallback) {}
 
   /**
-   * Create a BuildOptions onProgress callback that emits to EventEmitter
-   * Converts Docker's BuildProgress to strategy's BuildProgressEvent
+   * Create a BuildOptions onProgress callback that converts Docker's BuildProgress
+   * to strategy's BuildProgressEvent
    */
   createOnProgressCallback(): NonNullable<BuildOptions["onProgress"]> {
     return (progress: BuildProgress) => {
@@ -53,52 +46,52 @@ export class ProgressAdapter {
   }
 
   private emitLog(message: string): void {
-    this.emitter.emit("progress", {
+    void this.onProgress?.({
       type: "log",
       message: message.trim(),
       timestamp: new Date(),
       stage: this.currentStage,
-    } as BuildProgressEvent);
+    });
   }
 
   private emitStage(stage: string): void {
     this.currentStage = stage;
-    this.emitter.emit("progress", {
+    void this.onProgress?.({
       type: "stage",
       message: `Starting: ${stage}`,
       timestamp: new Date(),
       stage,
-    } as BuildProgressEvent);
+    });
   }
 
   private emitError(error: string): void {
-    this.emitter.emit("progress", {
+    void this.onProgress?.({
       type: "error",
       message: error,
       timestamp: new Date(),
       stage: this.currentStage,
-    } as BuildProgressEvent);
+    });
   }
 
   /** Call this when build completes successfully with actual Docker image ID */
   emitComplete(imageId: string): void {
-    this.emitter.emit("progress", {
+    void this.onProgress?.({
       type: "complete",
       message: `Build completed successfully. Image: ${imageId}`,
       timestamp: new Date(),
       stage: "complete",
       progress: 100,
-    } as BuildProgressEvent);
+    });
   }
 
   /** Call this to start a build stage */
   emitStart(stage: string): void {
     this.currentStage = stage;
-    this.emitter.emit("progress", {
+    void this.onProgress?.({
       type: "stage",
       message: `Starting: ${stage}`,
       timestamp: new Date(),
       stage,
-    } as BuildProgressEvent);
+    });
   }
 }

@@ -4,7 +4,7 @@ import {
   getBuildStrategyRegistry,
   registerDefaultStrategies,
   type BuildContext,
-  type BuildProgressEvent,
+  type BuildProgressCallback,
 } from "@forge/build";
 import type {
   BuildJobData,
@@ -23,7 +23,6 @@ import {
   type BuildLogEntry,
 } from "@forge/core";
 import { QueueService, type QueueConfig } from "@forge/queue";
-import { EventEmitter } from "eventemitter3";
 import pino from "pino";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -82,17 +81,73 @@ function mapProgressTypeToLogLevel(type: string): LogLevel {
   }
 }
 
+interface EmitProgressOptions {
+  message: string;
+  level?: LogLevel;
+  stage?: string;
+  progress?: number;
+}
+
+/**
+ * Helper function to emit progress events through BullMQ and buffer for database logging
+ * Creates a single source of truth for progress emissions
+ */
+async function emitProgress(
+  context: IJobContext<BuildJobData>,
+  deploymentId: string,
+  logBuffer: BuildLogEntry[],
+  lineNumberRef: { value: number },
+  options: EmitProgressOptions
+): Promise<void> {
+  const lineNum = lineNumberRef.value++;
+
+  await context.updateProgress({
+    type: "deployment.log",
+    deploymentId,
+    data: {
+      lineNumber: lineNum,
+      timestamp: new Date().toISOString(),
+      level: (options.level ?? "INFO") as LogLevel,
+      source: "BUILD",
+      message: options.message,
+      stage: options.stage,
+      progress: options.progress,
+    },
+  });
+
+  logger.info(
+    {
+      deploymentId,
+      type: options.stage ?? "log",
+      stage: options.stage,
+      progress: options.progress,
+      level: options.level ?? "INFO",
+    },
+    options.message
+  );
+
+  logBuffer.push({
+    deploymentId,
+    lineNumber: lineNum,
+    timestamp: new Date(),
+    level: (options.level ?? "INFO") as LogLevel,
+    message: options.message,
+    source: "BUILD" as BuildLogSource,
+  });
+}
+
 async function acquireFromLocal(
   sourcePath: string,
   destinationPath: string,
-  emitter: EventEmitter
+  context: IJobContext<BuildJobData>,
+  deploymentId: string,
+  logBuffer: BuildLogEntry[],
+  lineNumberRef: { value: number }
 ): Promise<void> {
-  emitter.emit("progress", {
-    type: "log",
+  await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
     message: `Copying files from local path: ${sourcePath}...`,
-    timestamp: new Date(),
     stage: "local-copy",
-  } as BuildProgressEvent);
+  });
 
   try {
     const stats = await fs.stat(sourcePath);
@@ -112,12 +167,10 @@ async function acquireFromLocal(
       },
     });
 
-    emitter.emit("progress", {
-      type: "log",
+    await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
       message: "Local files copied successfully",
-      timestamp: new Date(),
       stage: "local-copy",
-    } as BuildProgressEvent);
+    });
   } catch (error) {
     if (error instanceof ForgeError) {
       throw error;
@@ -127,22 +180,20 @@ async function acquireFromLocal(
 }
 
 async function handlePreBuiltImage(
-  data: BuildJobData,
+  context: IJobContext<BuildJobData>,
   deploymentId: string,
   db: PrismaClient,
-  emitter: EventEmitter,
-  logger: pino.Logger
+  logBuffer: BuildLogEntry[],
+  lineNumberRef: { value: number }
 ): Promise<void> {
-  const { imageUrl, projectId } = data;
+  const { imageUrl, projectId } = context.job.data;
 
   logger.info({ deploymentId, imageUrl }, "Processing pre-built image");
 
-  emitter.emit("progress", {
-    type: "stage",
+  await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
     message: "Validating pre-built image...",
-    timestamp: new Date(),
     stage: "image-validation",
-  } as BuildProgressEvent);
+  });
 
   if (!imageUrl || !imageUrl.includes("/")) {
     throw new ImageValidationError(
@@ -151,12 +202,11 @@ async function handlePreBuiltImage(
     );
   }
 
-  emitter.emit("progress", {
-    type: "complete",
+  await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
     message: `Image validated: ${imageUrl}`,
-    timestamp: new Date(),
     stage: "image-validation",
-  } as BuildProgressEvent);
+    progress: 100,
+  });
 
   await db.deployment.update({
     where: { id: deploymentId },
@@ -205,11 +255,8 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
 
   const repoPath = `${buildDir}/${deploymentId}`;
 
-  const emitter = new EventEmitter();
-  const buildLogs: string[] = [];
-
-  let lineNumber = 0;
   const logBuffer: BuildLogEntry[] = [];
+  const lineNumberRef = { value: 0 };
 
   const flushLogs = async (): Promise<void> => {
     if (logBuffer.length === 0) return;
@@ -222,36 +269,6 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
   };
 
   const flushInterval = setInterval(flushLogs, 2000);
-
-  emitter.on("progress", (progress: BuildProgressEvent) => {
-    if (!progress.message) return;
-
-    const logEntry = `[${progress.type.toUpperCase()}] ${progress.message}`;
-    buildLogs.push(logEntry);
-
-    logger.info(
-      {
-        deploymentId,
-        type: progress.type,
-        stage: progress.stage,
-        progress: progress.progress,
-      },
-      progress.message
-    );
-
-    logBuffer.push({
-      deploymentId,
-      lineNumber: lineNumber++,
-      timestamp: new Date(),
-      level: mapProgressTypeToLogLevel(progress.type),
-      message: progress.message,
-      source: "BUILD" as BuildLogSource,
-    });
-
-    if (logBuffer.length >= 50) {
-      void flushLogs();
-    }
-  });
 
   try {
     await metricsService.recordBuildStart(deploymentId);
@@ -300,7 +317,14 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
           "Copying local files..."
         );
         await withTimeout(
-          acquireFromLocal(context.job.data.localPath ?? "", repoPath, emitter),
+          acquireFromLocal(
+            context.job.data.localPath ?? "",
+            repoPath,
+            context,
+            deploymentId,
+            logBuffer,
+            lineNumberRef
+          ),
           TIMEOUTS.GIT_CLONE,
           "Local file copy"
         );
@@ -309,7 +333,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
         break;
 
       case ProjectSourceType.IMAGE:
-        await handlePreBuiltImage(context.job.data, deploymentId, db, emitter, logger);
+        await handlePreBuiltImage(context, deploymentId, db, logBuffer, lineNumberRef);
         return;
 
       case ProjectSourceType.DOCKER_COMPOSE:
@@ -369,15 +393,22 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     });
     logger.info({ deploymentId, projectId }, "Project updated with framework info");
 
-    emitter.emit("progress", {
-      type: "stage",
+    await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
       message: "Starting build process...",
-      timestamp: new Date(),
       stage: "build",
-    } as BuildProgressEvent);
+    });
+
+    const progressCallback: BuildProgressCallback = (event) => {
+      void emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
+        message: event.message,
+        level: mapProgressTypeToLogLevel(event.type),
+        stage: event.stage,
+        progress: event.progress,
+      });
+    };
 
     const result = await withTimeout(
-      strategy.build(buildContext, config, emitter),
+      strategy.build(buildContext, config, progressCallback),
       TIMEOUTS.DOCKER_BUILD,
       "Docker build"
     );
