@@ -423,43 +423,102 @@ export class DockerRuntime implements IContainerRuntime {
     const container = this.docker.getContainer(id);
 
     const tailValue = options?.tail === "all" ? "all" : options?.tail;
+    const shouldFollow = options?.follow ?? false;
 
-    type ContainerLogOptions = Docker.ContainerLogsOptions & {
-      follow?: false;
-    };
+    if (shouldFollow) {
+      const followOptions: Docker.ContainerLogsOptions & { follow: true } = {
+        stdout: options?.stdout ?? true,
+        stderr: options?.stderr ?? true,
+        since: options?.since ? Math.floor(new Date(options.since).getTime() / 1000) : undefined,
+        until: options?.until ? Math.floor(new Date(options.until).getTime() / 1000) : undefined,
+        timestamps: options?.timestamps ?? true,
+        tail: tailValue as Docker.ContainerLogsOptions["tail"],
+        follow: true,
+      };
 
-    const logOptions: ContainerLogOptions = {
-      stdout: options?.stdout ?? true,
-      stderr: options?.stderr ?? true,
-      since: options?.since ? Math.floor(new Date(options.since).getTime() / 1000) : undefined,
-      until: options?.until ? Math.floor(new Date(options.until).getTime() / 1000) : undefined,
-      timestamps: options?.timestamps ?? true,
-      tail: tailValue as Docker.ContainerLogsOptions["tail"],
-      follow: false,
-    };
+      const logStream = await container.logs(followOptions);
+      const stream = logStream as unknown as NodeJS.ReadableStream;
+      let buffer = Buffer.alloc(0);
 
-    const logBuffer = await container.logs(logOptions);
+      try {
+        for await (const chunk of stream) {
+          buffer = Buffer.concat([buffer, chunk as Buffer]);
 
-    let offset = 0;
-    while (offset < logBuffer.length) {
-      if (offset + 8 > logBuffer.length) break;
+          const headerSize = 8;
+          let offset = 0;
+          while (offset + headerSize <= buffer.length) {
+            const streamType = buffer[offset];
+            const payloadLength = buffer.readUInt32BE(offset + 1);
+            const payloadStart = offset + 1 + 4;
+            const payloadEnd = payloadStart + payloadLength;
 
-      const streamType = logBuffer[offset];
-      const payloadLength = logBuffer.readUInt32BE(offset + 4);
-      const payloadStart = offset + 8;
-      const payloadEnd = payloadStart + payloadLength;
+            if (payloadEnd > buffer.length) {
+              break;
+            }
 
-      if (payloadEnd > logBuffer.length) break;
+            const payload = buffer.subarray(payloadStart, payloadEnd);
+            const message = payload.toString("utf-8");
 
-      const payload = logBuffer.subarray(payloadStart, payloadEnd);
-      const message = payload.toString("utf-8");
+            const lines = message.split("\n").filter((line) => line.trim());
+            for (const line of lines) {
+              yield this.parseLogLine(
+                line,
+                options?.timestamps,
+                streamType === 1 ? "stdout" : "stderr"
+              );
+            }
 
-      const lines = message.split("\n").filter((line) => line.trim());
-      for (const line of lines) {
-        yield this.parseLogLine(line, options?.timestamps, streamType === 1 ? "stdout" : "stderr");
+            offset = payloadEnd;
+          }
+
+          buffer = buffer.subarray(offset);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("stream ended")) {
+          return;
+        }
+        throw error;
       }
+    } else {
+      const nonFollowOptions: Docker.ContainerLogsOptions & { follow?: false } = {
+        stdout: options?.stdout ?? true,
+        stderr: options?.stderr ?? true,
+        since: options?.since ? Math.floor(new Date(options.since).getTime() / 1000) : undefined,
+        until: options?.until ? Math.floor(new Date(options.until).getTime() / 1000) : undefined,
+        timestamps: options?.timestamps ?? true,
+        tail: tailValue as Docker.ContainerLogsOptions["tail"],
+        follow: false,
+      };
 
-      offset = payloadEnd;
+      const logBuffer = await container.logs(nonFollowOptions);
+
+      let offset = 0;
+      while (offset < logBuffer.length) {
+        // Docker log frame format: [stream_type(1)][payload_length(4)][payload(N)]
+        const headerSize = 8;
+        if (offset + headerSize > logBuffer.length) break;
+
+        const streamType = logBuffer[offset];
+        const payloadLength = logBuffer.readUInt32BE(offset + 1);
+        const payloadStart = offset + 1 + 4;
+        const payloadEnd = payloadStart + payloadLength;
+
+        if (payloadEnd > logBuffer.length) break;
+
+        const payload = logBuffer.subarray(payloadStart, payloadEnd);
+        const message = payload.toString("utf-8");
+
+        const lines = message.split("\n").filter((line) => line.trim());
+        for (const line of lines) {
+          yield this.parseLogLine(
+            line,
+            options?.timestamps,
+            streamType === 1 ? "stdout" : "stderr"
+          );
+        }
+
+        offset = payloadEnd;
+      }
     }
   }
 
@@ -640,7 +699,6 @@ export class DockerRuntime implements IContainerRuntime {
     const tar = (await import("tar-fs")) as typeof import("tar-fs");
     const path = await import("node:path");
 
-    // Create tar stream from build context
     const tarStream = tar.pack(context, {
       ignore: (name: string) => {
         const basename = path.basename(name);
@@ -659,7 +717,6 @@ export class DockerRuntime implements IContainerRuntime {
       },
     });
 
-    // Prepare build options for dockerode
     const dockerOptions: Docker.ImageBuildOptions = {
       dockerfile: options?.dockerfile ?? "Dockerfile",
       // TODO: Get back to this
@@ -672,35 +729,28 @@ export class DockerRuntime implements IContainerRuntime {
       nocache: options?.noCache,
     };
 
-    // Call Docker build API
     const buildStream = await this.docker.buildImage(tarStream, dockerOptions);
 
-    // Parse streaming output and collect metadata
     const warnings: string[] = [];
     let imageId = "";
 
     return new Promise<BuildResult>((resolve, reject) => {
       const handleLine = (line: BuildProgress): void => {
-        // Emit progress through callback
         if (options?.onProgress) {
           options.onProgress(line);
         }
 
-        // Collect warnings
         if (line.stream?.toLowerCase().includes("warning")) {
           warnings.push(line.stream);
         }
 
-        // Extract final image ID
         if (line.aux?.ID) {
           imageId = line.aux.ID;
         }
 
-        // Handle errors
         if (line.error || line.errorDetail) {
           const message = line.errorDetail?.message ?? line.error ?? "Build failed";
 
-          // Categorize error type
           if (
             message.includes("Dockerfile parse error") ||
             message.includes("unknown instruction")
@@ -712,13 +762,11 @@ export class DockerRuntime implements IContainerRuntime {
         }
       };
 
-      // Docker returns JSONL (newline-delimited JSON)
       let buffer = "";
 
       buildStream.on("data", (chunk: Buffer) => {
         buffer += chunk.toString();
 
-        // Split on newlines and process complete lines
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
 
@@ -729,19 +777,16 @@ export class DockerRuntime implements IContainerRuntime {
             const parsed = JSON.parse(line) as BuildProgress;
             handleLine(parsed);
           } catch {
-            // Ignore malformed JSON lines
           }
         }
       });
 
       buildStream.on("end", () => {
-        // Process any remaining buffer
         if (buffer.trim()) {
           try {
             const parsed = JSON.parse(buffer) as BuildProgress;
             handleLine(parsed);
           } catch {
-            // Ignore
           }
         }
 
@@ -750,7 +795,6 @@ export class DockerRuntime implements IContainerRuntime {
           return;
         }
 
-        // Inspect the built image to get metadata
         this.docker
           .getImage(imageId)
           .inspect()
@@ -837,11 +881,9 @@ export class DockerRuntime implements IContainerRuntime {
     const errors: string[] = [];
 
     for (const image of images) {
-      // Check if image matches the tag prefix
       const matchingTag = image.repoTags?.find((tag) => tag.startsWith(tagPrefix));
       if (!matchingTag) continue;
 
-      // Check if image is older than cutoff
       if (image.created && image.created < cutoff) {
         try {
           const beforeSize = image.size;

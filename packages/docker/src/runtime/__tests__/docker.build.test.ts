@@ -2,12 +2,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DockerRuntime } from "../docker.js";
 import { Readable } from "node:stream";
 
+vi.mock("tar-fs", () => ({
+  pack: () => {
+    return new Readable({
+      read() {
+        this.push(null);
+      },
+    });
+  },
+}));
+
+vi.mock("node:path", () => ({
+  basename: () => "test",
+  join: (...args: string[]) => args.join("/"),
+}));
+
 describe("DockerRuntime.buildImage", () => {
   let runtime: DockerRuntime;
   let mockDocker: any;
 
   beforeEach(() => {
-    // Mock dockerode
     mockDocker = {
       buildImage: vi.fn(),
       getImage: vi.fn(() => ({
@@ -18,7 +32,6 @@ describe("DockerRuntime.buildImage", () => {
       })),
     };
 
-    // Create runtime with mocked docker
     runtime = new DockerRuntime({ socketPath: "/mock/docker.sock" });
     (runtime as any).docker = mockDocker;
   });
