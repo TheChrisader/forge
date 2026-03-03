@@ -261,7 +261,6 @@ export const CreateDeploymentRequestSchema = z
 export const UpdateDeploymentRequestSchema = z
   .object({
     environmentId: IdSchema.nullable().optional(),
-    version: z.number().int().nonnegative().optional(),
     status: DeploymentStatusSchema.optional(),
     strategy: DeploymentStrategySchema.optional(),
     buildImage: z.string().max(500).nullable().optional(),

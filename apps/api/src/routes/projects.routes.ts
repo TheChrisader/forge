@@ -219,12 +219,6 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     {
       schema: {
         params: ProjectIdParamsSchema,
-        response: {
-          204: {
-            type: "null",
-            description: "No content - project deleted successfully",
-          },
-        },
       },
     },
     async (request, reply) => {

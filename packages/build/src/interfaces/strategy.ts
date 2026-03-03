@@ -22,6 +22,7 @@ export interface BuildProgressEvent {
 
 export interface BuildContext {
   projectId: string;
+  projectName: string;
   deploymentId: string;
   workDir: string;
   sourceDir: string;
@@ -65,6 +66,13 @@ export interface BuildConfig {
   overrideStartCommand?: string;
   /** Environment context for script variant selection (e.g., "production", "staging") */
   environment?: string;
+  // Nixpacks-specific options
+  /** Path to nixpacks.toml configuration file */
+  nixpacksTomlPath?: string;
+  /** Nixpacks image to use (default: nixpacks/nixpacks:latest) */
+  nixpacksImage?: string;
+  /** Nixpacks CLI arguments (e.g., --no-cache, --verbose) */
+  nixpacksArgs?: string[];
 }
 
 export interface DetectionResult {

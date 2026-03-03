@@ -39,7 +39,7 @@ export interface IProjectService {
 }
 
 export interface IDeploymentService {
-  create(projectId: string, version: string): Promise<Deployment>;
+  create(projectId: string): Promise<Deployment>;
   getById(id: string): Promise<Deployment | null>;
   getByProject(projectId: string): Promise<Deployment[]>;
   list(filters?: {
@@ -48,7 +48,14 @@ export interface IDeploymentService {
     page?: number;
     limit?: number;
   }): Promise<{ deployments: Deployment[]; total: number }>;
-  deploy(projectId: string, version?: string): Promise<Deployment>;
+  deploy(
+    projectId: string,
+    options?: {
+      gitBranch?: string;
+      gitCommit?: string;
+      buildArgs?: Record<string, string>;
+    }
+  ): Promise<Deployment>;
   updateStatus(id: string, status: DeploymentStatus, error?: string): Promise<Deployment>;
   cancel(id: string): Promise<void>;
   getLogs(id: string): Promise<string>;

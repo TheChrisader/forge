@@ -45,6 +45,7 @@ describe("Build Strategy Progress Callback Integration", () => {
 
       const result = await strategy.build(
         {
+          projectName: "test-project",
           projectId: "test-project",
           deploymentId: "test-deployment",
           sourceDir: tempDir,
@@ -72,6 +73,7 @@ describe("Build Strategy Progress Callback Integration", () => {
       await expect(
         strategy.build(
           {
+            projectName: "test-project",
             projectId: "test-project",
             deploymentId: "test-deployment",
             sourceDir: tempDir,
@@ -92,6 +94,7 @@ describe("Build Strategy Progress Callback Integration", () => {
 
       const result = await strategy.build(
         {
+          projectName: "test-project",
           projectId: "test-project",
           deploymentId: "test-deployment",
           sourceDir: tempDir,
@@ -120,6 +123,7 @@ describe("Build Strategy Progress Callback Integration", () => {
 
       const result = await strategy.build(
         {
+          projectName: "test-project",
           projectId: "test-project",
           deploymentId: "test-deployment",
           sourceDir: tempDir,
@@ -144,6 +148,7 @@ describe("Build Strategy Progress Callback Integration", () => {
 
       const result = await strategy.build(
         {
+          projectName: "test-project",
           projectId: "test-project",
           deploymentId: "test-deployment",
           sourceDir: tempDir,
@@ -163,6 +168,7 @@ describe("Build Strategy Progress Callback Integration", () => {
 
       await expect(
         registry.detect({
+          projectName: "test",
           projectId: "test",
           deploymentId: "test",
           sourceDir: tempDir,

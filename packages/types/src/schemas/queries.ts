@@ -74,7 +74,6 @@ export const DeploymentFiltersSchema = z.object({
   sortOrder: SortOrderSchema.optional(),
   projectId: IdSchema.optional(),
   status: DeploymentStatusSchema.optional(),
-  version: z.string().optional(),
 });
 
 export const ContainerFiltersSchema = z.object({

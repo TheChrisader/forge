@@ -125,7 +125,13 @@ function isValidDigest(digest: string): boolean {
 
 export function parseDockerImage(reference: string): DockerImageReference {
   if (typeof reference !== "string") {
-    throw new DockerImageParseError("Reference must be a string", String(reference));
+    if (typeof reference === "object") {
+      reference = JSON.stringify(reference);
+    } else {
+      reference = String(reference);
+    }
+
+    throw new DockerImageParseError("Reference must be a string", reference);
   }
 
   const original = reference;

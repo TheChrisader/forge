@@ -125,7 +125,6 @@ export function LoginPage(): React.ReactElement {
         email: formData.email,
         password: formData.password,
       });
-
     } catch (err) {
       const error = err as ApiClientError;
 

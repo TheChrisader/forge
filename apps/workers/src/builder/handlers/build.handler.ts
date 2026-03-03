@@ -5,6 +5,7 @@ import {
   registerDefaultStrategies,
   type BuildContext,
   type BuildProgressCallback,
+  generateImageName,
 } from "@forge/build";
 import type {
   BuildJobData,
@@ -25,6 +26,7 @@ import {
 import { QueueService, type QueueConfig } from "@forge/queue";
 import pino from "pino";
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 
 import { withTimeout, TIMEOUTS } from "../timeouts/wrapper.js";
@@ -243,6 +245,17 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
   registerDefaultStrategies();
 
   const db = getDatabaseClient();
+
+  // Fetch project to get the name for image generation
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, name: true },
+  });
+
+  if (!project) {
+    throw new Error(`Project not found: ${projectId}`);
+  }
+
   const gitService = new GitService();
   const strategyRegistry = getBuildStrategyRegistry();
   const buildLogService = new BuildLogService(db);
@@ -250,7 +263,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
   const errorHandler = new BuildErrorHandler();
   const metricsService = new BuildMetricsService(db);
 
-  const buildDir = process.env.FORGE_BUILD_DIR ?? "/tmp/forge-builds";
+  const buildDir = process.env.FORGE_BUILD_DIR ?? path.join(os.tmpdir(), "forge-builds");
   await ensureBuildDir(buildDir);
 
   const repoPath = `${buildDir}/${deploymentId}`;
@@ -284,7 +297,12 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     switch (sourceType) {
       case ProjectSourceType.GIT:
         logger.info(
-          { deploymentId, gitUrl: context.job.data.gitUrl, repoPath },
+          {
+            deploymentId,
+            gitUrl: context.job.data.gitUrl,
+            branch: context.job.data.branch,
+            repoPath,
+          },
           "Cloning repository..."
         );
         await withTimeout(
@@ -349,10 +367,11 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
 
     const buildContext: BuildContext = {
       projectId,
+      projectName: project.name,
       deploymentId,
       workDir: buildDir,
       sourceDir: sourceDir,
-      outputDir: `${buildDir}/${deploymentId}/output`,
+      outputDir: `${buildDir}/${deploymentId}`,
     };
 
     logger.info({ deploymentId }, "Detecting framework...");
@@ -430,7 +449,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       status: "SUCCEEDED" as DeploymentStatus,
     });
 
-    const imageTag = result.image ?? `forge/${projectId}:${deploymentId}`;
+    const imageTag = result.image ?? generateImageName(project.name, deploymentId);
 
     await db.deployment.update({
       where: { id: deploymentId },

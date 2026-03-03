@@ -113,6 +113,9 @@ importers:
       '@fastify/websocket':
         specifier: ^11.2.0
         version: 11.2.0
+      '@forge/build':
+        specifier: workspace:*
+        version: link:../../packages/build
       '@forge/cache':
         specifier: workspace:*
         version: link:../../packages/cache
@@ -497,9 +500,15 @@ importers:
 
   packages/docker:
     dependencies:
+      '@balena/dockerignore':
+        specifier: ^1.0.2
+        version: 1.0.2
       dockerode:
         specifier: ^4.0.9
         version: 4.0.9
+      minimatch:
+        specifier: ^10.2.4
+        version: 10.2.4
       tar-fs:
         specifier: ^3.1.1
         version: 3.1.1
@@ -4301,6 +4310,10 @@ packages:
   minimatch@10.2.0:
     resolution: {integrity: sha512-ugkC31VaVg9cF0DFVoADH12k6061zNZkZON+aX8AWsR9GhPcErkcMBceb6znR8wLERM2AkkOxy2nWRLpT9Jq5w==}
     engines: {node: 20 || >=22}
+
+  minimatch@10.2.4:
+    resolution: {integrity: sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg==}
+    engines: {node: 18 || 20 || >=22}
 
   minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
@@ -9446,6 +9459,10 @@ snapshots:
   minimalistic-assert@1.0.1: {}
 
   minimatch@10.2.0:
+    dependencies:
+      brace-expansion: 5.0.2
+
+  minimatch@10.2.4:
     dependencies:
       brace-expansion: 5.0.2
 

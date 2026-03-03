@@ -8,6 +8,7 @@ import { CronJob } from "cron";
 import type { PrismaClient } from "@forge/database";
 import { SERVICE_KEY_STRINGS, type ServiceContainer } from "@forge/core";
 import { DockerRuntime } from "@forge/docker";
+import { generateImageTagPrefix } from "@forge/build";
 import pino from "pino";
 
 const logger = pino({ name: "cleanup-job" });
@@ -32,7 +33,7 @@ export function startCleanupJob(container: ServiceContainer): void {
       for (const project of projects) {
         try {
           // Prune images older than 30 days for each project
-          const result = await runtime.pruneOldImages(`forge/${project.id}:`, 30);
+          const result = await runtime.pruneOldImages(generateImageTagPrefix(project.name), 30);
 
           if (result.deleted.length > 0) {
             logger.info(

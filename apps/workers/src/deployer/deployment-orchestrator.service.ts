@@ -29,7 +29,6 @@ import { toPrismaJson } from "@forge/types";
  */
 interface DeploymentData {
   id: string;
-  version: number;
 }
 
 /**

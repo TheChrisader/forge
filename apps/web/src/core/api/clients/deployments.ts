@@ -2,7 +2,6 @@ import { apiClient } from "../client";
 import type { Deployment } from "@forge/types";
 
 export interface CreateDeploymentRequest {
-  version?: string;
   gitBranch?: string;
   gitCommit?: string;
   buildArgs?: Record<string, string>;

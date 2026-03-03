@@ -8,7 +8,6 @@ import type { ProjectSourceType } from "./enums";
 export interface BuildJobData {
   deploymentId: string;
   projectId: string;
-  version: string;
 
   sourceType?: ProjectSourceType;
 

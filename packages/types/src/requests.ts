@@ -99,7 +99,6 @@ export type UpdateEnvironmentRequest = z.infer<typeof UpdateEnvironmentRequestSc
 // =============================================================================
 
 export interface DeployProjectRequest {
-  version?: string;
   strategy?: DeploymentStrategy;
   branch?: string;
 }

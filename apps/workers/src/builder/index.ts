@@ -31,6 +31,9 @@ async function main(): Promise<void> {
   registerDefaultStrategies();
   logger.info("Build strategies registered");
 
+  // Pre-pull required Docker images (e.g., nixpacks)
+  // await initBuildWorker();
+
   const queueConfig = getQueueConfig();
   logger.info(
     {

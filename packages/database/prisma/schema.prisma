@@ -635,7 +635,6 @@ model Deployment {
   id            String           @id @default(uuid()) @db.Uuid
   projectId     String           @map("project_id") @db.Uuid
   environmentId String?          @map("environment_id") @db.Uuid
-  version       Int           @default(0)
   status        DeploymentStatus
   strategy      DeploymentStrategy @default(ROLLING)
 
@@ -680,7 +679,6 @@ model Deployment {
   metrics     DeploymentMetrics[]
   comments    DeploymentComment[]
 
-  @@unique([projectId, version])
   @@map("deployments")
   @@index([projectId])
   @@index([environmentId])
@@ -748,7 +746,6 @@ model DeploymentComment {
 model Container {
   id              String          @id @default(uuid()) @db.Uuid
   projectId       String          @map("project_id") @db.Uuid
-  version         Int             @default(0)
   deploymentId    String          @map("deployment_id") @db.Uuid
   name            String?         @db.VarChar(255)
   containerId     String          @unique @map("container_id") @db.VarChar(100)
@@ -882,7 +879,6 @@ model Service {
   name      String        @db.VarChar(255)
   type      ServiceType
   engine    String?       @db.VarChar(100)
-  version   Int           @default(0)
   status    ServiceStatus @default(CREATING)
 
   config Json @default("{}") @db.JsonB
@@ -1033,7 +1029,6 @@ model BuildLog {
 
   @@map("build_logs")
   @@id([id, timestamp])
-  @@unique([deploymentId, lineNumber, timestamp])
   @@index([deploymentId, timestamp])
   @@index([timestamp])
   @@index([level])

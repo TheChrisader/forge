@@ -6,10 +6,7 @@
 import { getBuildStrategyRegistry } from "../registry.js";
 import type { IBuildStrategy } from "../interfaces/strategy.js";
 import { DockerfileBuildStrategy } from "./dockerfile.strategy.js";
-import { NodeJsBuildStrategy } from "./nodejs.strategy.js";
-import { PythonBuildStrategy } from "./python.strategy.js";
-import { GoBuildStrategy } from "./go.strategy.js";
-import { StaticBuildStrategy } from "./static.strategy.js";
+import { NixpacksBuildStrategy } from "./nixpacks.strategy.js";
 
 /**
  * Register all default build strategies
@@ -24,10 +21,12 @@ export function registerDefaultStrategies(): void {
   }
 
   registry.register(new DockerfileBuildStrategy());
-  registry.register(new NodeJsBuildStrategy());
-  registry.register(new PythonBuildStrategy());
-  registry.register(new GoBuildStrategy());
-  registry.register(new StaticBuildStrategy());
+  // registry.register(new NodeJsBuildStrategy());
+  // registry.register(new PythonBuildStrategy());
+  // registry.register(new GoBuildStrategy());
+  // registry.register(new StaticBuildStrategy());
+  // New: Nixpacks strategy (lower confidence than specific strategies)
+  registry.register(new NixpacksBuildStrategy());
 }
 
 /**
@@ -36,10 +35,11 @@ export function registerDefaultStrategies(): void {
 export function getDefaultStrategies(): IBuildStrategy[] {
   return [
     new DockerfileBuildStrategy(),
-    new NodeJsBuildStrategy(),
-    new PythonBuildStrategy(),
-    new GoBuildStrategy(),
-    new StaticBuildStrategy(),
+    // new NodeJsBuildStrategy(),
+    // new PythonBuildStrategy(),
+    // new GoBuildStrategy(),
+    // new StaticBuildStrategy(),
+    new NixpacksBuildStrategy(),
   ];
 }
 
@@ -49,3 +49,4 @@ export { NodeJsBuildStrategy } from "./nodejs.strategy.js";
 export { PythonBuildStrategy } from "./python.strategy.js";
 export { GoBuildStrategy } from "./go.strategy.js";
 export { StaticBuildStrategy } from "./static.strategy.js";
+export { NixpacksBuildStrategy } from "./nixpacks.strategy.js";

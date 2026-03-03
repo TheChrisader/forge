@@ -56,7 +56,6 @@ export function useCreateDeployment(): ReturnType<
     unknown,
     {
       projectId: string;
-      version?: string;
       gitBranch?: string;
       gitCommit?: string;
       buildArgs?: Record<string, string>;
@@ -68,19 +67,16 @@ export function useCreateDeployment(): ReturnType<
   return useMutation({
     mutationFn: async ({
       projectId,
-      version,
       gitBranch,
       gitCommit,
       buildArgs,
     }: {
       projectId: string;
-      version?: string;
       gitBranch?: string;
       gitCommit?: string;
       buildArgs?: Record<string, string>;
     }) => {
       const response = await deploymentsApi.create(projectId, {
-        version,
         gitBranch,
         gitCommit,
         buildArgs,

@@ -20,6 +20,7 @@ describe("DockerfileBuildStrategy", () => {
     strategy = new DockerfileBuildStrategy();
     mockContext = {
       projectId: "test-project",
+      projectName: "test-project",
       deploymentId: "test-deployment",
       workDir: "/tmp/build",
       sourceDir: "/tmp/source",

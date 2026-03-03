@@ -3,6 +3,8 @@ import type { Config } from "@forge/core";
 import { z } from "zod";
 import { SERVICE_KEY_STRINGS } from "@forge/core";
 import type { DockerRuntime } from "@forge/docker";
+import { generateImageTagPrefix } from "@forge/build";
+import { getDatabaseClient } from "@forge/database";
 import { requireAuth } from "../middleware/auth.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 
@@ -33,7 +35,18 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
       requireAuth((request as { userId?: string }).userId);
       const { project, dangling } = request.query;
 
-      const tagPrefix = project ? `forge/${project}:` : "forge/";
+      let tagPrefix = "forge/";
+      if (project) {
+        const db = getDatabaseClient();
+        const targetProject = await db.project.findUnique({
+          where: { id: project },
+          select: { name: true },
+        });
+        tagPrefix = targetProject
+          ? generateImageTagPrefix(targetProject.name)
+          : `forge/${project}:`;
+      }
+
       const images = await runtime.listImages({ dangling });
 
       const filtered = tagPrefix
@@ -62,7 +75,18 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
       const { project } = request.query;
-      const tagPrefix = project ? `forge/${project}:` : "forge/";
+
+      let tagPrefix = "forge/";
+      if (project) {
+        const db = getDatabaseClient();
+        const targetProject = await db.project.findUnique({
+          where: { id: project },
+          select: { name: true },
+        });
+        tagPrefix = targetProject
+          ? generateImageTagPrefix(targetProject.name)
+          : `forge/${project}:`;
+      }
 
       const stats = await runtime.getImageDiskUsage(tagPrefix);
       return reply.send({ data: stats });
@@ -124,7 +148,20 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
       const { id } = request.params as { id: string };
       const { maxAgeDays } = request.body as { maxAgeDays?: number };
 
-      const result = await runtime.pruneOldImages(`forge/${id}:`, maxAgeDays ?? 30);
+      const db = getDatabaseClient();
+      const targetProject = await db.project.findUnique({
+        where: { id },
+        select: { name: true },
+      });
+
+      if (!targetProject) {
+        return reply.status(404).send({ error: "Project not found" });
+      }
+
+      const result = await runtime.pruneOldImages(
+        generateImageTagPrefix(targetProject.name),
+        maxAgeDays ?? 30
+      );
       return reply.send({ data: result });
     }
   );

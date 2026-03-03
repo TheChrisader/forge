@@ -25,6 +25,7 @@
     "@fastify/swagger": "^9.7.0",
     "@fastify/swagger-ui": "^5.2.5",
     "@fastify/websocket": "^11.2.0",
+    "@forge/build": "workspace:*",
     "@forge/cache": "workspace:*",
     "@forge/core": "workspace:*",
     "@forge/database": "workspace:*",

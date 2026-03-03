@@ -12,6 +12,7 @@ import {
   type DeploymentStatus,
   type BuildJobData,
   ProjectSourceType,
+  ProjectConfigSchema,
 } from "@forge/types";
 
 /**
@@ -31,27 +32,13 @@ const CANCELLABLE_DEPLOYMENT_STATUSES: DeploymentStatus[] = ["PENDING", "QUEUED"
  */
 function uuidToLockKey(uuid: string): bigint {
   const hex = uuid.replace(/-/g, "");
-  return BigInt("0x" + hex.substring(0, 16));
-}
+  const unsigned = BigInt("0x" + hex.substring(0, 16));
 
-/**
- * Checks if Prisma error is a unique constraint violation on version field
- * @param err - Error to check
- * @returns true if P2002 error on (projectId, version) constraint
- */
-function isUniqueVersionViolation(err: unknown): err is { meta: { target: string[] } } {
-  return (
-    err instanceof Error &&
-    "code" in err &&
-    err.code === "P2002" &&
-    "meta" in err &&
-    typeof err.meta === "object" &&
-    err.meta !== null &&
-    "target" in err.meta &&
-    Array.isArray(err.meta.target) &&
-    (err.meta.target.includes("version") ||
-      (err.meta.target.includes("projectId") && err.meta.target.includes("version")))
-  );
+  const MAX_INT64 = BigInt("0x7FFFFFFFFFFFFFFF");
+  const UINT64_MOD = BigInt("0x10000000000000000"); // 2^64
+
+  // Reinterpret as signed int64
+  return unsigned > MAX_INT64 ? unsigned - UINT64_MOD : unsigned;
 }
 
 /**
@@ -59,8 +46,6 @@ function isUniqueVersionViolation(err: unknown): err is { meta: { target: string
  *
  * Thread-safety notes:
  * - Concurrent deployment prevention uses PostgreSQL advisory locks
- * - Version uniqueness is enforced via database unique constraint (no TOCTOU race)
- * - Prisma P2002 errors are caught and converted to ConflictError
  * - Build job enqueue happens AFTER transaction commits to avoid race condition
  *
  * @remarks
@@ -147,49 +132,32 @@ export class DeploymentService implements IDeploymentService {
     });
   }
 
-  /**
-   * Creates a new deployment with a specific version
-   * @throws ConflictError if version already exists for this project
-   */
-  async create(projectId: string, version: string): Promise<Deployment> {
-    try {
-      return await this.db.deployment.create({
-        data: {
-          projectId,
-          version: parseInt(version, 10),
-          status: "PENDING",
-        },
-      });
-    } catch (err) {
-      // Convert P2002 unique constraint violation to ConflictError
-      if (isUniqueVersionViolation(err)) {
-        throw new ConflictError(`Deployment version ${version} already exists for this project`);
-      }
-      throw err;
-    }
+  async create(projectId: string): Promise<Deployment> {
+    return await this.db.deployment.create({
+      data: {
+        projectId,
+        status: "PENDING",
+      },
+    });
   }
 
   /**
-   * Deploys a project (creates a new deployment with auto-incremented version)
+   * Deploys a project (creates a new deployment)
    *
    * This method handles the complete deployment orchestration:
    * 1. Acquires PostgreSQL advisory lock to prevent concurrent deployments
    * 2. Checks for existing active deployments
-   * 3. Determines next version number
-   * 4. Creates deployment record in transaction
-   * 5. Updates project status to DEPLOYING
-   * 6. Enqueues build job (outside transaction)
+   * 3. Creates deployment record in transaction
+   * 4. Updates project status to DEPLOYING
+   * 5. Enqueues build job (outside transaction)
    *
    * @param projectId - ID of the project to deploy
-   * @param version - Optional version number (auto-incremented if not provided)
    * @param options - Optional deployment configuration (git branch, commit, build args)
    * @throws NotFoundError if project doesn't exist
    * @throws ConflictError if project has an active deployment or lock can't be acquired
-   * @throws ConflictError if version number is exhausted
    */
   async deploy(
     projectId: string,
-    version?: string,
     options?: {
       gitBranch?: string;
       gitCommit?: string;
@@ -225,37 +193,13 @@ export class DeploymentService implements IDeploymentService {
         throw new ConflictError("Project has an active deployment");
       }
 
-      const maxVersionResult = await tx.$queryRaw<Array<{ max_version: number | null }>>`
-        SELECT COALESCE(MAX(version), 0) AS max_version
-        FROM deployments
-        WHERE project_id = ${projectId}
-      `;
-
-      const maxVersion = maxVersionResult[0]?.max_version ?? 0;
-      const nextVersion = version ? parseInt(version, 10) : maxVersion + 1;
-
-      if (nextVersion > Number.MAX_SAFE_INTEGER) {
-        throw new ConflictError("Version number exhausted for this project");
-      }
-
-      let deployment: Deployment;
-      try {
-        deployment = await tx.deployment.create({
-          data: {
-            projectId,
-            version: nextVersion,
-            status: "PENDING",
-            strategy: "ROLLING",
-          },
-        });
-      } catch (err) {
-        if (isUniqueVersionViolation(err)) {
-          throw new ConflictError(
-            `Deployment version ${nextVersion} already exists for this project`
-          );
-        }
-        throw err;
-      }
+      const deployment = await tx.deployment.create({
+        data: {
+          projectId,
+          status: "PENDING",
+          strategy: "ROLLING",
+        },
+      });
 
       await tx.project.update({
         where: { id: projectId },
@@ -268,7 +212,7 @@ export class DeploymentService implements IDeploymentService {
     try {
       const project = await this.db.project.findUnique({
         where: { id: projectId },
-        select: { sourceType: true, sourceUrl: true },
+        select: { sourceType: true, sourceUrl: true, config: true },
       });
 
       const sourceType = (project?.sourceType as ProjectSourceType) || ProjectSourceType.GIT;
@@ -276,17 +220,23 @@ export class DeploymentService implements IDeploymentService {
       const jobData: BuildJobData = {
         deploymentId: result.id,
         projectId,
-        version: result.version.toString(),
         sourceType,
         buildArgs: options?.buildArgs,
       };
+
+      const projectConfig = ProjectConfigSchema.safeParse(project?.config);
+      let branch = undefined;
+
+      if (projectConfig.success) {
+        branch = projectConfig.data.build?.branch ?? undefined;
+      }
 
       if (sourceType === ProjectSourceType.GIT) {
         const gitIntegration = await this.db.gitIntegration.findUnique({
           where: { projectId },
         });
         jobData.gitUrl = project?.sourceUrl ?? gitIntegration?.repository;
-        jobData.branch = options?.gitBranch ?? gitIntegration?.branch ?? "main";
+        jobData.branch = options?.gitBranch ?? branch ?? gitIntegration?.branch ?? "main";
         jobData.gitCommit = options?.gitCommit;
       } else if (sourceType === ProjectSourceType.LOCAL) {
         jobData.localPath = project?.sourceUrl ?? "";

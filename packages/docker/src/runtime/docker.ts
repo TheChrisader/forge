@@ -1,6 +1,7 @@
 import Docker, { ImageRemoveInfo, PruneImagesInfo } from "dockerode";
 import { Writable } from "node:stream";
 import { parseDockerImage } from "../utils/image-parser";
+import { DockerIgnoreFilter, createDefaultIgnore } from "../utils/dockerignore";
 import type {
   IContainerRuntime,
   Container,
@@ -126,6 +127,7 @@ export class DockerRuntime implements IContainerRuntime {
   async healthCheck(): Promise<HealthCheckResult> {
     try {
       const info = (await this.docker.info()) as DockerSystemInfo;
+
       return {
         healthy: true,
         version: info.ServerVersion,
@@ -218,15 +220,16 @@ export class DockerRuntime implements IContainerRuntime {
     );
   }
 
-  private async ensureImage(imageRef: string): Promise<void> {
+  private async ensureImage(imageRef: string, options?: PullOptions): Promise<void> {
     try {
       await this.docker.getImage(imageRef).inspect();
     } catch {
       const parsed = parseDockerImage(imageRef);
 
       await this.pullImage(parsed.repository, {
-        tag: parsed.tag || undefined,
+        tag: options?.tag || parsed.tag || undefined,
         onProgress: undefined,
+        ...options,
       });
     }
     // TODO: Local images may be stale (especially :latest tags)
@@ -697,24 +700,13 @@ export class DockerRuntime implements IContainerRuntime {
 
   async buildImage(context: string, options?: BuildOptions): Promise<BuildResult> {
     const tar = (await import("tar-fs")) as typeof import("tar-fs");
-    const path = await import("node:path");
+
+    // Try to use .dockerignore if it exists, otherwise fall back to default patterns
+    const ignoreFilter = DockerIgnoreFilter.fromFile(context);
+    const ignoreFn = ignoreFilter ? ignoreFilter.toTarIgnore() : createDefaultIgnore();
 
     const tarStream = tar.pack(context, {
-      ignore: (name: string) => {
-        const basename = path.basename(name);
-        const ignoredPatterns = [
-          "node_modules",
-          ".git",
-          ".gitignore",
-          ".env",
-          ".env.local",
-          "*.log",
-          ".DS_Store",
-        ];
-        return ignoredPatterns.some(
-          (pattern) => basename === pattern || basename.includes(pattern)
-        );
-      },
+      ignore: ignoreFn,
     });
 
     const dockerOptions: Docker.ImageBuildOptions = {
@@ -777,6 +769,7 @@ export class DockerRuntime implements IContainerRuntime {
             const parsed = JSON.parse(line) as BuildProgress;
             handleLine(parsed);
           } catch {
+            // TODO: Log
           }
         }
       });
@@ -787,6 +780,7 @@ export class DockerRuntime implements IContainerRuntime {
             const parsed = JSON.parse(buffer) as BuildProgress;
             handleLine(parsed);
           } catch {
+            // TODO: Log
           }
         }
 

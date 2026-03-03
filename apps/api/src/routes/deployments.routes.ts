@@ -26,7 +26,6 @@ const DeploymentIdParamsSchema = z.object({
 });
 
 const CreateDeploymentBodySchema = z.object({
-  version: z.string().optional(),
   gitBranch: z.string().max(255).optional(),
   gitCommit: z
     .string()
@@ -100,15 +99,10 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     },
     async (request, reply) => {
       const userId = requireAuth((request as { userId?: string }).userId);
-      const params = request.params as { projectId: string };
-      const body = request.body as {
-        version?: string;
-        gitBranch?: string;
-        gitCommit?: string;
-        buildArgs?: Record<string, string>;
-      };
+      const params = request.params;
+      const body = request.body;
 
-      const deployment = await deploymentService.deploy(params.projectId, body.version, {
+      const deployment = await deploymentService.deploy(params.projectId, {
         gitBranch: body.gitBranch,
         gitCommit: body.gitCommit,
         buildArgs: body.buildArgs,

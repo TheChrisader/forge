@@ -102,7 +102,7 @@ export function DeploymentList({
               <ItemContent>
                 <ItemTitle>
                   <div className="flex items-center gap-2">
-                    <span>{deployment.version}</span>
+                    <span>{deployment.id.slice(0, 8)}</span>
                     <DeploymentStatus status={deployment.status} size="sm" showLabel={false} />
                   </div>
                 </ItemTitle>

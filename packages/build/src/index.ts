@@ -9,3 +9,6 @@ export * from "./strategies/index.js";
 
 // Export errors
 export * from "./errors.js";
+
+// Export utilities
+export * from "./utils/image-name-generator.js";

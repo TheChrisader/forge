@@ -41,6 +41,7 @@ describe("BuildStrategyRegistry", () => {
     registry = new BuildStrategyRegistry();
     mockContext = {
       projectId: "test-project",
+      projectName: "test-project",
       deploymentId: "test-deployment",
       workDir: "/tmp/build",
       sourceDir: "/tmp/source",

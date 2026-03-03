@@ -237,5 +237,8 @@ function arrayToString(value: string | string[] | undefined): string {
 function stringToArray(value: string): string[] {
   if (!value.trim()) return [];
   // Split by comma and trim each part
-  return value.split(",").map((s) => s.trim()).filter(Boolean);
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }

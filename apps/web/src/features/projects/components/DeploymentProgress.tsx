@@ -97,9 +97,9 @@ export function DeploymentProgress({
         <div className="flex items-center justify-between text-sm">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="font-semibold">Version {deployment.version}</span>
+              <span className="font-semibold">{deployment.id.slice(0, 8)}</span>
               <Badge variant="outline" className="text-xs">
-                {deployment.id.slice(0, 8)}
+                Deployment
               </Badge>
             </div>
             <p className="text-muted-foreground">Started {timeAgo}</p>

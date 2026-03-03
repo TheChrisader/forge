@@ -17,6 +17,7 @@ import type { BuildResult as DockerBuildResult } from "@forge/docker";
 import { DockerRuntime } from "@forge/docker";
 import { ProgressAdapter } from "../utils/progress-adapter.js";
 import { BuildValidationError } from "../errors.js";
+import { generateImageName } from "../utils/image-name-generator.js";
 
 export class DockerfileBuildStrategy implements IBuildStrategy {
   readonly name = "dockerfile";
@@ -116,9 +117,10 @@ export class DockerfileBuildStrategy implements IBuildStrategy {
     // }
 
     try {
+      const imageTag = generateImageName(context.projectName, context.deploymentId);
       const result: DockerBuildResult = await runtime.buildImage(context.sourceDir, {
         dockerfile: config?.dockerfile,
-        tags: [`forge/${context.projectId}:${context.deploymentId}`],
+        tags: [imageTag],
         buildArgs: context.buildArgs,
         pull: true,
         onProgress: adapter.createOnProgressCallback(),

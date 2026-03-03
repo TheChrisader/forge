@@ -58,7 +58,6 @@ export function DeploymentSection({
     try {
       await createDeployment.mutateAsync({
         projectId: project.id,
-        gitBranch: defaultBranch,
       });
     } catch (err) {
       const error = err as ApiClientError;
@@ -155,7 +154,6 @@ export function DeploymentSection({
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{latestDeployment.version}</span>
                   <Badge variant="outline">{latestDeployment.id.slice(0, 8)}</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">

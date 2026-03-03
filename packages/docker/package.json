@@ -15,15 +15,17 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@balena/dockerignore": "^1.0.2",
     "dockerode": "^4.0.9",
-    "tar-stream": "^3.1.7",
-    "tar-fs": "^3.1.1"
+    "minimatch": "^10.2.4",
+    "tar-fs": "^3.1.1",
+    "tar-stream": "^3.1.7"
   },
   "devDependencies": {
     "@types/dockerode": "^3.3.31",
     "@types/node": "^22.0.0",
-    "@types/tar-stream": "^3.1.3",
     "@types/tar-fs": "^2.0.4",
+    "@types/tar-stream": "^3.1.3",
     "del-cli": "^5.1.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

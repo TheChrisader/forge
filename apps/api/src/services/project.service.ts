@@ -49,7 +49,10 @@ export class ProjectService implements IProjectService {
 
     const where: {
       status?: { in: ProjectStatus[] };
-    } = {};
+      deletedAt?: null;
+    } = {
+      deletedAt: null,
+    };
 
     if (status && status.length > 0) {
       where.status = { in: status };

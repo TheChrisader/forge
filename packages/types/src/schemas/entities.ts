@@ -248,7 +248,6 @@ export const DeploymentSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
   environmentId: IdSchema.nullable(),
-  version: z.number().int().nonnegative(),
   status: DeploymentStatusSchema,
   strategy: DeploymentStrategySchema,
   buildStartedAt: TimestampSchema.nullable(),
@@ -275,7 +274,6 @@ export const DeploymentSchema = z.object({
 export const CreateDeploymentSchema = z.object({
   projectId: IdSchema,
   environmentId: IdSchema.nullable().optional(),
-  version: z.number().int().nonnegative().optional(),
   status: DeploymentStatusSchema.optional(),
   strategy: DeploymentStrategySchema.optional(),
   buildStartedAt: TimestampSchema.nullable().optional(),
@@ -299,7 +297,6 @@ export const CreateDeploymentSchema = z.object({
 
 export const UpdateDeploymentSchema = z.object({
   environmentId: IdSchema.nullable().optional(),
-  version: z.number().int().nonnegative().optional(),
   status: DeploymentStatusSchema.optional(),
   strategy: DeploymentStrategySchema.optional(),
   buildStartedAt: TimestampSchema.nullable().optional(),
@@ -369,7 +366,6 @@ export const UpdateDeploymentCommentSchema = z.object({
 export const ContainerSchema = z.object({
   id: IdSchema,
   projectId: IdSchema,
-  version: z.number().int().nonnegative(),
   deploymentId: IdSchema,
   name: z.string().max(255).nullable(),
   containerId: NonEmptyStringSchema.max(100),
@@ -394,7 +390,6 @@ export const ContainerSchema = z.object({
 
 export const CreateContainerSchema = z.object({
   projectId: IdSchema,
-  version: z.number().int().nonnegative().optional(),
   deploymentId: IdSchema,
   name: z.string().max(255).nullable().optional(),
   containerId: NonEmptyStringSchema.max(100),
@@ -653,7 +648,6 @@ export const ServiceSchema = z.object({
   name: NonEmptyStringSchema.max(255),
   type: ServiceTypeSchema,
   engine: z.string().max(100).nullable(),
-  version: z.number().int().nonnegative(),
   status: ServiceStatusSchema,
   config: ConfigSchema,
   connectionHost: z.string().max(255).nullable(),
@@ -674,7 +668,6 @@ export const CreateServiceSchema = z.object({
   name: NonEmptyStringSchema.max(255),
   type: ServiceTypeSchema,
   engine: z.string().max(100).nullable().optional(),
-  version: z.number().int().nonnegative().optional(),
   status: ServiceStatusSchema.optional(),
   config: ConfigSchema.optional(),
   connectionHost: z.string().max(255).nullable().optional(),

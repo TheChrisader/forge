@@ -1,6 +1,7 @@
 export * from "./interfaces/runtime";
 export * from "./runtime/docker";
 export * from "./errors";
+export * from "./utils/dockerignore";
 
 export type { BuildResult } from "./interfaces/runtime";
 

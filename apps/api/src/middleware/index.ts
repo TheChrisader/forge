@@ -12,6 +12,7 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
     await server.register(cors, {
       origin: config.server.cors.origins,
       credentials: config.server.cors.credentials,
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     });
   }
 

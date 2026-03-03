@@ -20,6 +20,7 @@ describe("NodeJsBuildStrategy", () => {
     strategy = new NodeJsBuildStrategy();
     mockContext = {
       projectId: "test-project",
+      projectName: "test-project",
       deploymentId: "test-deployment",
       workDir: "/tmp/build",
       sourceDir: "/tmp/source",

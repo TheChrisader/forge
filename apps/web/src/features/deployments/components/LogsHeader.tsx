@@ -89,8 +89,8 @@ export function LogsHeader({
         </Button>
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{deployment.version}</h1>
-            <Badge variant="outline">{deployment.id.slice(0, 8)}</Badge>
+            <h1 className="text-xl font-semibold">{deployment.id.slice(0, 8)}</h1>
+            <Badge variant="outline">ID: {deployment.id.slice(0, 8)}</Badge>
             <DeploymentStatus status={deployment.status} size="sm" showLabel={true} />
           </div>
           <p className="text-sm text-muted-foreground">

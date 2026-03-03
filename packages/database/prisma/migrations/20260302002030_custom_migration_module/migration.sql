@@ -27,34 +27,6 @@ CREATE INDEX idx_deployments_retryable ON deployments (project_id, created_at, s
     AND error IS NOT NULL;
 
 -- ============================================================================
--- Version Locking
--- ============================================================================
-
--- Auto-increment version on update
-CREATE OR REPLACE FUNCTION increment_version()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.version = COALESCE(OLD.version, 0) + 1;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER deployment_version_trigger
-  BEFORE UPDATE ON deployments
-  FOR EACH ROW
-  EXECUTE FUNCTION increment_version();
-
-CREATE TRIGGER container_version_trigger
-  BEFORE UPDATE ON containers
-  FOR EACH ROW
-  EXECUTE FUNCTION increment_version();
-
-CREATE TRIGGER service_version_trigger
-  BEFORE UPDATE ON services
-  FOR EACH ROW
-  EXECUTE FUNCTION increment_version();
-
--- ============================================================================
 -- Enable TimescaleDB Extension
 -- ============================================================================
 

@@ -59,7 +59,6 @@ export interface ProjectFilters extends PaginationParams, SortParams {
 export interface DeploymentFilters extends PaginationParams, SortParams {
   projectId?: string;
   status?: string[];
-  version?: string;
 }
 
 // =============================================================================

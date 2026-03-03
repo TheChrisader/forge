@@ -274,7 +274,6 @@ CREATE TABLE "deployments" (
     "id" UUID NOT NULL,
     "project_id" UUID NOT NULL,
     "environment_id" UUID,
-    "version" INTEGER NOT NULL DEFAULT 0,
     "status" "deployment_status" NOT NULL,
     "strategy" "deployment_strategy" NOT NULL DEFAULT 'ROLLING',
     "build_started_at" TIMESTAMPTZ,
@@ -342,7 +341,6 @@ CREATE TABLE "deployment_comments" (
 CREATE TABLE "containers" (
     "id" UUID NOT NULL,
     "project_id" UUID NOT NULL,
-    "version" INTEGER NOT NULL DEFAULT 0,
     "deployment_id" UUID NOT NULL,
     "name" VARCHAR(255),
     "container_id" VARCHAR(100) NOT NULL,
@@ -438,7 +436,6 @@ CREATE TABLE "services" (
     "name" VARCHAR(255) NOT NULL,
     "type" "service_type" NOT NULL,
     "engine" VARCHAR(100),
-    "version" INTEGER NOT NULL DEFAULT 0,
     "status" "service_status" NOT NULL DEFAULT 'CREATING',
     "config" JSONB NOT NULL DEFAULT '{}',
     "connection_host" VARCHAR(255),
@@ -966,9 +963,6 @@ CREATE INDEX "deployments_parent_id_idx" ON "deployments"("parent_id");
 CREATE INDEX "deployments_deleted_at_idx" ON "deployments"("deleted_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "deployments_project_id_version_key" ON "deployments"("project_id", "version");
-
--- CreateIndex
 CREATE UNIQUE INDEX "deployment_urls_url_key" ON "deployment_urls"("url");
 
 -- CreateIndex
@@ -1099,9 +1093,6 @@ CREATE INDEX "build_logs_timestamp_idx" ON "build_logs"("timestamp");
 
 -- CreateIndex
 CREATE INDEX "build_logs_level_idx" ON "build_logs"("level");
-
--- CreateIndex
-CREATE UNIQUE INDEX "build_logs_deployment_id_line_number_timestamp_key" ON "build_logs"("deployment_id", "line_number", "timestamp");
 
 -- CreateIndex
 CREATE INDEX "metrics_timestamp_idx" ON "metrics"("timestamp");
