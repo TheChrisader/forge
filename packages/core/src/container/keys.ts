@@ -36,6 +36,7 @@ export const SERVICE_KEYS = {
   LOGGER: Symbol.for("forge:logger"),
 
   SSE_MANAGER: Symbol.for("forge:sse-manager"),
+  MESSAGE_BATCHER: Symbol.for("forge:message-batcher"),
 } as const;
 
 export const SERVICE_KEY_STRINGS = {
@@ -65,6 +66,7 @@ export const SERVICE_KEY_STRINGS = {
   CONFIG: "config",
   LOGGER: "logger",
   SSE_MANAGER: "sseManager",
+  MESSAGE_BATCHER: "messageBatcher",
 } as const;
 
 export type ServiceKey = keyof typeof SERVICE_KEY_STRINGS;

@@ -10,6 +10,7 @@ import {
 import { requireAuth } from "../middleware/auth.js";
 import { DeploymentService } from "../services/deployment.service.js";
 import { SSEManagerService } from "../services/sse-manager.service.js";
+import { ConnectionLimitError } from "../errors/connection-limit.error.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 import {
   DeploymentSchema,
@@ -296,7 +297,28 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
         data: { deploymentId: params.id, timestamp: new Date().toISOString() },
       });
 
-      sseManager.subscribe(`deployment:${params.id}`, reply);
+      // Wrap subscribe in try/catch to handle connection limit errors
+      try {
+        sseManager.subscribe(`deployment:${params.id}`, reply);
+      } catch (error) {
+        if (error instanceof ConnectionLimitError) {
+          // Send error event before closing
+          await reply.sse.send({
+            event: "error",
+            data: {
+              code: "CONNECTION_LIMIT_REACHED",
+              message: error.message,
+              type: error.type,
+              limit: error.limit,
+              current: error.current,
+            },
+          });
+          // Close the connection
+          reply.raw.end();
+          return;
+        }
+        throw error;
+      }
 
       reply.raw.on("close", () => {
         sseManager.unsubscribe(`deployment:${params.id}`, reply);

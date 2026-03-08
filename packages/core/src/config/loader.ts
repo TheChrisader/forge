@@ -293,6 +293,28 @@ export class ConfigLoader {
         plugins: process.env.PATH_PLUGINS ?? fileConfig.paths?.plugins,
         temp: process.env.PATH_TEMP ?? fileConfig.paths?.temp,
       },
+
+      sse: {
+        enabled: this.parseBoolean(process.env.SSE_ENABLED) ?? fileConfig.sse?.enabled,
+        maxConnectionsPerTopic:
+          this.parseNumber(process.env.SSE_MAX_CONNECTIONS_PER_TOPIC) ??
+          fileConfig.sse?.maxConnectionsPerTopic,
+        maxTotalConnections:
+          this.parseNumber(process.env.SSE_MAX_TOTAL_CONNECTIONS) ??
+          fileConfig.sse?.maxTotalConnections,
+        connectionTimeoutMs:
+          this.parseNumber(process.env.SSE_CONNECTION_TIMEOUT_MS) ??
+          fileConfig.sse?.connectionTimeoutMs,
+        heartbeatIntervalMs:
+          this.parseNumber(process.env.SSE_HEARTBEAT_INTERVAL_MS) ??
+          fileConfig.sse?.heartbeatIntervalMs,
+        batchThreshold:
+          this.parseNumber(process.env.SSE_BATCH_THRESHOLD) ?? fileConfig.sse?.batchThreshold,
+        batchWindowMs:
+          this.parseNumber(process.env.SSE_BATCH_WINDOW_MS) ?? fileConfig.sse?.batchWindowMs,
+        batchMaxSize:
+          this.parseNumber(process.env.SSE_BATCH_MAX_SIZE) ?? fileConfig.sse?.batchMaxSize,
+      },
     } as Config;
   }
 

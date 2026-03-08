@@ -179,6 +179,19 @@ export const PathsConfigSchema = z.object({
   temp: z.string().default("./tmp"),
 });
 
+export const SSEConfigSchema = z.object({
+  enabled: z.boolean().default(true),
+  maxConnectionsPerTopic: z.number().int().positive().default(100),
+  maxTotalConnections: z.number().int().positive().default(1000),
+  connectionTimeoutMs: z.number().int().positive().default(300000),
+  heartbeatIntervalMs: z.number().int().positive().default(30000),
+  batchThreshold: z.number().int().positive().default(50),
+  batchWindowMs: z.number().int().positive().default(50),
+  batchMaxSize: z.number().int().positive().default(100),
+});
+
+export type SSEConfig = z.infer<typeof SSEConfigSchema>;
+
 export const ConfigSchema = z.object({
   nodeEnv: EnvironmentSchema.default("development"),
   server: ServerConfigSchema,
@@ -193,6 +206,7 @@ export const ConfigSchema = z.object({
   security: SecurityConfigSchema,
   features: FeaturesConfigSchema,
   paths: PathsConfigSchema,
+  sse: SSEConfigSchema.optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
