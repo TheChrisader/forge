@@ -21,6 +21,7 @@ import {
   ForgeError,
   LocalPathNotFoundError,
   ImageValidationError,
+  deepMerge,
   type BuildLogEntry,
 } from "@forge/core";
 import { QueueService, type QueueConfig } from "@forge/queue";
@@ -246,10 +247,10 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
 
   const db = getDatabaseClient();
 
-  // Fetch project to get the name for image generation
+  // Fetch project to get the name and config for image generation and merging
   const project = await db.project.findUnique({
     where: { id: projectId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, config: true },
   });
 
   if (!project) {
@@ -391,23 +392,29 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       "Framework detected"
     );
 
-    const config = detectionResult.config ?? strategy.getDefaultConfig();
+    const detectedConfig = detectionResult.config ?? strategy.getDefaultConfig();
+
+    // Build the partial config update from detected framework settings
+    const configUpdate: Partial<typeof project.config> = {
+      build: {
+        buildCommand: detectedConfig.buildCommand,
+        installCommand: detectedConfig.installCommand,
+        framework: detectionResult.framework,
+      },
+      runtime: {
+        startCommand: detectedConfig.startCommand,
+        port: detectedConfig.port,
+      },
+    };
+
+    // Deep merge detected config with existing project config to preserve user settings
+    const mergedConfig = deepMerge(project.config ?? {}, configUpdate);
 
     await db.project.update({
       where: { id: projectId },
       data: {
         type: strategy.name,
-        config: {
-          build: {
-            buildCommand: config.buildCommand,
-            installCommand: config.installCommand,
-            framework: detectionResult.framework,
-          },
-          runtime: {
-            startCommand: config.startCommand,
-            port: config.port,
-          },
-        },
+        config: mergedConfig,
       },
     });
     logger.info({ deploymentId, projectId }, "Project updated with framework info");
@@ -427,7 +434,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     };
 
     const result = await withTimeout(
-      strategy.build(buildContext, config, progressCallback),
+      strategy.build(buildContext, detectedConfig, progressCallback),
       TIMEOUTS.DOCKER_BUILD,
       "Docker build"
     );

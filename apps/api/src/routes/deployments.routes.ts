@@ -314,15 +314,17 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
             },
           });
           // Close the connection
-          reply.raw.end();
+          reply.sse.close();
           return;
         }
         throw error;
       }
 
-      reply.raw.on("close", () => {
+      reply.sse.onClose(() => {
         sseManager.unsubscribe(`deployment:${params.id}`, reply);
       });
+
+      reply.sse.keepAlive();
     }
   );
 }

@@ -44,6 +44,8 @@ async function main(): Promise<void> {
 
   const worker = new BuildWorker(queueConfig, {
     concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? "3", 10),
+    // Lock duration must exceed maximum build time (30 min Docker build + 5 min git clone + buffer)
+    lockDuration: Number.parseInt(process.env.WORKER_LOCK_DURATION_MS ?? "2400000", 10), // 40 minutes
   });
 
   logger.info("Build worker started and ready to process jobs");

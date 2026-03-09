@@ -2,17 +2,20 @@
  * useDeploymentLogsStream Hook
  *
  * Custom React hook for streaming deployment logs via Server-Sent Events (SSE).
- * Replaces polling-based log fetching with real-time streaming.
+ * Uses fetch-based SseClient which supports custom HTTP headers for authentication.
  *
  * Features:
- * - Creates EventSource connection to SSE endpoint
- * - Handles authentication via token query param
- * - Maintains logs as an array of formatted strings
- * - Auto-reconnects with exponential backoff on failure
- * - Cleans up connection on unmount
+ * - Creates SseClient connection to SSE endpoint with Authorization header
+ * - Maintains logs as an array of formatted strings with memory management
+ * - Auto-reconnects with exponential backoff and jitter on failure
+ * - Tracks Last-Event-ID for event replay on reconnection
+ * - Proper cleanup on unmount and completion
+ * - Guards against state updates after unmount/completion
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { SseClient } from "../streaming/sse-client";
+import type { SSEConnectionState } from "../streaming/types";
 
 /**
  * Deployment log entry structure from SSE events
@@ -30,24 +33,22 @@ interface SSEDeploymentLogEntry {
 /**
  * SSE event types from the server
  */
-type SSEEventType = "connected" | "log" | "progress" | "completed" | "error";
+type SSEEventType = "connected" | "log" | "progress" | "completed" | "error" | "timeout";
 
 /**
- * SSE message structure
+ * SSE message data (event type comes from SSE event field, not JSON)
  */
-interface SSEMessage {
-  event?: SSEEventType;
-  data:
-    | SSEDeploymentLogEntry
-    | { deploymentId: string; timestamp: string }
-    | { status: string }
-    | { message: string };
-}
+type SSEMessageData =
+  | SSEDeploymentLogEntry
+  | { deploymentId: string; timestamp: string }
+  | { status: string }
+  | { message: string }
+  | { progress?: number };
 
 /**
  * Hook return value
  */
-interface UseDeploymentLogsStreamResult {
+export interface UseDeploymentLogsStreamResult {
   /** Array of formatted log lines */
   logs: string[];
   /** Whether the SSE connection is currently active */
@@ -84,77 +85,108 @@ function getAuthToken(): string | null {
 }
 
 /**
+ * Map SSE connection state to hook status
+ */
+function mapSSEStateToStatus(state: SSEConnectionState): UseDeploymentLogsStreamResult["status"] {
+  switch (state) {
+    case "connecting":
+      return "connecting";
+    case "connected":
+      return "connected";
+    case "disconnected":
+      return "disconnected";
+    case "error":
+    case "closed":
+      return "error";
+  }
+}
+
+/**
  * Hook for streaming deployment logs via SSE
  *
  * @param deploymentId - The deployment ID to stream logs for
+ * @param options - Configuration options
  * @returns Logs, connection state, error, progress, and status
  */
-export function useDeploymentLogsStream(deploymentId: string): UseDeploymentLogsStreamResult {
+export function useDeploymentLogsStream(
+  deploymentId: string,
+  options: { maxLogs?: number } = {}
+): UseDeploymentLogsStreamResult {
+  const { maxLogs = 1000 } = options;
+
   const [logs, setLogs] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [progress, setProgress] = useState<number | undefined>(undefined);
-  const [status, setStatus] = useState<
-    "connecting" | "connected" | "completed" | "error" | "disconnected"
-  >("connecting");
+  const [status, setStatus] = useState<UseDeploymentLogsStreamResult["status"]>("connecting");
 
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectAttemptsRef = useRef(0);
+  // Refs for tracking state across renders
+  const clientRef = useRef<SseClient | null>(null);
+  const completedRef = useRef(false);
+  const mountedRef = useRef(true);
 
-  const cleanup = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-  }, []);
+  /**
+   * Add a log line with truncation to prevent memory issues
+   * CRITICAL: Guards against updates after unmount or completion
+   */
+  const addLog = useCallback(
+    (logLine: string) => {
+      // Don't update if unmounted or completed
+      if (!mountedRef.current || completedRef.current) return;
 
-  const connect = useCallback(() => {
-    // Clean up any existing connection
-    cleanup();
+      setLogs((prev) => {
+        const newLogs = [...prev, logLine];
+        if (maxLogs > 0 && newLogs.length > maxLogs) {
+          return newLogs.slice(-maxLogs);
+        }
+        return newLogs;
+      });
+    },
+    [maxLogs]
+  );
 
+  /**
+   * Setup SSE connection with SseClient
+   */
+  const setupConnection = useCallback(() => {
     const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
     const token = getAuthToken();
+    const url = `${baseUrl}/api/deployments/${deploymentId}/logs/stream`;
 
-    // Build URL with auth token as query param
-    const url = new URL(`/api/deployments/${deploymentId}/logs/stream`, baseUrl);
+    const headers: Record<string, string> = {};
     if (token) {
-      url.searchParams.set("token", token);
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
-    setStatus("connecting");
-    setError(null);
+    const client = new SseClient(url, {
+      autoConnect: false,
+      headers,
+      maxReconnectAttempts: 5,
+      initialReconnectDelayMs: 1000,
+      reconnectBackoffMultiplier: 2,
+      maxReconnectDelayMs: 16000,
+    });
 
-    const eventSource = new EventSource(url.toString());
-    eventSourceRef.current = eventSource;
+    /**
+     * Message handler - processes incoming SSE events
+     */
+    client.onMessage((event) => {
+      // Don't process if unmounted or completed
+      if (!mountedRef.current || completedRef.current) return;
 
-    // Connection opened
-    eventSource.onopen = (): void => {
-      setIsConnected(true);
-      setStatus("connected");
-      reconnectAttemptsRef.current = 0;
-    };
-
-    // Handle incoming messages
-    eventSource.onmessage = (event: MessageEvent): void => {
       try {
-        const message = JSON.parse(event.data as string) as SSEMessage;
+        const eventType = event.event as SSEEventType;
+        const data = JSON.parse(event.data) as SSEMessageData;
 
-        switch (message.event) {
-          case "connected": {
-            // Initial connection confirmation
-            console.error("SSE connected:", message.data);
+        switch (eventType) {
+          case "connected":
+            // Initial connection confirmation - no action needed
             break;
-          }
 
           case "log": {
             // New log entry
-            const logEntry = message.data as SSEDeploymentLogEntry;
-            setLogs((prev) => [...prev, formatLogLine(logEntry)]);
+            const logEntry = data as SSEDeploymentLogEntry;
+            addLog(formatLogLine(logEntry));
 
             // Update progress if available
             if (logEntry.progress !== undefined) {
@@ -165,7 +197,7 @@ export function useDeploymentLogsStream(deploymentId: string): UseDeploymentLogs
 
           case "progress": {
             // Progress update (separate event type)
-            const progressData = message.data as { progress?: number };
+            const progressData = data as { progress?: number };
             if (progressData.progress !== undefined) {
               setProgress(progressData.progress);
             }
@@ -174,64 +206,96 @@ export function useDeploymentLogsStream(deploymentId: string): UseDeploymentLogs
 
           case "completed": {
             // Build completed successfully
+            completedRef.current = true;
             setStatus("completed");
             setProgress(100);
             setIsConnected(false);
-            cleanup();
+            client.close();
             break;
           }
 
-          case "error": {
-            // Build failed
-            setError(new Error((message.data as { message: string }).message));
+          case "error":
+          case "timeout": {
+            // Build failed or timed out
+            completedRef.current = true;
+            const errorMsg = (data as { message: string }).message;
+            setError(new Error(errorMsg));
             setStatus("error");
             setIsConnected(false);
-            cleanup();
+            client.close();
             break;
           }
         }
       } catch (parseError) {
         console.error("Failed to parse SSE message:", parseError, event.data);
       }
-    };
+    });
 
-    // Handle connection errors
-    eventSource.onerror = (eventError: Event): void => {
-      console.error("SSE connection error:", eventError);
+    /**
+     * Error handler - handles connection errors
+     */
+    client.onError((err) => {
+      // Don't update if unmounted or completed
+      if (!mountedRef.current || completedRef.current) return;
 
-      // EventSource automatically tries to reconnect, but we add exponential backoff
-      const attempt = reconnectAttemptsRef.current + 1;
-      reconnectAttemptsRef.current = attempt;
+      console.error("SSE error:", err);
 
-      if (attempt > 5) {
-        // Give up after 5 attempts
-        setError(new Error("Failed to connect to log stream after multiple attempts"));
-        setStatus("error");
-        setIsConnected(false);
-        cleanup();
-        return;
+      if (err.code === "CONNECTION_LIMIT_REACHED") {
+        const details = err.details as { type: string; limit: number; current: number };
+        setError(
+          new Error(
+            `Connection limit reached (${details.type}: ${details.current}/${details.limit})`
+          )
+        );
+      } else {
+        setError(new Error(err.message));
       }
 
-      // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 16000);
+      setStatus("error");
+      setIsConnected(false);
+    });
 
-      reconnectTimeoutRef.current = setTimeout(() => {
-        connect();
-      }, delay);
-    };
-  }, [deploymentId, cleanup]);
+    /**
+     * State change handler - maps SSE states to hook status
+     */
+    client.onStateChange((state) => {
+      // Don't update if unmounted or completed
+      if (!mountedRef.current || completedRef.current) return;
 
-  useEffect((): void | (() => void) => {
-    if (!deploymentId) {
-      return;
+      const newStatus = mapSSEStateToStatus(state);
+      setStatus(newStatus);
+      setIsConnected(state === "connected");
+    });
+
+    clientRef.current = client;
+    client.connect();
+  }, [deploymentId, addLog]);
+
+  /**
+   * Cleanup function
+   */
+  const cleanup = useCallback(() => {
+    if (clientRef.current) {
+      clientRef.current.close();
+      clientRef.current = null;
     }
+    completedRef.current = false;
+  }, []);
 
-    connect();
+  /**
+   * Effect - setup connection on mount, cleanup on unmount
+   */
+  useEffect((): void | (() => void) => {
+    if (!deploymentId) return;
 
-    return (): void => {
+    mountedRef.current = true;
+    setupConnection();
+
+    return () => {
+      mountedRef.current = false;
       cleanup();
     };
-  }, [deploymentId, connect, cleanup]);
+  }, [deploymentId, setupConnection, cleanup]);
 
   return {
     logs,

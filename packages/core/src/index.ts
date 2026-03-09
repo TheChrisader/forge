@@ -8,9 +8,10 @@ export * from "./container/interfaces";
 export * from "./container/keys";
 export * from "./errors";
 export * from "./modules";
+export * from "./plugins/interfaces";
 export * from "./services/interfaces";
 export * from "./services/build-log.service";
-export * from "./plugins/interfaces";
+export * from "./utils";
 export * from "./validation";
 
 console.log(`${PLATFORM_NAME} v${PLATFORM_VERSION} - Core package loaded`);

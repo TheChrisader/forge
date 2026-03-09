@@ -13,6 +13,7 @@ export interface BuildWorkerOptions {
     max: number;
     duration: number;
   };
+  lockDuration?: number;
 }
 
 export class BuildWorker {
@@ -34,6 +35,7 @@ export class BuildWorker {
         max: 10,
         duration: 60_000,
       },
+      lockDuration: options?.lockDuration ?? 40 * 60 * 1000, // 40 minutes default
     });
 
     worker.onCompleted((job) => {

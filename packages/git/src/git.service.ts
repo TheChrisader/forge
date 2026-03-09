@@ -149,7 +149,7 @@ export class GitService {
         progress: (data) => {
           // Optional: Log progress
           if (data.stage) {
-            // console.log(`[Git] ${data.stage}: ${data.progress}%`);
+            console.log(`[Git] ${data.stage}: ${data.progress}%`);
           }
         },
         timeout: {

@@ -121,7 +121,7 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
         { source: this.getDockerSocketPath(), target: "/var/run/docker.sock" },
       ],
       env: nixpacksEnv,
-      autoRemove: true,
+      // autoRemove: true,
       workingDir: "/app",
     };
 
@@ -154,7 +154,11 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
       }
 
       // Wait for container to finish
-      await runtime.waitForState(container.id, "exited", { timeout: 1800000 }); // 30 min
+      // await runtime.waitForState(container.id, "exited", { timeout: 10000 }); // 10 secs
+      await runtime.remove(container.id, {
+        force: true,
+        volumes: true,
+      });
 
       // Verify image was created
       const images = await runtime.listImages({ reference: [imageTag] });

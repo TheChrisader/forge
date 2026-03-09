@@ -97,11 +97,6 @@ export class SSEManagerService {
       lastActivityAt: Date.now(),
     };
     this.connections.get(topic)!.set(reply, metadata);
-
-    // Setup cleanup on close
-    reply.raw.on("close", () => {
-      this.unsubscribe(topic, reply);
-    });
   }
 
   /**
