@@ -22,7 +22,6 @@ import {
   LocalPathNotFoundError,
   ImageValidationError,
   deepMerge,
-  type BuildLogEntry,
 } from "@forge/core";
 import { QueueService, type QueueConfig } from "@forge/queue";
 import type { LogLevel as CoreLogLevel } from "@forge/core";
@@ -34,6 +33,8 @@ import * as path from "node:path";
 import { withTimeout, TIMEOUTS } from "../timeouts/wrapper.js";
 import { BuildErrorHandler } from "../error-handling/handler.js";
 import { BuildMetricsService } from "../metrics/service.js";
+import { PriorityLogBuffer, parseBufferSize, parseErrorSlotReserve } from "./log-buffer.js";
+import { FlushManager, createFlushManagerOptions } from "./flush-manager.js";
 
 const logger = new LoggerService({
   level: (process.env.LOG_LEVEL as CoreLogLevel) ?? "info",
@@ -97,23 +98,32 @@ interface EmitProgressOptions {
 /**
  * Helper function to emit progress events through BullMQ and buffer for database logging
  * Creates a single source of truth for progress emissions
+ *
+ * @param context - BullMQ job context
+ * @param deploymentId - Deployment ID for log entries
+ * @param logBuffer - Priority log buffer for database batching
+ * @param lineNumberRef - Reference to line number counter
+ * @param options - Progress event options
+ * @returns Promise that resolves when progress is emitted
  */
 async function emitProgress(
   context: IJobContext<BuildJobData>,
   deploymentId: string,
-  logBuffer: BuildLogEntry[],
+  logBuffer: PriorityLogBuffer,
   lineNumberRef: { value: number },
   options: EmitProgressOptions
 ): Promise<void> {
   const lineNum = lineNumberRef.value++;
+  const logLevel = (options.level ?? "INFO") as LogLevel;
 
+  // Emit to BullMQ for real-time streaming (always happens)
   await context.updateProgress({
     type: "deployment.log",
     deploymentId,
     data: {
       lineNumber: lineNum,
       timestamp: new Date().toISOString(),
-      level: (options.level ?? "INFO") as LogLevel,
+      level: logLevel,
       source: "BUILD",
       message: options.message,
       stage: options.stage,
@@ -121,22 +131,36 @@ async function emitProgress(
     },
   });
 
+  // Console logging (always happens)
   logger.info(options.message, {
     deploymentId,
     type: options.stage ?? "log",
     stage: options.stage,
     progress: options.progress,
-    level: options.level ?? "INFO",
+    level: logLevel,
   });
 
-  logBuffer.push({
+  // Buffer with backpressure - may drop logs under high volume
+  const accepted = logBuffer.push({
     deploymentId,
     lineNumber: lineNum,
     timestamp: new Date(),
-    level: (options.level ?? "INFO") as LogLevel,
+    level: logLevel,
     message: options.message,
     source: "BUILD" as BuildLogSource,
   });
+
+  if (!accepted) {
+    // Log dropped - buffer full
+    const stats = logBuffer.getStats();
+    logger.warn("Build log dropped due to buffer full", {
+      deploymentId,
+      level: logLevel,
+      message: options.message,
+      bufferUtilization: stats.utilizationPercent.toFixed(1),
+      droppedCount: stats.droppedCount,
+    });
+  }
 }
 
 async function acquireFromLocal(
@@ -144,7 +168,7 @@ async function acquireFromLocal(
   destinationPath: string,
   context: IJobContext<BuildJobData>,
   deploymentId: string,
-  logBuffer: BuildLogEntry[],
+  logBuffer: PriorityLogBuffer,
   lineNumberRef: { value: number }
 ): Promise<void> {
   await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
@@ -186,7 +210,7 @@ async function handlePreBuiltImage(
   context: IJobContext<BuildJobData>,
   deploymentId: string,
   db: PrismaClient,
-  logBuffer: BuildLogEntry[],
+  logBuffer: PriorityLogBuffer,
   lineNumberRef: { value: number }
 ): Promise<void> {
   const { imageUrl, projectId } = context.job.data;
@@ -269,20 +293,45 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
 
   const repoPath = `${buildDir}/${deploymentId}`;
 
-  const logBuffer: BuildLogEntry[] = [];
+  // Configure log buffer with size limits from environment
+  const bufferMaxSize = parseBufferSize(process.env.BUILD_LOG_BUFFER_SIZE, 1000);
+  const errorSlotReserve = parseErrorSlotReserve(process.env.BUILD_LOG_ERROR_SLOT_RESERVE, 0.1);
+
+  const logBuffer = new PriorityLogBuffer({
+    maxSize: bufferMaxSize,
+    errorSlotReserve,
+  });
+
   const lineNumberRef = { value: 0 };
 
-  const flushLogs = async (): Promise<void> => {
-    if (logBuffer.length === 0) return;
-    try {
-      await buildLogService.appendBatch([...logBuffer]);
-      logBuffer.length = 0;
-    } catch (error) {
-      logger.error("Failed to flush logs to database", { error, deploymentId });
-    }
-  };
+  // Configure flush manager with retry and circuit breaker
+  const flushManagerOptions = createFlushManagerOptions();
+  const flushManager = new FlushManager(buildLogService, logger, flushManagerOptions);
 
-  const flushInterval = setInterval(flushLogs, 2000);
+  // Schedule automatic flushing
+  flushManager.scheduleFlush(logBuffer, deploymentId, () => {
+    // Log buffer stats after each flush attempt
+    const stats = logBuffer.getStats();
+    if (stats.droppedCount > 0) {
+      logger.warn("Build logs have been dropped due to buffer pressure", {
+        deploymentId,
+        droppedCount: stats.droppedCount,
+        droppedErrorCount: stats.droppedErrorCount,
+        droppedGeneralCount: stats.droppedGeneralCount,
+        utilizationPercent: stats.utilizationPercent.toFixed(1),
+      });
+    }
+  });
+
+  // Log buffer configuration for debugging
+  logger.info("Build log buffer configured", {
+    deploymentId,
+    maxSize: bufferMaxSize,
+    errorLimit: logBuffer["errorLimit"],
+    generalLimit: logBuffer["generalLimit"],
+    flushRetryEnabled: flushManagerOptions.enabled,
+    maxRetryAttempts: flushManagerOptions.maxRetryAttempts,
+  });
 
   try {
     await metricsService.recordBuildStart(deploymentId);
@@ -478,8 +527,24 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       error,
     });
   } finally {
-    await flushLogs();
-    clearInterval(flushInterval);
+    // Final flush before cleanup
+    const finalResult = await flushManager.flush(logBuffer, deploymentId);
+    flushManager.stop();
+
+    // Log final buffer statistics
+    const finalStats = logBuffer.getStats();
+    logger.info("Build log buffer final statistics", {
+      deploymentId,
+      finalFlushSuccess: finalResult.success,
+      totalEntriesProcessed: finalResult.entryCount,
+      currentBufferSize: finalStats.currentSize,
+      totalDropped: finalStats.droppedCount,
+      droppedErrors: finalStats.droppedErrorCount,
+      droppedGeneral: finalStats.droppedGeneralCount,
+      circuitBreakerOpened: finalResult.circuitBreakerOpen,
+      consecutiveFailures: finalResult.consecutiveFailures,
+    });
+
     await cleanupBuildDir(repoPath);
   }
 }
