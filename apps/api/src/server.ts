@@ -8,8 +8,8 @@ import {
   SERVICE_KEY_STRINGS,
   ConfigService,
 } from "@forge/core";
-import pino from "pino";
-import { LoggerModule } from "./modules/logger.module.js";
+import type { ILogger } from "@forge/core";
+import { LoggerModule } from "@forge/logger";
 import { InfrastructureModule } from "./modules/infrastructure.module.js";
 import { setupSwagger } from "./plugins/swagger.js";
 import { setupMiddleware } from "./middleware/index.js";
@@ -28,7 +28,7 @@ import { ContainerModule } from "./modules/container.module.js";
 declare module "fastify" {
   interface FastifyInstance {
     config: Config;
-    logger: pino.Logger;
+    logger: ILogger;
     registry: ServiceRegistry;
     db: PrismaClient;
     redis: Redis;
@@ -59,7 +59,7 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   const container = registry.getContainer();
   const configService = await container.resolve<ConfigService>(SERVICE_KEY_STRINGS.CONFIG);
   const config = configService.getConfig();
-  const logger = await container.resolve<pino.Logger>(SERVICE_KEY_STRINGS.LOGGER);
+  const logger = await container.resolve<ILogger>(SERVICE_KEY_STRINGS.LOGGER);
   const db = await container.resolve<PrismaClient>(SERVICE_KEY_STRINGS.DATABASE);
   const redis = await container.resolve<Redis>(SERVICE_KEY_STRINGS.CACHE);
 

@@ -23,6 +23,8 @@ import type {
   LogOptions,
 } from "@forge/types";
 
+export * from "./logger.interface";
+
 export interface IProjectService {
   create(data: CreateProjectRequest): Promise<Project>;
   update(id: string, data: UpdateProjectRequest): Promise<Project>;

@@ -25,7 +25,8 @@ import {
   type BuildLogEntry,
 } from "@forge/core";
 import { QueueService, type QueueConfig } from "@forge/queue";
-import pino from "pino";
+import type { LogLevel as CoreLogLevel } from "@forge/core";
+import { LoggerService } from "@forge/logger";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -34,9 +35,11 @@ import { withTimeout, TIMEOUTS } from "../timeouts/wrapper.js";
 import { BuildErrorHandler } from "../error-handling/handler.js";
 import { BuildMetricsService } from "../metrics/service.js";
 
-const logger = pino({
+const logger = new LoggerService({
+  level: (process.env.LOG_LEVEL as CoreLogLevel) ?? "info",
+  format: process.env.NODE_ENV === "development" ? "pretty" : "json",
+  enabled: true,
   name: "build-handler",
-  level: process.env.LOG_LEVEL ?? "info",
 });
 
 function getQueueConfig(): QueueConfig {
@@ -57,7 +60,7 @@ async function ensureBuildDir(buildDir: string): Promise<void> {
   try {
     await fs.mkdir(buildDir, { recursive: true });
   } catch (error) {
-    logger.error({ error, buildDir }, "Failed to create build directory");
+    logger.error("Failed to create build directory", { error, buildDir });
     throw error;
   }
 }
@@ -67,7 +70,7 @@ async function cleanupBuildDir(repoPath: string): Promise<void> {
     await fs.rm(repoPath, { recursive: true, force: true });
   } catch (error) {
     // Log but don't throw - cleanup failures shouldn't fail the build
-    logger.warn({ error, repoPath }, "Failed to clean up build directory");
+    logger.warn("Failed to clean up build directory", { error, repoPath });
   }
 }
 
@@ -118,16 +121,13 @@ async function emitProgress(
     },
   });
 
-  logger.info(
-    {
-      deploymentId,
-      type: options.stage ?? "log",
-      stage: options.stage,
-      progress: options.progress,
-      level: options.level ?? "INFO",
-    },
-    options.message
-  );
+  logger.info(options.message, {
+    deploymentId,
+    type: options.stage ?? "log",
+    stage: options.stage,
+    progress: options.progress,
+    level: options.level ?? "INFO",
+  });
 
   logBuffer.push({
     deploymentId,
@@ -191,7 +191,7 @@ async function handlePreBuiltImage(
 ): Promise<void> {
   const { imageUrl, projectId } = context.job.data;
 
-  logger.info({ deploymentId, imageUrl }, "Processing pre-built image");
+  logger.info("Processing pre-built image", { deploymentId, imageUrl });
 
   await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
     message: "Validating pre-built image...",
@@ -230,10 +230,10 @@ async function handlePreBuiltImage(
   await queueService.addJob("deploy", "deploy-container", deployJobData);
   await queueService.close();
 
-  logger.info(
-    { deploymentId, imageUrl },
-    "Pre-built image ready for deployment, deploy job enqueued"
-  );
+  logger.info("Pre-built image ready for deployment, deploy job enqueued", {
+    deploymentId,
+    imageUrl,
+  });
 }
 
 export async function handleBuildJob(context: IJobContext<BuildJobData>): Promise<void> {
@@ -241,7 +241,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
 
   const sourceType = context.job.data.sourceType ?? ProjectSourceType.GIT;
 
-  logger.info({ deploymentId, projectId, sourceType }, "Processing build job");
+  logger.info("Processing build job", { deploymentId, projectId, sourceType });
 
   registerDefaultStrategies();
 
@@ -278,7 +278,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       await buildLogService.appendBatch([...logBuffer]);
       logBuffer.length = 0;
     } catch (error) {
-      logger.error({ error, deploymentId }, "Failed to flush logs to database");
+      logger.error("Failed to flush logs to database", { error, deploymentId });
     }
   };
 
@@ -287,7 +287,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
   try {
     await metricsService.recordBuildStart(deploymentId);
 
-    logger.info({ deploymentId }, "Updating deployment status to BUILDING");
+    logger.info("Updating deployment status to BUILDING", { deploymentId });
     await db.deployment.update({
       where: { id: deploymentId },
       data: { status: "BUILDING" as DeploymentStatus },
@@ -297,15 +297,12 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
 
     switch (sourceType) {
       case ProjectSourceType.GIT:
-        logger.info(
-          {
-            deploymentId,
-            gitUrl: context.job.data.gitUrl,
-            branch: context.job.data.branch,
-            repoPath,
-          },
-          "Cloning repository..."
-        );
+        logger.info("Cloning repository...", {
+          deploymentId,
+          gitUrl: context.job.data.gitUrl,
+          branch: context.job.data.branch,
+          repoPath,
+        });
         await withTimeout(
           gitService.clone({
             url: context.job.data.gitUrl ?? "",
@@ -318,23 +315,23 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
         );
 
         if (context.job.data.gitCommit) {
-          logger.info(
-            { deploymentId, gitCommit: context.job.data.gitCommit },
-            "Checking out specific commit"
-          );
+          logger.info("Checking out specific commit", {
+            deploymentId,
+            gitCommit: context.job.data.gitCommit,
+          });
           await gitService.checkoutCommit(repoPath, context.job.data.gitCommit);
-          logger.info({ deploymentId }, "Checked out specific commit successfully");
+          logger.info("Checked out specific commit successfully", { deploymentId });
         }
 
         sourceDir = repoPath;
-        logger.info({ deploymentId }, "Repository cloned successfully");
+        logger.info("Repository cloned successfully", { deploymentId });
         break;
 
       case ProjectSourceType.LOCAL:
-        logger.info(
-          { deploymentId, localPath: context.job.data.localPath },
-          "Copying local files..."
-        );
+        logger.info("Copying local files...", {
+          deploymentId,
+          localPath: context.job.data.localPath,
+        });
         await withTimeout(
           acquireFromLocal(
             context.job.data.localPath ?? "",
@@ -348,7 +345,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
           "Local file copy"
         );
         sourceDir = repoPath;
-        logger.info({ deploymentId }, "Local files copied successfully");
+        logger.info("Local files copied successfully", { deploymentId });
         break;
 
       case ProjectSourceType.IMAGE:
@@ -375,7 +372,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       outputDir: `${buildDir}/${deploymentId}`,
     };
 
-    logger.info({ deploymentId }, "Detecting framework...");
+    logger.info("Detecting framework...", { deploymentId });
     const strategy = await withTimeout(
       strategyRegistry.detect(buildContext),
       TIMEOUTS.FRAMEWORK_DETECT,
@@ -383,14 +380,11 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     );
 
     const detectionResult = await strategy.detect(buildContext);
-    logger.info(
-      {
-        deploymentId,
-        framework: detectionResult.framework,
-        confidence: detectionResult.confidence,
-      },
-      "Framework detected"
-    );
+    logger.info("Framework detected", {
+      deploymentId,
+      framework: detectionResult.framework,
+      confidence: detectionResult.confidence,
+    });
 
     const detectedConfig = detectionResult.config ?? strategy.getDefaultConfig();
 
@@ -417,7 +411,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
         config: mergedConfig,
       },
     });
-    logger.info({ deploymentId, projectId }, "Project updated with framework info");
+    logger.info("Project updated with framework info", { deploymentId, projectId });
 
     await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
       message: "Starting build process...",
@@ -439,14 +433,11 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       "Docker build"
     );
 
-    logger.info(
-      {
-        deploymentId,
-        success: result.success,
-        duration: result.duration,
-      },
-      "Build completed"
-    );
+    logger.info("Build completed", {
+      deploymentId,
+      success: result.success,
+      duration: result.duration,
+    });
 
     await metricsService.recordBuildComplete({
       deploymentId,
@@ -477,7 +468,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     await queueService.addJob("deploy", "deploy-container", deployJobData);
     await queueService.close();
 
-    logger.info({ deploymentId, imageTag }, "Build completed, deploy job enqueued");
+    logger.info("Build completed, deploy job enqueued", { deploymentId, imageTag });
   } catch (error) {
     await errorHandler.handle({
       deploymentId,

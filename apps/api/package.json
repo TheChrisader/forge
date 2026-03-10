@@ -29,6 +29,7 @@
     "@forge/cache": "workspace:*",
     "@forge/core": "workspace:*",
     "@forge/database": "workspace:*",
+    "@forge/logger": "workspace:*",
     "@forge/queue": "workspace:*",
     "@forge/types": "workspace:*",
     "bullmq": "^5.46.0",

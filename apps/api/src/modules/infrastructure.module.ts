@@ -3,20 +3,20 @@ import { SERVICE_KEY_STRINGS } from "@forge/core";
 import { DatabaseModule, disposeDatabaseModule } from "@forge/core";
 import { CacheModule, disposeCacheModule } from "@forge/cache";
 import { QueueModule, disposeQueueModule } from "@forge/queue";
-import pino from "pino";
+import type { ILogger } from "@forge/core";
 
 export class InfrastructureModule implements ServiceModule {
   private dbModule?: DatabaseModule;
   private cacheModule?: CacheModule;
   private queueModule?: QueueModule;
-  private logger?: pino.Logger;
+  private logger?: ILogger;
   private container?: ServiceContainer;
 
   async register(container: ServiceContainer): Promise<void> {
     this.container = container;
     const configService = await container.resolve<ConfigService>(SERVICE_KEY_STRINGS.CONFIG);
     const config = configService.getConfig();
-    this.logger = await container.resolve<pino.Logger>(SERVICE_KEY_STRINGS.LOGGER);
+    this.logger = await container.resolve<ILogger>(SERVICE_KEY_STRINGS.LOGGER);
 
     this.dbModule = new DatabaseModule();
     this.dbModule.register(container);

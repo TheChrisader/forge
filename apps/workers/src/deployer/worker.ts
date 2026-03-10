@@ -3,7 +3,9 @@
  * Processes deploy jobs from the queue
  */
 
-import pino from "pino";
+import type { ILogger } from "@forge/core";
+import { LoggerService } from "@forge/logger";
+import type { LogLevel } from "@forge/core";
 import { QueueService, type QueueConfig } from "@forge/queue";
 import { handleDeployJob } from "./handlers/deploy.handler.js";
 
@@ -17,13 +19,15 @@ export interface DeployerWorkerOptions {
 
 export class DeployerWorker {
   private queueService: QueueService;
-  private logger: pino.Logger;
+  private logger: ILogger;
   private workerName = "deployer-worker";
 
   constructor(config: QueueConfig, options?: DeployerWorkerOptions) {
-    this.logger = pino({
+    this.logger = new LoggerService({
+      level: (process.env.LOG_LEVEL as LogLevel) ?? "info",
+      format: process.env.NODE_ENV === "development" ? "pretty" : "json",
+      enabled: true,
       name: this.workerName,
-      level: process.env.LOG_LEVEL ?? "info",
     });
 
     this.queueService = new QueueService(config);
@@ -37,11 +41,11 @@ export class DeployerWorker {
     });
 
     worker.onCompleted((job) => {
-      this.logger.info({ jobId: job.id }, "Deploy job completed");
+      this.logger.info("Deploy job completed", { jobId: job.id });
     });
 
     worker.onFailed((job, err) => {
-      this.logger.error({ jobId: job?.id, error: err.message }, "Deploy job failed");
+      this.logger.error("Deploy job failed", { jobId: job?.id, error: err.message });
     });
 
     this.logger.info("Deployer worker initialized");

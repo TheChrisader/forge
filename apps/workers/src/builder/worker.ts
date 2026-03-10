@@ -3,7 +3,9 @@
  * Processes build jobs from the queue
  */
 
-import pino from "pino";
+import type { ILogger } from "@forge/core";
+import { LoggerService } from "@forge/logger";
+import type { LogLevel } from "@forge/core";
 import { QueueService, type QueueConfig } from "@forge/queue";
 import { handleBuildJob } from "./handlers/build.handler.js";
 
@@ -18,13 +20,15 @@ export interface BuildWorkerOptions {
 
 export class BuildWorker {
   private queueService: QueueService;
-  private logger: pino.Logger;
+  private logger: ILogger;
   private workerName = "build-worker";
 
   constructor(config: QueueConfig, options?: BuildWorkerOptions) {
-    this.logger = pino({
+    this.logger = new LoggerService({
+      level: (process.env.LOG_LEVEL as LogLevel) ?? "info",
+      format: process.env.NODE_ENV === "development" ? "pretty" : "json",
+      enabled: true,
       name: this.workerName,
-      level: process.env.LOG_LEVEL ?? "info",
     });
 
     this.queueService = new QueueService(config);
@@ -39,11 +43,11 @@ export class BuildWorker {
     });
 
     worker.onCompleted((job) => {
-      this.logger.info({ jobId: job.id }, "Build job completed");
+      this.logger.info("Build job completed", { jobId: job.id });
     });
 
     worker.onFailed((job, err) => {
-      this.logger.error({ jobId: job?.id, error: err.message }, "Build job failed");
+      this.logger.error("Build job failed", { jobId: job?.id, error: err.message });
     });
 
     this.logger.info("Build worker initialized");

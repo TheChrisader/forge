@@ -1,4 +1,4 @@
-import pino from "pino";
+import type { ILogger } from "@forge/core";
 import type { PrismaClient } from "@forge/database";
 import { BuildErrorClassifier } from "./classifier.js";
 import type { DeploymentStatus } from "@forge/types";
@@ -6,7 +6,7 @@ import type { DeploymentStatus } from "@forge/types";
 interface BuildFailureContext {
   deploymentId: string;
   projectId: string;
-  logger: pino.Logger;
+  logger: ILogger;
   db: PrismaClient;
   error: unknown;
 }
@@ -29,16 +29,13 @@ export class BuildErrorHandler {
 
     const strategy = this.classifier.classify(error);
 
-    logger[strategy.logLevel](
-      {
-        deploymentId,
-        projectId,
-        error: error instanceof Error ? error.message : String(error),
-        shouldRetry: strategy.shouldRetry,
-        deploymentStatus: strategy.deploymentStatus,
-      },
-      "Build job failed"
-    );
+    logger[strategy.logLevel]("Build job failed", {
+      deploymentId,
+      projectId,
+      error: error instanceof Error ? error.message : String(error),
+      shouldRetry: strategy.shouldRetry,
+      deploymentStatus: strategy.deploymentStatus,
+    });
 
     await db.deployment.update({
       where: { id: deploymentId },

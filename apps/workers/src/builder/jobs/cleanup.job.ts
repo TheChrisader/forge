@@ -9,9 +9,15 @@ import type { PrismaClient } from "@forge/database";
 import { SERVICE_KEY_STRINGS, type ServiceContainer } from "@forge/core";
 import { DockerRuntime } from "@forge/docker";
 import { generateImageTagPrefix } from "@forge/build";
-import pino from "pino";
+import type { LogLevel } from "@forge/core";
+import { LoggerService } from "@forge/logger";
 
-const logger = pino({ name: "cleanup-job" });
+const logger = new LoggerService({
+  level: (process.env.LOG_LEVEL as LogLevel) ?? "info",
+  format: process.env.NODE_ENV === "development" ? "pretty" : "json",
+  enabled: true,
+  name: "cleanup-job",
+});
 
 export function startCleanupJob(container: ServiceContainer): void {
   const db = container.resolveSync<PrismaClient>(SERVICE_KEY_STRINGS.DATABASE);
@@ -19,7 +25,7 @@ export function startCleanupJob(container: ServiceContainer): void {
 
   // Run daily at 2 AM
   const job = new CronJob("0 2 * * *", async () => {
-    logger.info({ event: "automated_image_cleanup_start" }, "Running automated image cleanup...");
+    logger.info("Running automated image cleanup...", { event: "automated_image_cleanup_start" });
 
     try {
       // Get all active projects
@@ -37,71 +43,56 @@ export function startCleanupJob(container: ServiceContainer): void {
 
           if (result.deleted.length > 0) {
             logger.info(
+              `Pruned ${result.deleted.length} images for ${project.name} (${project.id})`,
               {
                 event: "pruned_project_images",
                 projectId: project.id,
                 projectName: project.name,
                 deleted: result.deleted.length,
                 freedBytes: result.reclaimedBytes,
-              },
-              `Pruned ${result.deleted.length} images for ${project.name} (${project.id})`
+              }
             );
             totalDeleted += result.deleted.length;
             totalReclaimed += result.reclaimedBytes;
           }
 
           if (result.errors?.length > 0) {
-            logger.warn(
-              {
-                event: "prune_errors",
-                projectId: project.id,
-                projectName: project.name,
-                errors: result.errors,
-              },
-              `Errors pruning images for ${project.name}`
-            );
+            logger.warn(`Errors pruning images for ${project.name}`, {
+              event: "prune_errors",
+              projectId: project.id,
+              projectName: project.name,
+              errors: result.errors,
+            });
           }
         } catch (err) {
-          logger.error(
-            {
-              event: "prune_project_failed",
-              projectId: project.id,
-              error: err instanceof Error ? err.message : String(err),
-            },
-            `Failed to prune images for project ${project.id}`
-          );
+          logger.error(`Failed to prune images for project ${project.id}`, {
+            event: "prune_project_failed",
+            projectId: project.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
 
       // Prune dangling images
       const dangling = await runtime.pruneDanglingImages();
-      logger.info(
-        {
-          event: "pruned_dangling_images",
-          deleted: dangling.deleted.length,
-          reclaimedBytes: dangling.reclaimedBytes,
-        },
-        "Pruned dangling images"
-      );
+      logger.info("Pruned dangling images", {
+        event: "pruned_dangling_images",
+        deleted: dangling.deleted.length,
+        reclaimedBytes: dangling.reclaimedBytes,
+      });
       totalDeleted += dangling.deleted.length;
       totalReclaimed += dangling.reclaimedBytes;
 
-      logger.info(
-        {
-          event: "cleanup_completed",
-          totalDeleted,
-          totalReclaimedBytes: totalReclaimed,
-        },
-        "Image cleanup completed"
-      );
+      logger.info("Image cleanup completed", {
+        event: "cleanup_completed",
+        totalDeleted,
+        totalReclaimedBytes: totalReclaimed,
+      });
     } catch (error) {
-      logger.error(
-        {
-          event: "cleanup_failed",
-          error: error instanceof Error ? error.message : String(error),
-        },
-        "Image cleanup job failed"
-      );
+      logger.error("Image cleanup job failed", {
+        event: "cleanup_failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 

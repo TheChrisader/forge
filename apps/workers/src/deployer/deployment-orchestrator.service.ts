@@ -8,7 +8,7 @@
  * - Update deployment status
  */
 
-import pino from "pino";
+import type { ILogger } from "@forge/core";
 import type { PrismaClient } from "@forge/database";
 import type {
   DockerRuntime,
@@ -56,7 +56,7 @@ export class DeploymentOrchestrator {
   constructor(
     private readonly db: PrismaClient,
     private readonly runtime: DockerRuntime,
-    private readonly logger: pino.Logger
+    private readonly logger: ILogger
   ) {}
 
   /**
@@ -67,7 +67,7 @@ export class DeploymentOrchestrator {
    * 4. Update deployment status
    */
   async deploy(deploymentId: string, image: string, options?: DeployOptions): Promise<void> {
-    this.logger.info({ deploymentId, image }, "Starting deployment orchestration");
+    this.logger.info("Starting deployment orchestration", { deploymentId, image });
 
     const deployment = await this.db.deployment.findUnique({
       where: { id: deploymentId },
@@ -93,10 +93,10 @@ export class DeploymentOrchestrator {
       },
     });
 
-    this.logger.info({ deploymentId, image }, "Creating container");
+    this.logger.info("Creating container", { deploymentId, image });
     const container = await this.createContainer(deployment as DeploymentData, project, image);
 
-    this.logger.info({ deploymentId, containerId: container.containerId }, "Starting container");
+    this.logger.info("Starting container", { deploymentId, containerId: container.containerId });
     await this.runtime.start(container.containerId);
 
     await this.db.container.update({
@@ -126,10 +126,10 @@ export class DeploymentOrchestrator {
         data: { status: "HEALTHY", healthStatus: "HEALTHY" },
       });
 
-      this.logger.info(
-        { deploymentId, containerId: container.containerId },
-        "Deployment completed successfully"
-      );
+      this.logger.info("Deployment completed successfully", {
+        deploymentId,
+        containerId: container.containerId,
+      });
     } else {
       await this.handleFailure(
         deploymentId,
@@ -316,7 +316,7 @@ export class DeploymentOrchestrator {
       },
     });
 
-    this.logger.info({ networkName, projectName }, "Created project network");
+    this.logger.info("Created project network", { networkName, projectName });
   }
 
   /**
@@ -356,7 +356,7 @@ export class DeploymentOrchestrator {
           },
         });
 
-        this.logger.info({ volumeName }, "Created volume");
+        this.logger.info("Created volume", { volumeName });
       }
 
       volumeMap.set(volumeConfig.mountPath, volumeName);
@@ -537,13 +537,13 @@ export class DeploymentOrchestrator {
    * Waits for container to become healthy
    */
   private async waitForHealthy(containerId: string, timeoutMs: number): Promise<boolean> {
-    this.logger.info({ containerId, timeoutMs }, "Waiting for container to be healthy");
+    this.logger.info("Waiting for container to be healthy", { containerId, timeoutMs });
 
     try {
       await this.runtime.waitForHealthy(containerId, { timeout: timeoutMs });
       return true;
     } catch (error) {
-      this.logger.warn({ containerId, error }, "Container health check failed");
+      this.logger.warn("Container health check failed", { containerId, error });
       return false;
     }
   }
@@ -557,14 +557,14 @@ export class DeploymentOrchestrator {
     containerId: string | null,
     error: string
   ): Promise<void> {
-    this.logger.error({ deploymentId, containerId, error }, "Handling deployment failure");
+    this.logger.error("Handling deployment failure", { deploymentId, containerId, error });
 
     if (containerId) {
       try {
         await this.runtime.stop(containerId, { timeout: 10_000 });
         await this.runtime.remove(containerId, { force: true });
       } catch (err) {
-        this.logger.warn({ containerId, err }, "Failed to cleanup container");
+        this.logger.warn("Failed to cleanup container", { containerId, err });
       }
     }
 

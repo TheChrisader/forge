@@ -1,14 +1,17 @@
 import "dotenv/config";
-import pino from "pino";
+import { LoggerService } from "@forge/logger";
+import type { LogLevel } from "@forge/core";
 import { BuildWorker } from "./worker.js";
 import { registerDefaultStrategies } from "@forge/build";
 import { startCleanupJob } from "./jobs/cleanup.job.js";
 import { ServiceRegistry, DatabaseModule } from "@forge/core";
 import { QueueConfig } from "@forge/queue";
 
-const logger = pino({
+const logger = new LoggerService({
+  level: (process.env.LOG_LEVEL as LogLevel) ?? "info",
+  format: process.env.NODE_ENV === "development" ? "pretty" : "json",
+  enabled: true,
   name: "forge-build-worker",
-  level: process.env.LOG_LEVEL ?? "info",
 });
 
 function getQueueConfig(): QueueConfig {
@@ -35,12 +38,9 @@ async function main(): Promise<void> {
   // await initBuildWorker();
 
   const queueConfig = getQueueConfig();
-  logger.info(
-    {
-      redis: { host: queueConfig.connection.redis?.host, port: queueConfig.connection.redis?.port },
-    },
-    "Connecting to Redis..."
-  );
+  logger.info("Connecting to Redis...", {
+    redis: { host: queueConfig.connection.redis?.host, port: queueConfig.connection.redis?.port },
+  });
 
   const worker = new BuildWorker(queueConfig, {
     concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? "3", 10),
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
   logger.info("Cleanup job started");
 
   const shutdown = async (signal: string): Promise<void> => {
-    logger.info({ signal }, "Received shutdown signal");
+    logger.info("Received shutdown signal", { signal });
     await worker.close();
     logger.info("Build worker stopped gracefully");
     process.exit(0);
@@ -70,6 +70,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  logger.error({ error }, "Failed to start build worker");
+  logger.error("Failed to start build worker", { error });
   process.exit(1);
 });
