@@ -2,7 +2,6 @@ import { getDatabaseClient } from "@forge/database";
 import { DockerRuntime } from "@forge/docker";
 import type { DeployJobData } from "@forge/types";
 import type { IJobContext } from "@forge/queue";
-import type { ILogger } from "@forge/core";
 import { LoggerService } from "@forge/logger";
 import type { LogLevel } from "@forge/core";
 import { DeploymentOrchestrator } from "../deployment-orchestrator.service.js";
@@ -29,8 +28,10 @@ export async function handleDeployJob(context: IJobContext<DeployJobData>): Prom
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Deployment failed", { deploymentId, error: errorMessage });
 
-    // Orchestrator's handleFailure method updates the database
-    // We only need to re-throw for queue retry logic
+    // Update deployment status to FAILED and cleanup
+    await orchestrator.handleFailure(deploymentId, null, errorMessage);
+
+    // Re-throw for BullMQ retry logic (will be marked failed after max retries)
     throw error;
   }
 }

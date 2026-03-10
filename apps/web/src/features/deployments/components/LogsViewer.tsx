@@ -2,17 +2,68 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
+import { Badge } from "@/shared/components/ui/badge";
 import { Empty } from "@/shared/components/ui/empty";
 import { EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/components/ui/empty";
-import { SearchIcon, ChevronDownIcon, WifiIcon, WifiOffIcon, LoaderIcon } from "lucide-react";
+import {
+  SearchIcon,
+  ChevronDownIcon,
+  WifiIcon,
+  WifiOffIcon,
+  LoaderIcon,
+  AlertTriangleIcon,
+  InfoIcon,
+  BugIcon,
+} from "lucide-react";
 
 interface LogsViewerProps {
-  logs: string[];
+  logs: Array<{
+    lineNumber: number;
+    timestamp: string;
+    level: string;
+    source: string;
+    message: string;
+    stage?: string;
+    progress?: number;
+  }>;
   isLoading?: boolean;
   isConnected?: boolean;
   progress?: number;
   error?: Error | null;
 }
+
+const logLevelConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+  ERROR: {
+    color: "bg-destructive/10 text-destructive",
+    icon: <AlertTriangleIcon className="size-3" />,
+    label: "Error",
+  },
+  WARN: {
+    color: "bg-warning-500/10 text-warning-700 dark:text-warning-400",
+    icon: <AlertTriangleIcon className="size-3" />,
+    label: "Warning",
+  },
+  INFO: {
+    color: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+    icon: <InfoIcon className="size-3" />,
+    label: "Info",
+  },
+  DEBUG: {
+    color: "bg-muted text-muted-foreground",
+    icon: <BugIcon className="size-3" />,
+    label: "Debug",
+  },
+  TRACE: {
+    color: "bg-muted text-muted-foreground",
+    icon: <BugIcon className="size-3" />,
+    label: "Trace",
+  },
+  FATAL: {
+    color: "bg-destructive/10 text-destructive",
+    icon: <AlertTriangleIcon className="size-3" />,
+    label: "Fatal",
+  },
+};
 
 export function LogsViewer({
   logs,
@@ -26,7 +77,11 @@ export function LogsViewer({
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredLogs = searchTerm
-    ? logs.filter((line) => line.toLowerCase().includes(searchTerm.toLowerCase()))
+    ? logs.filter(
+        (entry) =>
+          entry.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          entry.source.toLowerCase().includes(searchTerm.toLowerCase())
+      )
     : logs;
 
   useEffect(() => {
@@ -49,7 +104,9 @@ export function LogsViewer({
   };
 
   const handleDownloadLogs = (): void => {
-    const content = logs.join("\n");
+    const content = logs
+      .map((entry) => `[${entry.timestamp}] [${entry.level}] [${entry.source}] ${entry.message}`)
+      .join("\n");
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -162,16 +219,32 @@ export function LogsViewer({
           </div>
         ) : (
           <div className="space-y-0">
-            {filteredLogs.map((line, index) => (
-              <div key={index} className="flex hover:bg-muted/50">
-                <span className="select-none pr-4 text-muted-foreground">
-                  {searchTerm ? logs.indexOf(line) + 1 : index + 1}
-                </span>
-                <span className="flex-1 whitespace-pre-wrap wrap-break-word text-foreground">
-                  {line || "\u00A0"}
-                </span>
-              </div>
-            ))}
+            {filteredLogs.map((entry, index) => {
+              const config = logLevelConfig[entry.level] || logLevelConfig.INFO;
+              return (
+                <div key={entry.lineNumber} className="flex hover:bg-muted/50">
+                  <span className="select-none pr-4 text-muted-foreground">
+                    {searchTerm ? logs.indexOf(entry) + 1 : index + 1}
+                  </span>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge className={config.color} variant="outline">
+                        {config.icon}
+                        {config.label}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{entry.timestamp}</span>
+                      <span className="text-xs text-muted-foreground">{entry.source}</span>
+                      {entry.stage && (
+                        <span className="text-xs text-muted-foreground">({entry.stage})</span>
+                      )}
+                    </div>
+                    <div className="whitespace-pre-wrap wrap-break-word text-foreground font-mono">
+                      {entry.message || "\u00A0"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

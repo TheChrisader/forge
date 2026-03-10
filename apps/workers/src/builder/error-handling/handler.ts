@@ -37,15 +37,24 @@ export class BuildErrorHandler {
       deploymentStatus: strategy.deploymentStatus,
     });
 
-    await db.deployment.update({
-      where: { id: deploymentId },
-      data: {
-        status: strategy.deploymentStatus as DeploymentStatus,
-        error: strategy.userMessage,
-        // Only set completedAt if this is a permanent failure
-        buildCompletedAt: strategy.shouldRetry ? null : new Date(),
-      },
-    });
+    try {
+      await db.deployment.update({
+        where: { id: deploymentId },
+        data: {
+          status: strategy.deploymentStatus as DeploymentStatus,
+          error: strategy.userMessage,
+          buildCompletedAt: strategy.shouldRetry ? null : new Date(),
+        },
+      });
+    } catch (dbError) {
+      // Critical: we couldn't update the database. Log and re-throw to trigger alerting.
+      logger.error("Failed to update deployment status after build failure", {
+        deploymentId,
+        originalError: error instanceof Error ? error.message : String(error),
+        dbError: dbError instanceof Error ? dbError.message : String(dbError),
+      });
+      throw dbError; // Re-throw to trigger BullMQ's failure handling
+    }
 
     if (!strategy.shouldRetry) {
       await this.resetProjectStatus(db, projectId);

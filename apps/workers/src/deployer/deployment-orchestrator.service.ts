@@ -564,7 +564,10 @@ export class DeploymentOrchestrator {
         await this.runtime.stop(containerId, { timeout: 10_000 });
         await this.runtime.remove(containerId, { force: true });
       } catch (err) {
-        this.logger.warn("Failed to cleanup container", { containerId, err });
+        this.logger.error("Failed to cleanup container after deployment failure - resource leak", {
+          containerId,
+          err: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 

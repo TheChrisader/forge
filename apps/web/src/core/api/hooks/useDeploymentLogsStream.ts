@@ -49,8 +49,8 @@ type SSEMessageData =
  * Hook return value
  */
 export interface UseDeploymentLogsStreamResult {
-  /** Array of formatted log lines */
-  logs: string[];
+  /** Array of structured log entries */
+  logs: SSEDeploymentLogEntry[];
   /** Whether the SSE connection is currently active */
   isConnected: boolean;
   /** Connection error, if any */
@@ -59,13 +59,6 @@ export interface UseDeploymentLogsStreamResult {
   progress: number | undefined;
   /** Deployment status */
   status: "connecting" | "connected" | "completed" | "error" | "disconnected";
-}
-
-/**
- * Format a log entry as a string
- */
-function formatLogLine(entry: SSEDeploymentLogEntry): string {
-  return `[${entry.timestamp}] [${entry.level}] [${entry.source}] ${entry.message}`;
 }
 
 /**
@@ -114,7 +107,7 @@ export function useDeploymentLogsStream(
 ): UseDeploymentLogsStreamResult {
   const { maxLogs = 1000 } = options;
 
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<SSEDeploymentLogEntry[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [progress, setProgress] = useState<number | undefined>(undefined);
@@ -126,16 +119,16 @@ export function useDeploymentLogsStream(
   const mountedRef = useRef(true);
 
   /**
-   * Add a log line with truncation to prevent memory issues
+   * Add a log entry with truncation to prevent memory issues
    * CRITICAL: Guards against updates after unmount or completion
    */
   const addLog = useCallback(
-    (logLine: string) => {
+    (entry: SSEDeploymentLogEntry) => {
       // Don't update if unmounted or completed
       if (!mountedRef.current || completedRef.current) return;
 
       setLogs((prev) => {
-        const newLogs = [...prev, logLine];
+        const newLogs = [...prev, entry];
         if (maxLogs > 0 && newLogs.length > maxLogs) {
           return newLogs.slice(-maxLogs);
         }
@@ -186,7 +179,7 @@ export function useDeploymentLogsStream(
           case "log": {
             // New log entry
             const logEntry = data as SSEDeploymentLogEntry;
-            addLog(formatLogLine(logEntry));
+            addLog(logEntry);
 
             // Update progress if available
             if (logEntry.progress !== undefined) {
