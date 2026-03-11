@@ -1,7 +1,7 @@
 @import "@fontsource/source-code-pro/400.css" layer(base);
 @import "@fontsource/space-grotesk/400.css" layer(base);
 @import "@fontsource/space-grotesk/700.css" layer(base);
-@import "@fontsource/delius-swash-caps/400.css" layer(base);
+@import "@fontsource/jetbrains-mono/400.css" layer(base);
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -36,7 +36,7 @@
 
   --font-sans: "Source Code Pro", monospace;
   --font-serif: "Space Grotesk", serif;
-  --font-mono: "Delius Swash Caps", serif;
+  --font-mono: "JetBrains Mono", serif;
 
   --radius: 0.05rem;
 

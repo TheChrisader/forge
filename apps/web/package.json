@@ -18,6 +18,7 @@
   "dependencies": {
     "@base-ui/react": "^1.1.0",
     "@fontsource/delius-swash-caps": "^5.1.1",
+    "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/source-code-pro": "^5.1.1",
     "@fontsource/space-grotesk": "^5.1.1",
     "@forge/core": "workspace:*",

@@ -2,19 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
-import { Badge } from "@/shared/components/ui/badge";
 import { Empty } from "@/shared/components/ui/empty";
 import { EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/components/ui/empty";
-import {
-  SearchIcon,
-  ChevronDownIcon,
-  WifiIcon,
-  WifiOffIcon,
-  LoaderIcon,
-  AlertTriangleIcon,
-  InfoIcon,
-  BugIcon,
-} from "lucide-react";
+import { SearchIcon, ChevronDownIcon, WifiIcon, WifiOffIcon, LoaderIcon } from "lucide-react";
 
 interface LogsViewerProps {
   logs: Array<{
@@ -23,7 +13,6 @@ interface LogsViewerProps {
     level: string;
     source: string;
     message: string;
-    stage?: string;
     progress?: number;
   }>;
   isLoading?: boolean;
@@ -31,39 +20,6 @@ interface LogsViewerProps {
   progress?: number;
   error?: Error | null;
 }
-
-const logLevelConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-  ERROR: {
-    color: "bg-destructive/10 text-destructive",
-    icon: <AlertTriangleIcon className="size-3" />,
-    label: "Error",
-  },
-  WARN: {
-    color: "bg-warning-500/10 text-warning-700 dark:text-warning-400",
-    icon: <AlertTriangleIcon className="size-3" />,
-    label: "Warning",
-  },
-  INFO: {
-    color: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-    icon: <InfoIcon className="size-3" />,
-    label: "Info",
-  },
-  DEBUG: {
-    color: "bg-muted text-muted-foreground",
-    icon: <BugIcon className="size-3" />,
-    label: "Debug",
-  },
-  TRACE: {
-    color: "bg-muted text-muted-foreground",
-    icon: <BugIcon className="size-3" />,
-    label: "Trace",
-  },
-  FATAL: {
-    color: "bg-destructive/10 text-destructive",
-    icon: <AlertTriangleIcon className="size-3" />,
-    label: "Fatal",
-  },
-};
 
 export function LogsViewer({
   logs,
@@ -86,7 +42,11 @@ export function LogsViewer({
 
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      });
     }
   }, [logs, autoScroll]);
 
@@ -98,9 +58,11 @@ export function LogsViewer({
 
   const handleScrollToBottom = (): void => {
     setAutoScroll(true);
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    });
   };
 
   const handleDownloadLogs = (): void => {
@@ -160,8 +122,12 @@ export function LogsViewer({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b px-4 py-2">
+    <div
+      className="flex h-full flex-col relative overflow-y-auto"
+      ref={scrollRef}
+      onScroll={handleScroll}
+    >
+      <div className="flex sticky top-0 items-center gap-2 border-b px-4 py-2 bg-background">
         <div className={`flex items-center gap-1.5 text-xs ${getConnectionStatus().className}`}>
           {getConnectionStatus().icon}
           <span>{getConnectionStatus().text}</span>
@@ -208,11 +174,7 @@ export function LogsViewer({
         </div>
       )}
 
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-auto bg-muted/30 p-2 font-mono text-sm"
-        onScroll={handleScroll}
-      >
+      <div className="flex-1 bg-muted/30 p-2 font-mono text-sm">
         {filteredLogs.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <p className="text-muted-foreground">No logs match your search</p>
@@ -220,23 +182,26 @@ export function LogsViewer({
         ) : (
           <div className="space-y-0">
             {filteredLogs.map((entry, index) => {
-              const config = logLevelConfig[entry.level] || logLevelConfig.INFO;
+              const indexColumnSpacing = filteredLogs.length.toString().length / 1.75;
               return (
-                <div key={entry.lineNumber} className="flex hover:bg-muted/50">
-                  <span className="select-none pr-4 text-muted-foreground">
-                    {searchTerm ? logs.indexOf(entry) + 1 : index + 1}
-                  </span>
-                  <div className="flex-1 space-y-1">
+                <div
+                  key={`${entry.lineNumber}-${entry.timestamp}`}
+                  className="flex hover:bg-muted/50"
+                >
+                  <div
+                    className="select-none text-muted-foreground relative"
+                    style={{
+                      paddingRight: `${indexColumnSpacing}rem`,
+                    }}
+                  >
+                    <span className="absolute text-xs">
+                      {searchTerm ? logs.indexOf(entry) + 1 : index + 1}
+                    </span>
+                  </div>
+                  <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <Badge className={config.color} variant="outline">
-                        {config.icon}
-                        {config.label}
-                      </Badge>
                       <span className="text-xs text-muted-foreground">{entry.timestamp}</span>
                       <span className="text-xs text-muted-foreground">{entry.source}</span>
-                      {entry.stage && (
-                        <span className="text-xs text-muted-foreground">({entry.stage})</span>
-                      )}
                     </div>
                     <div className="whitespace-pre-wrap wrap-break-word text-foreground font-mono">
                       {entry.message || "\u00A0"}
@@ -250,7 +215,7 @@ export function LogsViewer({
       </div>
 
       {!autoScroll && (
-        <div className="border-t p-2">
+        <div className="p-2 sticky bottom-0">
           <Button variant="outline" size="sm" className="w-full" onClick={handleScrollToBottom}>
             <ChevronDownIcon />
             Back to bottom

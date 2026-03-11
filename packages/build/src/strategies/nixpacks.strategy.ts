@@ -45,8 +45,6 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
         },
       };
     } catch {
-      // No nixpacks.toml - could still be a generic project
-      // Check for any common project indicators
       const hasProjectFiles = await this.hasGenericProjectFiles(context.sourceDir);
       if (hasProjectFiles) {
         return {
@@ -102,10 +100,8 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
     const runtime = new DockerRuntime();
     const imageTag = generateImageName(context.projectName, context.deploymentId);
 
-    // Build environment variables for nixpacks
     const nixpacksEnv = this.buildNixpacksEnv(config);
 
-    // Container configuration
     const containerConfig = {
       image: config?.nixpacksImage || NIXPACKS_IMAGE,
       cmd: this.buildNixpacksCommand(context, config),
@@ -114,7 +110,6 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
         { source: this.getDockerSocketPath(), target: "/var/run/docker.sock" },
       ],
       env: nixpacksEnv,
-      // autoRemove: true,
       workingDir: "/app",
     };
 
@@ -139,7 +134,8 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
       })) {
         logs += entry.message + "\n";
         void onProgress?.({
-          type: entry.stream === "stderr" ? "error" : "log",
+          // type: entry.stream === "stderr" ? "error" : "log",
+          type: "log",
           message: entry.message,
           timestamp: entry.timestamp,
           stage: "nixpacks-build",
@@ -147,14 +143,11 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
         });
       }
 
-      // Wait for container to finish
-      // await runtime.waitForState(container.id, "exited", { timeout: 10000 }); // 10 secs
       await runtime.remove(container.id, {
         force: true,
         volumes: true,
       });
 
-      // Verify image was created
       const images = await runtime.listImages({ reference: [imageTag] });
       if (images.length === 0) {
         throw new BuildValidationError("Build completed but image not found", { strategy: "nixpacks" });

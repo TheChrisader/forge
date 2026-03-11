@@ -15,14 +15,7 @@ export function DeploymentLogsPage(): React.ReactElement {
     error: deploymentError,
   } = useDeployment(deploymentId);
 
-  const {
-    logs,
-    isLoading,
-    isStreaming,
-    error,
-    progress,
-    total: _total,
-  } = useDeploymentLogs(deploymentId);
+  const { logs, isLoading, isStreaming, error, progress } = useDeploymentLogs(deploymentId);
 
   if (deploymentLoading) {
     return (
@@ -46,20 +39,18 @@ export function DeploymentLogsPage(): React.ReactElement {
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex max-h-full flex-col">
       <div className="shrink-0">
         <LogsHeader deployment={deployment} projectId={projectId} isLoading={deploymentLoading} />
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <LogsViewer
-          logs={logs}
-          isLoading={isLoading}
-          isConnected={isStreaming}
-          progress={progress}
-          error={error}
-        />
-      </div>
+      <LogsViewer
+        logs={logs}
+        isLoading={isLoading}
+        isConnected={isStreaming}
+        progress={progress}
+        error={error}
+      />
     </div>
   );
 }
