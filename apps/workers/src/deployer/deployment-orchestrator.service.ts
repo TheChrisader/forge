@@ -10,6 +10,7 @@
 
 import type { ILogger } from "@forge/core";
 import type { PrismaClient } from "@forge/database";
+import type { LogLevel } from "@forge/types";
 import type {
   DockerRuntime,
   VolumeMount as DockerVolumeMount,
@@ -23,6 +24,19 @@ import type {
   ProjectHealthCheckConfig,
 } from "@forge/types";
 import { toPrismaJson } from "@forge/types";
+
+/**
+ * Progress callback for deployment events
+ * Called at various stages of the deployment lifecycle
+ */
+export interface DeployProgressCallback {
+  (event: {
+    message: string;
+    level?: LogLevel;
+    stage?: string;
+    progress?: number;
+  }): void | Promise<void>;
+}
 
 /**
  * Deployment data returned from Prisma query
@@ -50,6 +64,7 @@ interface InternalContainerConfig extends Omit<ContainerConfig, "volumes"> {
 
 interface DeployOptions {
   healthCheckTimeout?: number;
+  progressCallback?: DeployProgressCallback;
 }
 
 export class DeploymentOrchestrator {
@@ -58,6 +73,18 @@ export class DeploymentOrchestrator {
     private readonly runtime: DockerRuntime,
     private readonly logger: ILogger
   ) {}
+
+  private async emitProgress(
+    callback: DeployProgressCallback | undefined,
+    message: string,
+    level: LogLevel = "INFO" as LogLevel,
+    stage?: string,
+    progress?: number
+  ): Promise<void> {
+    if (callback) {
+      await callback({ message, level, stage, progress });
+    }
+  }
 
   /**
    * Orchestrates the full deployment lifecycle:
@@ -93,8 +120,32 @@ export class DeploymentOrchestrator {
       },
     });
 
+    await this.emitProgress(
+      options?.progressCallback,
+      "Starting deployment...",
+      "INFO" as LogLevel,
+      "deploy",
+      10
+    );
+
+    await this.emitProgress(
+      options?.progressCallback,
+      "Creating container...",
+      "INFO" as LogLevel,
+      "container-create",
+      25
+    );
+
     this.logger.info("Creating container", { deploymentId, image });
     const container = await this.createContainer(deployment as DeploymentData, project, image);
+
+    await this.emitProgress(
+      options?.progressCallback,
+      "Starting container...",
+      "INFO" as LogLevel,
+      "container-start",
+      50
+    );
 
     this.logger.info("Starting container", { deploymentId, containerId: container.containerId });
     await this.runtime.start(container.containerId);
@@ -103,6 +154,14 @@ export class DeploymentOrchestrator {
       where: { id: container.id },
       data: { status: "STARTING", startedAt: new Date() },
     });
+
+    await this.emitProgress(
+      options?.progressCallback,
+      "Waiting for health check...",
+      "INFO" as LogLevel,
+      "health-check",
+      75
+    );
 
     const healthCheckTimeout = options?.healthCheckTimeout ?? 120_000;
     const healthy = await this.waitForHealthy(container.containerId, healthCheckTimeout);
@@ -125,6 +184,14 @@ export class DeploymentOrchestrator {
         where: { id: container.id },
         data: { status: "HEALTHY", healthStatus: "HEALTHY" },
       });
+
+      await this.emitProgress(
+        options?.progressCallback,
+        "Deployment completed successfully",
+        "INFO" as LogLevel,
+        "complete",
+        100
+      );
 
       this.logger.info("Deployment completed successfully", {
         deploymentId,

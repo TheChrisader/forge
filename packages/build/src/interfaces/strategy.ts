@@ -18,6 +18,7 @@ export interface BuildProgressEvent {
   stage?: string;
   /** Progress percentage 0-100 */
   progress?: number;
+  log?: boolean;
 }
 
 export interface BuildContext {

@@ -7,7 +7,7 @@ import type { LoggerConfig as CoreLoggerConfig } from "@forge/core";
 /**
  * Re-export core logger configuration
  */
-export type { LogLevel } from "@forge/core";
+export type { LogLevel } from "@forge/types";
 export type { LogContext, ILogger, LoggerConfig as CoreLoggerConfig } from "@forge/core";
 
 /**

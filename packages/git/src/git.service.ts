@@ -8,7 +8,13 @@ import * as path from "node:path";
 import * as os from "node:os";
 import * as crypto from "node:crypto";
 import simpleGit, { SimpleGit } from "simple-git";
-import type { GitCloneOptions, GitPullOptions, GitAuth, CommitInfo } from "./types.js";
+import type {
+  GitCloneOptions,
+  GitPullOptions,
+  GitAuth,
+  CommitInfo,
+  GitProgressCallback,
+} from "./types.js";
 import { GitCloneError, GitAuthError, GitNotFoundError, GitNetworkError } from "./errors.js";
 
 const CLONE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -128,7 +134,17 @@ export class GitService {
   }
 
   async clone(options: GitCloneOptions): Promise<string> {
-    const { url, branch, depth, destinationPath, auth } = options;
+    const { url, branch, depth, destinationPath, auth, onProgress } = options;
+
+    // Emit auth setup progress
+    if (auth) {
+      void onProgress?.({
+        type: "stage",
+        message: `Configuring ${auth.type} authentication...`,
+        timestamp: new Date(),
+        stage: "git-auth",
+      });
+    }
 
     let effectiveUrl = url;
     if (auth && auth.type !== "ssh") {
@@ -138,18 +154,36 @@ export class GitService {
     let sshKeyPath: string | undefined;
     if (auth?.type === "ssh" && auth.credentials?.privateKey) {
       sshKeyPath = await this.createSshKeyEnv(auth.credentials.privateKey);
+      void onProgress?.({
+        type: "log",
+        message: "SSH key configured",
+        timestamp: new Date(),
+        stage: "git-auth",
+      });
     }
 
     try {
       const parentDir = path.dirname(destinationPath);
       await fs.mkdir(parentDir, { recursive: true });
+      void onProgress?.({
+        type: "log",
+        message: "Starting clone operation...",
+        timestamp: new Date(),
+        stage: "git-clone",
+      });
 
       const git: SimpleGit = simpleGit({
         baseDir: parentDir,
         progress: (data) => {
-          // Optional: Log progress
+          // Forward simple-git progress to onProgress
           if (data.stage) {
-            console.log(`[Git] ${data.stage}: ${data.progress}%`);
+            void onProgress?.({
+              type: "log",
+              message: `Git: ${data.stage}${data.progress ? ` (${data.progress}%)` : ""}`,
+              timestamp: new Date(),
+              stage: "git-clone",
+              progress: data.progress ? Number(data.progress) : undefined,
+            });
           }
         },
         timeout: {
@@ -189,8 +223,24 @@ export class GitService {
         }
       }
 
+      // Emit completion
+      void onProgress?.({
+        type: "complete",
+        message: "Repository cloned successfully",
+        timestamp: new Date(),
+        stage: "git-clone",
+        progress: 100,
+      });
+
       return path.resolve(destinationPath);
     } catch (error) {
+      // Emit error before throwing
+      void onProgress?.({
+        type: "error",
+        message: `Clone failed: ${(error as Error).message}`,
+        timestamp: new Date(),
+        stage: "git-clone",
+      });
       throw parseGitError(error as Error);
     } finally {
       if (sshKeyPath) {
@@ -200,7 +250,14 @@ export class GitService {
   }
 
   async pull(options: GitPullOptions): Promise<void> {
-    const { repoPath, branch, auth } = options;
+    const { repoPath, branch, auth, onProgress } = options;
+
+    void onProgress?.({
+      type: "stage",
+      message: "Starting pull operation...",
+      timestamp: new Date(),
+      stage: "git-pull",
+    });
 
     let effectiveUrl: string | undefined;
     if (auth) {
@@ -229,11 +286,33 @@ export class GitService {
       }
 
       try {
+        // Emit fetch progress
+        void onProgress?.({
+          type: "log",
+          message: "Fetching from remote...",
+          timestamp: new Date(),
+          stage: "git-fetch",
+        });
+
         if (branch) {
           await git.checkout(["-b", branch, `origin/${branch}`]);
+          void onProgress?.({
+            type: "log",
+            message: `Created branch: ${branch}`,
+            timestamp: new Date(),
+            stage: "git-checkout",
+          });
         }
 
         await git.pull();
+
+        void onProgress?.({
+          type: "complete",
+          message: "Pull completed successfully",
+          timestamp: new Date(),
+          stage: "git-pull",
+          progress: 100,
+        });
       } finally {
         if (sshEnv.GIT_SSH_COMMAND) {
           if (originalEnv.GIT_SSH_COMMAND) {
@@ -244,6 +323,12 @@ export class GitService {
         }
       }
     } catch (error) {
+      void onProgress?.({
+        type: "error",
+        message: `Pull failed: ${(error as Error).message}`,
+        timestamp: new Date(),
+        stage: "git-pull",
+      });
       throw parseGitError(error as Error);
     } finally {
       if (sshKeyPath) {
@@ -299,30 +384,82 @@ export class GitService {
     }
   }
 
-  async checkout(repoPath: string, branch: string): Promise<void> {
+  async checkout(
+    repoPath: string,
+    branch: string,
+    onProgress?: GitProgressCallback
+  ): Promise<void> {
     try {
       const git: SimpleGit = simpleGit(repoPath);
 
       const branches = await git.branchLocal();
       const localBranchExists = branches.all.includes(branch);
 
+      void onProgress?.({
+        type: "stage",
+        message: localBranchExists
+          ? `Switching to branch: ${branch}`
+          : `Creating branch: ${branch}`,
+        timestamp: new Date(),
+        stage: "git-checkout",
+      });
+
       if (localBranchExists) {
         await git.checkout(branch);
       } else {
         await git.checkout(["-b", branch, `origin/${branch}`]);
       }
+
+      void onProgress?.({
+        type: "complete",
+        message: `Now on branch: ${branch}`,
+        timestamp: new Date(),
+        stage: "git-checkout",
+        progress: 100,
+      });
     } catch (error) {
+      void onProgress?.({
+        type: "error",
+        message: `Checkout failed: ${(error as Error).message}`,
+        timestamp: new Date(),
+        stage: "git-checkout",
+      });
       throw new GitCloneError(`Failed to checkout branch: ${branch}`, {
         originalError: (error as Error).message,
       });
     }
   }
 
-  async checkoutCommit(repoPath: string, sha: string): Promise<void> {
+  async checkoutCommit(
+    repoPath: string,
+    sha: string,
+    onProgress?: GitProgressCallback
+  ): Promise<void> {
     try {
+      void onProgress?.({
+        type: "stage",
+        message: `Checking out commit ${sha.substring(0, 7)}...`,
+        timestamp: new Date(),
+        stage: "git-checkout",
+      });
+
       const git: SimpleGit = simpleGit(repoPath);
       await git.checkout(sha);
+
+      void onProgress?.({
+        type: "complete",
+        message: "Commit checked out successfully",
+        timestamp: new Date(),
+        stage: "git-checkout",
+        progress: 100,
+      });
     } catch (error) {
+      void onProgress?.({
+        type: "error",
+        message: `Checkout failed: ${(error as Error).message}`,
+        timestamp: new Date(),
+        stage: "git-checkout",
+      });
       throw new GitCloneError(`Failed to checkout commit: ${sha}`, {
         originalError: (error as Error).message,
       });

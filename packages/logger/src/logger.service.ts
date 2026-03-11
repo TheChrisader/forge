@@ -6,7 +6,8 @@
  */
 
 import pino from "pino";
-import type { ILogger, LogContext, LogLevel } from "@forge/core";
+import type { ILogger, LogContext } from "@forge/core";
+import type { LogLevel } from "@forge/types";
 import type { LoggerConfig } from "./types";
 import { LoggerConfigError, LoggerOperationError } from "./errors";
 
@@ -19,7 +20,7 @@ function validateConfig(config: LoggerConfig): void {
 
   if (!config.level) {
     errors.push("level is required");
-  } else if (!["trace", "debug", "info", "warn", "error", "fatal"].includes(config.level)) {
+  } else if (!["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"].includes(config.level)) {
     errors.push(
       `level must be one of: trace, debug, info, warn, error, fatal. Got: ${config.level}`
     );
@@ -193,7 +194,7 @@ export class LoggerService implements ILogger {
    * Set the log level dynamically
    */
   setLevel(level: LogLevel): void {
-    if (!["trace", "debug", "info", "warn", "error", "fatal"].includes(level)) {
+    if (!["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"].includes(level)) {
       throw new LoggerConfigError(
         `Invalid log level: ${level}. Must be one of: trace, debug, info, warn, error, fatal`
       );

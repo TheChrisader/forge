@@ -1,6 +1,5 @@
 import { useParams } from "@tanstack/react-router";
-import { useDeployment } from "@/core/api/hooks/useDeployments";
-import { useDeploymentLogsStream } from "@/core/api/hooks/useDeploymentLogsStream";
+import { useDeployment, useDeploymentLogs } from "@/core/api/hooks/useDeployments";
 import { LogsHeader } from "../components/LogsHeader";
 import { LogsViewer } from "../components/LogsViewer";
 import { LoaderIcon } from "lucide-react";
@@ -16,7 +15,14 @@ export function DeploymentLogsPage(): React.ReactElement {
     error: deploymentError,
   } = useDeployment(deploymentId);
 
-  const { logs, isConnected, progress, error: streamError } = useDeploymentLogsStream(deploymentId);
+  const {
+    logs,
+    isLoading,
+    isStreaming,
+    error,
+    progress,
+    total: _total,
+  } = useDeploymentLogs(deploymentId);
 
   if (deploymentLoading) {
     return (
@@ -46,7 +52,13 @@ export function DeploymentLogsPage(): React.ReactElement {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <LogsViewer logs={logs} isConnected={isConnected} progress={progress} error={streamError} />
+        <LogsViewer
+          logs={logs}
+          isLoading={isLoading}
+          isConnected={isStreaming}
+          progress={progress}
+          error={error}
+        />
       </div>
     </div>
   );

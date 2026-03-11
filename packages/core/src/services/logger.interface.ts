@@ -5,7 +5,7 @@
  * All loggers must implement this interface to ensure consistent logging behavior.
  */
 
-import type { LogLevel } from "../config";
+import type { LogLevel } from "@forge/types";
 
 /**
  * Log entry context data

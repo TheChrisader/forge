@@ -25,8 +25,8 @@ export class ConfigValidator {
       }
 
       if (
-        config.observability.logs.level === "debug" ||
-        config.observability.logs.level === "trace"
+        config.observability.logs.level === "DEBUG" ||
+        config.observability.logs.level === "TRACE"
       ) {
         warnings.push("Verbose logging enabled in production may impact performance");
       }

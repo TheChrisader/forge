@@ -1,5 +1,5 @@
 import { apiClient } from "../client";
-import type { Deployment } from "@forge/types";
+import type { Deployment, DeploymentLogsResponse, DeploymentLogsQuery } from "@forge/types";
 
 export interface CreateDeploymentRequest {
   gitBranch?: string;
@@ -56,7 +56,7 @@ export const deploymentsApi = {
     return apiClient.post(`/api/deployments/${id}/cancel`);
   },
 
-  getLogs: async (id: string): Promise<{ data: { logs: string } }> => {
-    return apiClient.get(`/api/deployments/${id}/logs`);
+  getLogs: async (id: string, params?: DeploymentLogsQuery): Promise<DeploymentLogsResponse> => {
+    return apiClient.get(`/api/deployments/${id}/logs`, { params });
   },
 };

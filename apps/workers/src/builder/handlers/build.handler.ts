@@ -1,5 +1,5 @@
 import { getDatabaseClient, type PrismaClient } from "@forge/database";
-import { GitService } from "@forge/git";
+import { GitService, type GitProgressCallback } from "@forge/git";
 import {
   getBuildStrategyRegistry,
   registerDefaultStrategies,
@@ -35,6 +35,10 @@ import { BuildErrorHandler } from "../error-handling/handler.js";
 import { BuildMetricsService } from "../metrics/service.js";
 import { PriorityLogBuffer, parseBufferSize, parseErrorSlotReserve } from "./log-buffer.js";
 import { FlushManager, createFlushManagerOptions } from "./flush-manager.js";
+import {
+  emitProgress as sharedEmitProgress,
+  initializeLineNumberRef,
+} from "../../utils/progress-emitter.js";
 
 const logger = new LoggerService({
   level: (process.env.LOG_LEVEL as CoreLogLevel) ?? "info",
@@ -88,79 +92,38 @@ function mapProgressTypeToLogLevel(type: string): LogLevel {
   }
 }
 
-interface EmitProgressOptions {
-  message: string;
-  level?: LogLevel;
-  stage?: string;
-  progress?: number;
-}
-
 /**
- * Helper function to emit progress events through BullMQ and buffer for database logging
- * Creates a single source of truth for progress emissions
+ * Create a git progress callback that routes events through the build handler's
+ * progress infrastructure (BullMQ, console, and database buffer)
  *
  * @param context - BullMQ job context
  * @param deploymentId - Deployment ID for log entries
  * @param logBuffer - Priority log buffer for database batching
  * @param lineNumberRef - Reference to line number counter
- * @param options - Progress event options
- * @returns Promise that resolves when progress is emitted
+ * @returns GitProgressCallback function
  */
-async function emitProgress(
+function createGitProgressCallback(
   context: IJobContext<BuildJobData>,
   deploymentId: string,
   logBuffer: PriorityLogBuffer,
-  lineNumberRef: { value: number },
-  options: EmitProgressOptions
-): Promise<void> {
-  const lineNum = lineNumberRef.value++;
-  const logLevel = (options.level ?? "INFO") as LogLevel;
-
-  // Emit to BullMQ for real-time streaming (always happens)
-  await context.updateProgress({
-    type: "deployment.log",
-    deploymentId,
-    data: {
-      lineNumber: lineNum,
-      timestamp: new Date().toISOString(),
-      level: logLevel,
-      source: "BUILD",
-      message: options.message,
-      stage: options.stage,
-      progress: options.progress,
-    },
-  });
-
-  // Console logging (always happens)
-  logger.info(options.message, {
-    deploymentId,
-    type: options.stage ?? "log",
-    stage: options.stage,
-    progress: options.progress,
-    level: logLevel,
-  });
-
-  // Buffer with backpressure - may drop logs under high volume
-  const accepted = logBuffer.push({
-    deploymentId,
-    lineNumber: lineNum,
-    timestamp: new Date(),
-    level: logLevel,
-    message: options.message,
-    source: "BUILD" as BuildLogSource,
-  });
-
-  if (!accepted) {
-    // Log dropped - buffer full
-    const stats = logBuffer.getStats();
-    logger.warn("Build log dropped due to buffer full", {
+  lineNumberRef: { value: number }
+): GitProgressCallback {
+  return (event) => {
+    void sharedEmitProgress(
+      context,
       deploymentId,
-      level: logLevel,
-      message: options.message,
-      bufferUtilization: stats.utilizationPercent.toFixed(1),
-      droppedCount: stats.droppedCount,
-    });
-  }
+      logBuffer,
+      lineNumberRef,
+      "BUILD" as BuildLogSource,
+      logger,
+      {
+        message: event.message,
+        level: event.type === "error" ? "ERROR" : "INFO",
+        stage: event.stage ?? "git",
+        progress: event.progress,
+      }
+    );
+  };
 }
 
 async function acquireFromLocal(
@@ -171,10 +134,18 @@ async function acquireFromLocal(
   logBuffer: PriorityLogBuffer,
   lineNumberRef: { value: number }
 ): Promise<void> {
-  await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
-    message: `Copying files from local path: ${sourcePath}...`,
-    stage: "local-copy",
-  });
+  await sharedEmitProgress(
+    context,
+    deploymentId,
+    logBuffer,
+    lineNumberRef,
+    "BUILD" as BuildLogSource,
+    logger,
+    {
+      message: `Copying files from local path: ${sourcePath}...`,
+      stage: "local-copy",
+    }
+  );
 
   try {
     const stats = await fs.stat(sourcePath);
@@ -194,10 +165,18 @@ async function acquireFromLocal(
       },
     });
 
-    await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
-      message: "Local files copied successfully",
-      stage: "local-copy",
-    });
+    await sharedEmitProgress(
+      context,
+      deploymentId,
+      logBuffer,
+      lineNumberRef,
+      "BUILD" as BuildLogSource,
+      logger,
+      {
+        message: "Local files copied successfully",
+        stage: "local-copy",
+      }
+    );
   } catch (error) {
     if (error instanceof ForgeError) {
       throw error;
@@ -217,10 +196,18 @@ async function handlePreBuiltImage(
 
   logger.info("Processing pre-built image", { deploymentId, imageUrl });
 
-  await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
-    message: "Validating pre-built image...",
-    stage: "image-validation",
-  });
+  await sharedEmitProgress(
+    context,
+    deploymentId,
+    logBuffer,
+    lineNumberRef,
+    "BUILD" as BuildLogSource,
+    logger,
+    {
+      message: "Validating pre-built image...",
+      stage: "image-validation",
+    }
+  );
 
   if (!imageUrl || !imageUrl.includes("/")) {
     throw new ImageValidationError(
@@ -229,11 +216,19 @@ async function handlePreBuiltImage(
     );
   }
 
-  await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
-    message: `Image validated: ${imageUrl}`,
-    stage: "image-validation",
-    progress: 100,
-  });
+  await sharedEmitProgress(
+    context,
+    deploymentId,
+    logBuffer,
+    lineNumberRef,
+    "BUILD" as BuildLogSource,
+    logger,
+    {
+      message: `Image validated: ${imageUrl}`,
+      stage: "image-validation",
+      progress: 100,
+    }
+  );
 
   await db.deployment.update({
     where: { id: deploymentId },
@@ -302,7 +297,13 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     errorSlotReserve,
   });
 
-  const lineNumberRef = { value: 0 };
+  // Initialize line number ref (starts at 0 for new deployments)
+  const lineNumberRef = await initializeLineNumberRef(buildLogService, deploymentId);
+
+  logger.info("Build handler initialized", {
+    deploymentId,
+    startingLineNumber: lineNumberRef.value,
+  });
 
   // Configure flush manager with retry and circuit breaker
   const flushManagerOptions = createFlushManagerOptions();
@@ -343,6 +344,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     });
 
     let sourceDir: string;
+    let gitProgressCallback: GitProgressCallback;
 
     switch (sourceType) {
       case ProjectSourceType.GIT:
@@ -352,12 +354,21 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
           branch: context.job.data.branch,
           repoPath,
         });
+
+        gitProgressCallback = createGitProgressCallback(
+          context,
+          deploymentId,
+          logBuffer,
+          lineNumberRef
+        );
+
         await withTimeout(
           gitService.clone({
             url: context.job.data.gitUrl ?? "",
             branch: context.job.data.branch,
             destinationPath: repoPath,
             depth: 1,
+            onProgress: gitProgressCallback,
           }),
           TIMEOUTS.GIT_CLONE,
           "Git clone"
@@ -368,7 +379,11 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
             deploymentId,
             gitCommit: context.job.data.gitCommit,
           });
-          await gitService.checkoutCommit(repoPath, context.job.data.gitCommit);
+          await gitService.checkoutCommit(
+            repoPath,
+            context.job.data.gitCommit,
+            gitProgressCallback
+          );
           logger.info("Checked out specific commit successfully", { deploymentId });
         }
 
@@ -462,18 +477,35 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     });
     logger.info("Project updated with framework info", { deploymentId, projectId });
 
-    await emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
-      message: "Starting build process...",
-      stage: "build",
-    });
+    await sharedEmitProgress(
+      context,
+      deploymentId,
+      logBuffer,
+      lineNumberRef,
+      "BUILD" as BuildLogSource,
+      logger,
+      {
+        message: "Starting build process...",
+        stage: "build",
+      }
+    );
 
     const progressCallback: BuildProgressCallback = (event) => {
-      void emitProgress(context, deploymentId, logBuffer, lineNumberRef, {
-        message: event.message,
-        level: mapProgressTypeToLogLevel(event.type),
-        stage: event.stage,
-        progress: event.progress,
-      });
+      void sharedEmitProgress(
+        context,
+        deploymentId,
+        logBuffer,
+        lineNumberRef,
+        "BUILD" as BuildLogSource,
+        logger,
+        {
+          message: event.message,
+          level: mapProgressTypeToLogLevel(event.type),
+          stage: event.stage,
+          progress: event.progress,
+          log: event.log,
+        }
+      );
     };
 
     const result = await withTimeout(

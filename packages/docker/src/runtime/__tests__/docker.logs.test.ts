@@ -21,10 +21,11 @@ describe("DockerRuntime.logs - log parsing", () => {
 
   describe("non-follow mode", () => {
     it("parses a single stdout log frame", async () => {
-      // Docker log frame: [stream_type(1)][payload_length(4)][payload]
+      // Docker log frame: [stream_type(1)][3 padding bytes][payload_length(4)][payload]
       const message = "Building...\n";
       const frame = Buffer.concat([
         Buffer.from([1]), // stdout = 1
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, message.length]), // payload length as big-endian uint32
         Buffer.from(message),
       ]);
@@ -45,6 +46,7 @@ describe("DockerRuntime.logs - log parsing", () => {
       const message = "Error: build failed\n";
       const frame = Buffer.concat([
         Buffer.from([2]), // stderr = 2
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, message.length]),
         Buffer.from(message),
       ]);
@@ -67,12 +69,14 @@ describe("DockerRuntime.logs - log parsing", () => {
 
       const frame1 = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, msg1.length]),
         Buffer.from(msg1),
       ]);
 
       const frame2 = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, msg2.length]),
         Buffer.from(msg2),
       ]);
@@ -93,6 +97,7 @@ describe("DockerRuntime.logs - log parsing", () => {
       const message = "Line 1\n\n\nLine 2\n";
       const frame = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, message.length]),
         Buffer.from(message),
       ]);
@@ -121,18 +126,21 @@ describe("DockerRuntime.logs - log parsing", () => {
 
       const frame1 = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, msg1.length]),
         Buffer.from(msg1),
       ]);
 
       const frame2 = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, msg2.length]),
         Buffer.from(msg2),
       ]);
 
       const frame3 = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, msg3.length]),
         Buffer.from(msg3),
       ]);
@@ -158,13 +166,14 @@ describe("DockerRuntime.logs - log parsing", () => {
       const message = "This is a long log message that spans chunks\n";
       const completeFrame = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, message.length]),
         Buffer.from(message),
       ]);
 
-      // Split at an arbitrary point in the middle
-      const chunk1 = completeFrame.subarray(0, 12);
-      const chunk2 = completeFrame.subarray(12);
+      // Split at an arbitrary point in the middle (after the 8-byte header)
+      const chunk1 = completeFrame.subarray(0, 15);
+      const chunk2 = completeFrame.subarray(15);
 
       const mockStream = Readable.from([chunk1, chunk2]);
       mockContainer.logs.mockResolvedValue(mockStream);
@@ -188,12 +197,14 @@ describe("DockerRuntime.logs - log parsing", () => {
 
       const frame1 = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, msg1.length]),
         Buffer.from(msg1),
       ]);
 
       const frame2 = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, msg2.length]),
         Buffer.from(msg2),
       ]);
@@ -201,6 +212,7 @@ describe("DockerRuntime.logs - log parsing", () => {
       // Start of third frame, but cut off mid-payload
       const partialFrameStart = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, partialMsg.length]),
         Buffer.from(partialMsg.slice(0, 10)),
       ]);
@@ -230,12 +242,14 @@ describe("DockerRuntime.logs - log parsing", () => {
 
       const stdoutFrame = Buffer.concat([
         Buffer.from([1]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, stdoutMsg.length]),
         Buffer.from(stdoutMsg),
       ]);
 
       const stderrFrame = Buffer.concat([
         Buffer.from([2]),
+        Buffer.from([0, 0, 0]), // 3 padding bytes
         Buffer.from([0, 0, 0, stderrMsg.length]),
         Buffer.from(stderrMsg),
       ]);

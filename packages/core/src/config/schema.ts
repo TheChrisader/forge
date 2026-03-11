@@ -3,7 +3,7 @@ import { z } from "zod";
 export const EnvironmentSchema = z.enum(["development", "production", "test", "staging"]);
 export type Environment = z.infer<typeof EnvironmentSchema>;
 
-export const LogLevelSchema = z.enum(["trace", "debug", "info", "warn", "error", "fatal"]);
+export const LogLevelSchema = z.enum(["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"]);
 export type LogLevel = z.infer<typeof LogLevelSchema>;
 
 export const ServerConfigSchema = z.object({
@@ -116,7 +116,7 @@ export const ProxyConfigSchema = z.object({
 export const ObservabilityConfigSchema = z.object({
   logs: z.object({
     enabled: z.boolean().default(true),
-    level: LogLevelSchema.default("info"),
+    level: LogLevelSchema.default("INFO"),
     retention: z.string().default("30d"),
     format: z.enum(["json", "pretty"]).default("json"),
   }),

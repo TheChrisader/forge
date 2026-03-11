@@ -451,8 +451,8 @@ export class DockerRuntime implements IContainerRuntime {
           let offset = 0;
           while (offset + headerSize <= buffer.length) {
             const streamType = buffer[offset];
-            const payloadLength = buffer.readUInt32BE(offset + 1);
-            const payloadStart = offset + 1 + 4;
+            const payloadLength = buffer.readUInt32BE(offset + 4);
+            const payloadStart = offset + 8;
             const payloadEnd = payloadStart + payloadLength;
 
             if (payloadEnd > buffer.length) {
@@ -466,7 +466,7 @@ export class DockerRuntime implements IContainerRuntime {
             for (const line of lines) {
               yield this.parseLogLine(
                 line,
-                options?.timestamps,
+                followOptions?.timestamps,
                 streamType === 1 ? "stdout" : "stderr"
               );
             }
@@ -497,13 +497,13 @@ export class DockerRuntime implements IContainerRuntime {
 
       let offset = 0;
       while (offset < logBuffer.length) {
-        // Docker log frame format: [stream_type(1)][payload_length(4)][payload(N)]
+        // Docker log frame format: [stream_type(1)][3 padding bytes][payload_length(4)][payload(N)]
         const headerSize = 8;
         if (offset + headerSize > logBuffer.length) break;
 
         const streamType = logBuffer[offset];
-        const payloadLength = logBuffer.readUInt32BE(offset + 1);
-        const payloadStart = offset + 1 + 4;
+        const payloadLength = logBuffer.readUInt32BE(offset + 4);
+        const payloadStart = offset + 8;
         const payloadEnd = payloadStart + payloadLength;
 
         if (payloadEnd > logBuffer.length) break;
@@ -515,7 +515,7 @@ export class DockerRuntime implements IContainerRuntime {
         for (const line of lines) {
           yield this.parseLogLine(
             line,
-            options?.timestamps,
+            nonFollowOptions?.timestamps,
             streamType === 1 ? "stdout" : "stderr"
           );
         }

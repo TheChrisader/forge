@@ -102,13 +102,6 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
     const runtime = new DockerRuntime();
     const imageTag = generateImageName(context.projectName, context.deploymentId);
 
-    void onProgress?.({
-      type: "stage",
-      message: "Starting nixpacks build...",
-      timestamp: new Date(),
-      stage: "init",
-    });
-
     // Build environment variables for nixpacks
     const nixpacksEnv = this.buildNixpacksEnv(config);
 
@@ -150,6 +143,7 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
           message: entry.message,
           timestamp: entry.timestamp,
           stage: "nixpacks-build",
+          log: false
         });
       }
 
@@ -169,13 +163,6 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
       const imageId = images[0].id;
 
       adapter.emitComplete(imageId);
-
-      void onProgress?.({
-        type: "complete",
-        message: `Build complete. Image: ${imageId.slice(0, 12)}`,
-        timestamp: new Date(),
-        progress: 100,
-      });
 
       return {
         success: true,

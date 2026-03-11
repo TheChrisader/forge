@@ -43,8 +43,32 @@ export class BuildLogModule implements ServiceModule {
 
     const queueService = container.resolveSync<QueueService>(SERVICE_KEY_STRINGS.QUEUE);
     const buildQueue = queueService.getQueue("build");
+    const deployQueue = queueService.getQueue("deploy");
 
+    // Listen to build queue progress events
     queueService.onProgress("build", (...args: unknown[]) => {
+      // BullMQ v5 passes { jobId: string, data: JobProgress } as first arg
+      const eventArgs = args[0] as { jobId: string; data: unknown } | undefined;
+      const progress = eventArgs?.data;
+
+      if (
+        progress &&
+        typeof progress === "object" &&
+        "type" in progress &&
+        progress.type === "deployment.log"
+      ) {
+        const deploymentLog = progress as DeploymentLogProgress;
+
+        this.sseManager?.publish(`deployment:${deploymentLog.deploymentId}`, {
+          id: String(deploymentLog.data.lineNumber),
+          event: "log",
+          data: deploymentLog.data,
+        });
+      }
+    });
+
+    // Listen to deploy queue progress events
+    queueService.onProgress("deploy", (...args: unknown[]) => {
       // BullMQ v5 passes { jobId: string, data: JobProgress } as first arg
       const eventArgs = args[0] as { jobId: string; data: unknown } | undefined;
       const progress = eventArgs?.data;
@@ -104,6 +128,56 @@ export class BuildLogModule implements ServiceModule {
               event: "error",
               data: {
                 message: eventArgs.failedReason || "Build failed",
+              },
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to fetch job ${eventArgs.jobId} on failure:`, error);
+        }
+      })();
+    });
+
+    // Deploy queue completed handler
+    queueService.onCompleted("deploy", (...args: unknown[]) => {
+      const eventArgs = args[0] as { jobId: string; returnvalue: string } | undefined;
+      if (!eventArgs) return;
+
+      void (async (): Promise<void> => {
+        try {
+          // Use the queue adapter's getJob method (abstraction layer)
+          const job = await deployQueue.getJob(eventArgs.jobId);
+
+          if (job?.data && typeof job.data === "object" && "deploymentId" in job.data) {
+            const jobData = job.data as Record<string, unknown>;
+            const deploymentId = jobData.deploymentId as string;
+            this.sseManager?.publish(`deployment:${deploymentId}`, {
+              event: "completed",
+              data: { status: "SUCCEEDED" },
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to fetch job ${eventArgs.jobId} on completion:`, error);
+        }
+      })();
+    });
+
+    // Deploy queue failed handler
+    queueService.onFailed("deploy", (...args: unknown[]) => {
+      const eventArgs = args[0] as { jobId: string; failedReason: string } | undefined;
+      if (!eventArgs) return;
+
+      void (async (): Promise<void> => {
+        try {
+          // Use the queue adapter's getJob method (abstraction layer)
+          const job = await deployQueue.getJob(eventArgs.jobId);
+
+          if (job?.data && typeof job.data === "object" && "deploymentId" in job.data) {
+            const jobData = job.data as Record<string, unknown>;
+            const deploymentId = jobData.deploymentId as string;
+            this.sseManager?.publish(`deployment:${deploymentId}`, {
+              event: "error",
+              data: {
+                message: eventArgs.failedReason || "Deployment failed",
               },
             });
           }
