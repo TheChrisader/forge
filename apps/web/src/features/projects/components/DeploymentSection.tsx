@@ -174,7 +174,7 @@ export function DeploymentSection({
               variant="outline"
               size="sm"
               onClick={() => {
-                void router.navigate({ to: "/deployments" });
+                void router.navigate({ to: `/projects/${project.id}/deployments` });
               }}
             >
               View All

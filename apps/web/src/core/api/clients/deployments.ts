@@ -9,7 +9,9 @@ export interface CreateDeploymentRequest {
 
 export interface DeploymentListParams {
   projectId?: string;
-  status?: string;
+  status?: string[];
+  strategy?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }
@@ -21,9 +23,16 @@ export const deploymentsApi = {
     data: Deployment[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> => {
-    const cleanParams = Object.fromEntries(
-      Object.entries(params ?? {}).filter(([_, v]) => v !== undefined)
-    ) as Record<string, string | number | boolean | string[]>;
+    const cleanParams: Record<string, string | number> = {};
+
+    if (params?.projectId) cleanParams.projectId = params.projectId;
+    if (params?.status && Array.isArray(params.status)) {
+      cleanParams.status = params.status.join(",");
+    }
+    if (params?.strategy) cleanParams.strategy = params.strategy;
+    if (params?.search) cleanParams.search = params.search;
+    if (params?.page) cleanParams.page = params.page;
+    if (params?.limit) cleanParams.limit = params.limit;
 
     return apiClient.get("/api/deployments", { params: cleanParams });
   },

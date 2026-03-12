@@ -67,6 +67,12 @@ const deploymentLogsRoute = createRoute({
   component: DeploymentLogsPage,
 });
 
+const projectDeploymentsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "/projects/$projectId/deployments",
+  component: DeploymentsPage,
+});
+
 const projectSettingsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: "/projects/$projectId/settings",
@@ -77,12 +83,6 @@ const servicesRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: "/services",
   component: ServicesPage,
-});
-
-const deploymentsRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "/deployments",
-  component: DeploymentsPage,
 });
 
 const imagesRoute = createRoute({
@@ -134,9 +134,9 @@ const routeTree = rootRoute.addChildren([
     projectsRoute,
     projectDetailRoute,
     deploymentLogsRoute,
+    projectDeploymentsRoute,
     projectSettingsRoute,
     servicesRoute,
-    deploymentsRoute,
     imagesRoute,
     containerDetailRoute,
     containerLogsRoute,
@@ -147,7 +147,7 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-export const router = createRouter({ routeTree });
+export const router = createRouter({ routeTree, disableGlobalCatchBoundary: true });
 
 declare module "@tanstack/react-router" {
   interface Register {

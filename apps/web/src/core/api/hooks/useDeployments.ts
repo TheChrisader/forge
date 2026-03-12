@@ -17,7 +17,7 @@ export const deploymentKeys = {
 
 export function useDeployments(params?: {
   projectId?: string;
-  status?: string;
+  status?: string[];
   page?: number;
   limit?: number;
 }): ReturnType<typeof useQuery> {
@@ -36,6 +36,29 @@ export function useProjectDeployments(
       const response = await deploymentsApi.getByProject(projectId);
       return response.data;
     },
+    enabled: !!projectId,
+    refetchInterval: 2000,
+  });
+}
+
+export function useProjectDeploymentsWithFilters(
+  projectId: string,
+  filters?: {
+    status?: string[];
+    strategy?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }
+): ReturnType<
+  typeof useQuery<{
+    data: Deployment[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }>
+> {
+  return useQuery({
+    queryKey: [...deploymentKeys.byProject(projectId), filters],
+    queryFn: () => deploymentsApi.getAll({ projectId, ...filters }),
     enabled: !!projectId,
     refetchInterval: 2000,
   });

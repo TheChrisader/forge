@@ -8,8 +8,8 @@ import {
 import { QueueService } from "@forge/queue";
 import {
   Deployment,
-  DeploymentStatusSchema,
   type DeploymentStatus,
+  type DeploymentStrategy,
   type BuildJobData,
   ProjectSourceType,
   ProjectConfigSchema,
@@ -67,9 +67,12 @@ export class DeploymentService implements IDeploymentService {
     private readonly queueService: QueueService
   ) {}
 
+  // TODO: Search implementation needs to be added properly
   async list(filters?: {
     projectId?: string;
-    status?: DeploymentStatus;
+    status?: DeploymentStatus | DeploymentStatus[];
+    strategy?: DeploymentStrategy | DeploymentStrategy[];
+    search?: string;
     page?: number;
     limit?: number;
   }): Promise<{ deployments: Deployment[]; total: number }> {
@@ -79,20 +82,35 @@ export class DeploymentService implements IDeploymentService {
 
     const where: {
       projectId?: string;
-      status?: DeploymentStatus;
+      status?: { in: DeploymentStatus[] };
+      strategy?: { in: DeploymentStrategy[] };
+      id?: {
+        in: [string];
+      };
     } = {};
 
     if (filters?.projectId) {
       where.projectId = filters.projectId;
     }
 
-    if (filters?.status) {
-      const result = DeploymentStatusSchema.safeParse(filters.status);
-      if (result.success) {
-        where.status = result.data;
-      } else {
-        throw new BadRequestError(`Invalid deployment status: ${filters.status}`);
+    if (filters?.status !== undefined) {
+      const statusArray = Array.isArray(filters.status) ? filters.status : [filters.status];
+      if (statusArray.length > 0) {
+        where.status = { in: statusArray };
       }
+    }
+
+    if (filters?.strategy !== undefined) {
+      const strategyArray = Array.isArray(filters.strategy) ? filters.strategy : [filters.strategy];
+      if (strategyArray.length > 0) {
+        where.strategy = { in: strategyArray };
+      }
+    }
+
+    if (filters?.search !== undefined) {
+      // where.id = {
+      //   in: [filters.search],
+      // };
     }
 
     const [deployments, total] = await Promise.all([

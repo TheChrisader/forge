@@ -20,6 +20,8 @@ import {
   PaginatedResponseSchema,
   DeploymentLogsQuerySchema,
   DeploymentLogsResponseSchema,
+  DeploymentStatus,
+  DeploymentStrategy,
 } from "@forge/types";
 
 const DeploymentIdParamsSchema = z.object({
@@ -65,14 +67,28 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
 
-      const { projectId, status, page = 1, limit = 10 } = request.query;
+      const query = request.query;
+      const page = Math.max(1, query.page ?? 1);
+      const limit = Math.min(100, Math.max(1, query.limit ?? 10));
 
-      const { deployments, total } = await deploymentService.list({
-        projectId,
-        status,
+      const filters: {
+        page: number;
+        limit: number;
+        projectId?: string;
+        status?: DeploymentStatus[];
+        strategy?: DeploymentStrategy[];
+        search?: string;
+      } = {
         page,
         limit,
-      });
+      };
+
+      if (query.status) filters.status = query.status;
+      if (query.strategy) filters.strategy = query.strategy;
+      if (query.search) filters.search = query.search;
+      if (query.projectId) filters.projectId = query.projectId;
+
+      const { deployments, total } = await deploymentService.list(filters);
 
       const totalPages = Math.ceil(total / limit);
 

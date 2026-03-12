@@ -107,12 +107,9 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
     "application/json",
     { parseAs: "string" },
     (request, body, done) => {
-      // Handle empty body for DELETE requests with Content-Type: application/json
-      // Fastify v5 no longer accepts DELETE requests with Content-Type: application/json and empty body
       if (body === "" || body == null || (Buffer.isBuffer(body) && body.length === 0)) {
         return done(null, {});
       }
-      // Call the default JSON parser with the string body
       return defaultJsonParser(request, body, done);
     }
   );

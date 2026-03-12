@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   DeploymentStatusSchema,
+  DeploymentStrategySchema,
   IdSchema,
   LogLevelSchema,
   PaginationParamsSchema,
@@ -73,7 +74,9 @@ export const DeploymentFiltersSchema = z.object({
   sortBy: z.string().optional(),
   sortOrder: SortOrderSchema.optional(),
   projectId: IdSchema.optional(),
-  status: DeploymentStatusSchema.optional(),
+  status: commaSeparatedOrArrayEnum(DeploymentStatusSchema.enum).optional(),
+  strategy: commaSeparatedOrArrayEnum(DeploymentStrategySchema.enum).optional(),
+  search: z.string().optional(),
 });
 
 export const ContainerFiltersSchema = z.object({

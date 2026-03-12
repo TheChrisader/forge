@@ -80,7 +80,7 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
       const userId = (request as { userId?: string }).userId;
 
       if (config.nodeEnv === "production") {
-        server.logger.info({
+        server.logger.info("", {
           method: request.method,
           url: request.url,
           status: reply.statusCode,
@@ -124,7 +124,7 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
       return reply.status(429).send({ error: rateLimitError.toJSON() });
     }
 
-    server.logger.error({ err: error }, "Unexpected error");
+    server.logger.error("Unexpected error", { err: error });
     const internalError = new InternalError(
       config.nodeEnv === "production"
         ? "An internal error occurred"
