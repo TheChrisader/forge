@@ -16,13 +16,21 @@ export function ContainerLogsPage(): React.ReactElement {
     error: containerError,
   } = useContainer(containerId);
 
-  const { data: logsData, isLoading: logsLoading } = useContainerLogs(containerId, {
-    tail: "all",
-    follow: false,
-  });
+  const {
+    logs,
+    isLoading: logsLoading,
+    isStreaming,
+    error: logsError,
+  } = useContainerLogs(containerId);
 
-  const logs = logsData ?? [];
-  const logsString = logs.join("\n");
+  // Map container log format to match LogsViewer expectations
+  const formattedLogs = logs.map((log) => ({
+    lineNumber: log.lineNumber,
+    timestamp: log.timestamp,
+    level: log.stream === "stderr" ? "ERROR" : "INFO",
+    source: "CONTAINER",
+    message: log.message,
+  }));
 
   if (containerLoading) {
     return (
@@ -71,7 +79,12 @@ export function ContainerLogsPage(): React.ReactElement {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <LogsViewer logs={logsString} isLoading={logsLoading} />
+        <LogsViewer
+          logs={formattedLogs}
+          isLoading={logsLoading}
+          isConnected={isStreaming}
+          error={logsError}
+        />
       </div>
     </div>
   );

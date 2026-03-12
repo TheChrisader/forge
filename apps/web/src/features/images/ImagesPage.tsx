@@ -97,6 +97,28 @@ export function ImagesPage(): React.ReactElement {
         </CardContent>
       </Card>
 
+      {deleteMutation.error && (
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="size-4" />
+              <p className="text-sm">Failed to delete image: {deleteMutation.error.message}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {pruneMutation.error && (
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="size-4" />
+              <p className="text-sm">Failed to prune images: {pruneMutation.error.message}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -140,28 +162,6 @@ export function ImagesPage(): React.ReactElement {
           </Table>
         </CardContent>
       </Card>
-
-      {deleteMutation.error && (
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="size-4" />
-              <p className="text-sm">Failed to delete image: {deleteMutation.error.message}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {pruneMutation.error && (
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="size-4" />
-              <p className="text-sm">Failed to prune images: {pruneMutation.error.message}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

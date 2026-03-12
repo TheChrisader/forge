@@ -201,7 +201,7 @@ export function LogsViewer({
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{entry.timestamp}</span>
-                      <span className="text-xs text-muted-foreground">{entry.source}</span>
+                      {/* <span className="text-xs text-muted-foreground">{entry.source}</span> */}
                     </div>
                     <div className="whitespace-pre-wrap wrap-break-word text-foreground font-mono">
                       {entry.message || "\u00A0"}

@@ -1,4 +1,14 @@
 import { Button } from "@/shared/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 import { Play, Square, RefreshCw, Trash2, FileText, Settings, LoaderIcon } from "lucide-react";
 import type { ContainerStatus } from "@forge/database";
 import {
@@ -7,6 +17,7 @@ import {
   useRestartContainer,
   useRemoveContainer,
 } from "@/core/api/hooks";
+import { useState } from "react";
 
 interface ContainerActionsProps {
   containerId: string;
@@ -33,6 +44,7 @@ export function ContainerActions({
   const stopMutation = useStopContainer();
   const restartMutation = useRestartContainer();
   const removeMutation = useRemoveContainer();
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
 
   const isRunning = status === "RUNNING" || status === "HEALTHY" || status === "UNHEALTHY";
   const isStopped = status === "STOPPED" || status === "TERMINATED";
@@ -69,14 +81,19 @@ export function ContainerActions({
   };
 
   const handleRemove = (): void => {
-    if (confirm("Are you sure you want to remove this container?")) {
-      removeMutation.mutate(
-        { containerId, force: false },
-        {
-          onSuccess: () => onRemove?.(),
-        }
-      );
-    }
+    setIsRemoveDialogOpen(true);
+  };
+
+  const handleConfirmRemove = (): void => {
+    removeMutation.mutate(
+      { containerId, force: false },
+      {
+        onSuccess: () => {
+          setIsRemoveDialogOpen(false);
+          onRemove?.();
+        },
+      }
+    );
   };
 
   return (
@@ -148,6 +165,34 @@ export function ContainerActions({
           <Trash2 className="h-4 w-4 text-destructive" />
         )}
       </Button>
+
+      <AlertDialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Container</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this container? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmRemove}
+              disabled={removeMutation.isPending}
+              variant="destructive"
+            >
+              {removeMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <LoaderIcon className="h-4 w-4 animate-spin" />
+                  Removing...
+                </span>
+              ) : (
+                "Remove"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

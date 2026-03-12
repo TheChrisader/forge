@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import type { Config } from "@forge/core";
 import { z } from "zod";
-import { SERVICE_KEY_STRINGS } from "@forge/core";
+import { SERVICE_KEY_STRINGS, NotFoundError } from "@forge/core";
 import type { IContainerService } from "@forge/core";
 import { requireAuth } from "../middleware/auth.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
+import { ConnectionLimitError } from "../errors/connection-limit.error.js";
+import { SSEManagerService } from "../services/sse-manager.service.js";
 
 /**
  * Zod schemas for request/response validation
@@ -52,10 +54,11 @@ const ContainerExecBodySchema = z.object({
  */
 export function registerContainerRoutes(_server: FastifyInstance, _config: Config): void {
   const server = getTypedFastifyInstance(_server);
-  const container = server.registry.getContainer();
-  const containerService = container.resolveSync<IContainerService>(
+  const registry = server.registry.getContainer();
+  const containerService = registry.resolveSync<IContainerService>(
     SERVICE_KEY_STRINGS.CONTAINER_SERVICE
   );
+  const sseManager = registry.resolveSync<SSEManagerService>(SERVICE_KEY_STRINGS.SSE_MANAGER);
 
   /**
    * GET /api/projects/:projectId/containers
@@ -238,6 +241,63 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
       });
 
       return reply.send({ data: logs });
+    }
+  );
+
+  /**
+   * GET /api/containers/:id/logs/stream
+   * Server-Sent Events endpoint for real-time container log streaming
+   */
+  server.get(
+    "/api/containers/:id/logs/stream",
+    {
+      sse: true,
+      schema: {
+        params: ContainerIdParamsSchema,
+      },
+    },
+    async (request, reply) => {
+      requireAuth((request as { userId?: string }).userId);
+      const params = ContainerIdParamsSchema.parse(request.params);
+
+      const container = await containerService.getById(params.id);
+      if (!container) {
+        throw new NotFoundError("Container");
+      }
+
+      await reply.sse.send({
+        event: "connected",
+        data: { containerId: params.id, timestamp: new Date().toISOString() },
+      });
+
+      try {
+        sseManager.subscribe(`container:${params.id}`, reply);
+      } catch (error) {
+        if (error instanceof ConnectionLimitError) {
+          await reply.sse.send({
+            event: "error",
+            data: {
+              code: "CONNECTION_LIMIT_REACHED",
+              message: error.message,
+              type: error.type,
+              limit: error.limit,
+              current: error.current,
+            },
+          });
+          reply.sse.close();
+          return;
+        }
+        throw error;
+      }
+
+      reply.sse.onClose(() => {
+        sseManager.unsubscribe(`container:${params.id}`, reply);
+      });
+
+      reply.sse.keepAlive();
+
+      // Delegate to service for domain logic
+      await containerService.streamLogs(params.id);
     }
   );
 

@@ -1,5 +1,5 @@
 import { apiClient } from "../client";
-import type { DockerContainer, ContainerStats } from "@forge/types";
+import type { DockerContainer, ContainerStats, ContainerLogEntry } from "@forge/types";
 
 export interface ContainerLogsQueryParams {
   tail?: number | "all";
@@ -75,7 +75,10 @@ export const containersApi = {
   /**
    * Gets logs from a container
    */
-  getLogs: async (id: string, params?: ContainerLogsQueryParams): Promise<{ data: string[] }> => {
+  getLogs: async (
+    id: string,
+    params?: ContainerLogsQueryParams
+  ): Promise<{ data: ContainerLogEntry[] }> => {
     const cleanParams = Object.fromEntries(
       Object.entries(params ?? {}).filter(([_, v]) => v !== undefined)
     ) as Record<string, string | boolean>;

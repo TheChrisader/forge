@@ -21,6 +21,7 @@ import type {
   ExecResult,
   ExecOptions,
   LogOptions,
+  ContainerLogEntry,
 } from "@forge/types";
 
 export * from "./logger.interface";
@@ -87,7 +88,8 @@ export interface IContainerService {
   getById(id: string): Promise<DockerContainer | null>;
   getByProject(projectId: string): Promise<DockerContainer[]>;
   getByDeployment(deploymentId: string): Promise<DockerContainer[]>;
-  getLogs(id: string, options?: LogOptions): Promise<string[]>;
+  getLogs(id: string, options?: LogOptions): Promise<ContainerLogEntry[]>;
+  streamLogs(id: string): Promise<void>;
   getStats(id: string): Promise<ContainerStats>;
   exec(id: string, command: string[], options?: ExecOptions): Promise<ExecResult>;
 }

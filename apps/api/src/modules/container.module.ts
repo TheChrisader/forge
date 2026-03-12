@@ -4,6 +4,7 @@ import type { PrismaClient } from "@forge/database";
 import { ContainerService } from "../services/container.service";
 import { NetworkManager } from "../services/network-manager";
 import { VolumeManager } from "../services/volume-manager";
+import { SSEManagerService } from "../services/sse-manager.service";
 
 /**
  * ContainerModule - Registers the ContainerService and dependencies
@@ -20,8 +21,9 @@ export class ContainerModule implements ServiceModule {
 
       const networkManager = new NetworkManager(runtime, db);
       const volumeManager = new VolumeManager(runtime, db);
+      const sseManager = container.resolveSync<SSEManagerService>(SERVICE_KEY_STRINGS.SSE_MANAGER);
 
-      return new ContainerService(db, runtime, networkManager, volumeManager);
+      return new ContainerService(db, runtime, networkManager, volumeManager, sseManager);
     });
   }
 }

@@ -40,4 +40,14 @@ export interface SuccessResponse {
   message?: string;
 }
 
+/**
+ * Container log entry structure for streaming and historical logs
+ */
+export interface ContainerLogEntry {
+  lineNumber: number;
+  timestamp: string;
+  stream: "stdout" | "stderr";
+  message: string;
+}
+
 export type { DeploymentLogsQuery, DeploymentLogsResponse } from "./schemas/api";

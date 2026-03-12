@@ -20,6 +20,7 @@ import {
   type ExecOptions,
   type ExecResult,
   type VolumeMount,
+  type ContainerLogEntry,
   toPrismaJson,
 } from "@forge/types";
 import type {
@@ -36,6 +37,7 @@ import type { IContainerService, ContainerCreateConfig } from "@forge/core";
 import type { DockerRuntime } from "@forge/docker";
 import { NetworkManager } from "./network-manager";
 import { VolumeManager } from "./volume-manager";
+import type { SSEManagerService } from "./sse-manager.service";
 
 /**
  * Maps Docker container status to database ContainerStatus
@@ -95,7 +97,8 @@ export class ContainerService implements IContainerService {
     private readonly db: PrismaClient,
     private readonly runtime: DockerRuntime,
     private readonly networkManager: NetworkManager,
-    private readonly volumeManager: VolumeManager
+    private readonly volumeManager: VolumeManager,
+    private readonly sseManager: SSEManagerService
   ) {}
 
   /**
@@ -424,7 +427,7 @@ export class ContainerService implements IContainerService {
   /**
    * Gets logs from a container
    */
-  async getLogs(id: string, options?: LogOptions): Promise<string[]> {
+  async getLogs(id: string, options?: LogOptions): Promise<ContainerLogEntry[]> {
     const container = await this.db.container.findUnique({
       where: { id },
     });
@@ -433,12 +436,65 @@ export class ContainerService implements IContainerService {
       throw new Error(`Container with ID ${id} not found`);
     }
 
-    const logs: string[] = [];
+    const logs: ContainerLogEntry[] = [];
+    let lineNumber = 0;
+
     for await (const entry of this.runtime.logs(container.containerId, options)) {
-      logs.push(`[${entry.timestamp.toISOString()}] ${entry.stream}: ${entry.message}`);
+      lineNumber++;
+      logs.push({
+        lineNumber,
+        timestamp: entry.timestamp.toISOString(),
+        stream: entry.stream,
+        message: entry.message,
+      });
     }
 
     return logs;
+  }
+
+  /**
+   * Streams logs from a container to SSE subscribers
+   *
+   * @param id - Container database ID
+   */
+  async streamLogs(id: string): Promise<void> {
+    const container = await this.db.container.findUnique({
+      where: { id },
+    });
+
+    if (!container) {
+      throw new Error(`Container with ID ${id} not found`);
+    }
+
+    const topic = `container:${id}`;
+    let lineNumber = 0;
+
+    try {
+      for await (const entry of this.runtime.logs(container.containerId, { follow: true })) {
+        lineNumber++;
+        this.sseManager.publish(topic, {
+          id: String(lineNumber),
+          event: "log",
+          data: {
+            lineNumber,
+            timestamp: entry.timestamp.toISOString(),
+            stream: entry.stream,
+            message: entry.message,
+          },
+        });
+      }
+
+      // Container exited normally
+      this.sseManager.publish(topic, {
+        event: "completed",
+        data: { containerId: id, totalLines: lineNumber },
+      });
+    } catch (error) {
+      this.sseManager.publish(topic, {
+        event: "error",
+        data: { message: error instanceof Error ? error.message : "Unknown error" },
+      });
+    }
   }
 
   /**
@@ -673,7 +729,7 @@ export class ContainerService implements IContainerService {
     }
   ): DockerContainer {
     return {
-      id: dbContainer.containerId,
+      id: dbContainer.id,
       // containerId: dbContainer.containerId,
       name: dbContainer.name ?? dockerInfo.name,
       image: dbContainer.image,
