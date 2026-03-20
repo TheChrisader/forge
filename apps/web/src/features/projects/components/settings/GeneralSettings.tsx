@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -18,7 +18,7 @@ interface FormErrors {
   general?: string;
 }
 
-export function GeneralSettings({ project }: GeneralSettingsProps): React.ReactElement {
+export function GeneralSettings({ project }: GeneralSettingsProps): JSX.Element {
   const metadata = (project.metadata as Record<string, unknown> | null | undefined) || {};
   const [formData, setFormData] = useState({
     name: project.name,
@@ -60,10 +60,15 @@ export function GeneralSettings({ project }: GeneralSettingsProps): React.ReactE
     }
   };
 
+  const hasChanges =
+    formData.name !== project.name ||
+    formData.description !== (metadata.description as string | undefined);
+
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <label htmlFor="name" className="text-sm font-medium">
+    <div className="space-y-5">
+      {/* Project Name */}
+      <div className="gap-2 flex flex-col">
+        <label htmlFor="name" className="text-sm font-medium text-foreground">
           Project Name
         </label>
         <Input
@@ -71,17 +76,24 @@ export function GeneralSettings({ project }: GeneralSettingsProps): React.ReactE
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           disabled={updateProject.isPending}
+          className="font-mono max-w-md"
         />
         {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground font-mono">
           Lowercase letters, numbers, and hyphens only
         </p>
       </div>
 
-      <div className="space-y-2">
-        <label htmlFor="description" className="text-sm font-medium">
-          Description
-        </label>
+      {/* Description */}
+      <div className="gap-2 flex flex-col">
+        <div className="flex items-center justify-between">
+          <label htmlFor="description" className="text-sm font-medium text-foreground">
+            Description
+          </label>
+          <span className="text-xs text-muted-foreground/70 font-mono tabular-nums">
+            {formData.description.length}/{MAX_DESCRIPTION_LENGTH}
+          </span>
+        </div>
         <Textarea
           id="description"
           value={formData.description}
@@ -94,24 +106,22 @@ export function GeneralSettings({ project }: GeneralSettingsProps): React.ReactE
           rows={3}
           disabled={updateProject.isPending}
           maxLength={MAX_DESCRIPTION_LENGTH}
+          className="resize-none max-w-md"
         />
-        <p className="text-xs text-muted-foreground">
-          {formData.description.length}/{MAX_DESCRIPTION_LENGTH} characters
-        </p>
       </div>
 
       {errors.general && (
-        <div className="rounded-md bg-destructive/10 p-3">
+        <div className="rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2">
           <p className="text-sm text-destructive">{errors.general}</p>
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button
           onClick={() => {
             void handleSave();
           }}
-          disabled={updateProject.isPending}
+          disabled={updateProject.isPending || !hasChanges}
         >
           {updateProject.isPending ? "Saving..." : "Save Changes"}
         </Button>

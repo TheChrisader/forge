@@ -58,15 +58,21 @@ export function SettingsPage(): React.ReactElement {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your account preferences and configuration</p>
+        <h1 className="font-serif text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+          Manage your account preferences and configuration
+        </p>
       </div>
 
       {saveAlert && (
-        <Alert>
-          <CheckIcon />
-          <AlertTitle>Settings saved</AlertTitle>
-          <AlertDescription>Your preferences have been updated successfully.</AlertDescription>
+        <Alert className="border-success-500/20 bg-success-500/5">
+          <div className="flex h-5 w-5 items-center justify-center rounded-md bg-success-500/10">
+            <CheckIcon className="h-3 w-3 text-success-500" />
+          </div>
+          <AlertTitle className="font-serif text-sm">Settings saved</AlertTitle>
+          <AlertDescription className="font-sans text-xs text-muted-foreground">
+            Your preferences have been updated successfully.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -81,44 +87,54 @@ export function SettingsPage(): React.ReactElement {
         <TabsContent value="profile" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserIcon />
-                Profile Information
-              </CardTitle>
-              <CardDescription>
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                  <UserIcon className="h-4 w-4 text-primary" />
+                </div>
+                <CardTitle className="font-serif">Profile Information</CardTitle>
+              </div>
+              <CardDescription className="font-mono text-[10px] uppercase tracking-wider">
                 Update your personal information and account settings
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Full Name</label>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Full Name
+                </label>
                 <Input
                   value={settings.fullName}
                   onChange={(e) => updateSetting("fullName", e.target.value)}
                   placeholder="Enter your full name"
+                  className="font-sans text-sm"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Email Address</label>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Email Address
+                </label>
                 <Input
                   type="email"
                   value={settings.email}
                   onChange={(e) => updateSetting("email", e.target.value)}
                   placeholder="your.email@example.com"
+                  className="font-sans text-sm"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Timezone</label>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Timezone
+                </label>
                 <Select
                   value={settings.timezone}
                   onValueChange={(value) => updateSetting("timezone", value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="font-sans text-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="font-sans text-sm">
                     <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
                     <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
                     <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
@@ -131,15 +147,17 @@ export function SettingsPage(): React.ReactElement {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Language</label>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Language
+                </label>
                 <Select
                   value={settings.language}
                   onValueChange={(value) => updateSetting("language", value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="font-sans text-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="font-sans text-sm">
                     <SelectItem value="en">English</SelectItem>
                     <SelectItem value="es">Español</SelectItem>
                     <SelectItem value="fr">Français</SelectItem>
@@ -155,17 +173,25 @@ export function SettingsPage(): React.ReactElement {
         <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BellIcon />
-                Notification Preferences
-              </CardTitle>
-              <CardDescription>Choose how you want to receive notifications</CardDescription>
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                  <BellIcon className="h-4 w-4 text-primary" />
+                </div>
+                <CardTitle className="font-serif">Notification Preferences</CardTitle>
+              </div>
+              <CardDescription className="font-mono text-[10px] uppercase tracking-wider">
+                Choose how you want to receive notifications
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
+            <CardContent className="space-y-5">
+              <div className="flex items-center justify-between group">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Email Notifications</label>
-                  <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                  <label className="font-sans text-sm font-medium group-hover:text-foreground transition-colors">
+                    Email Notifications
+                  </label>
+                  <p className="font-sans text-xs text-muted-foreground">
+                    Receive notifications via email
+                  </p>
                 </div>
                 <Switch
                   checked={settings.emailNotifications}
@@ -175,10 +201,12 @@ export function SettingsPage(): React.ReactElement {
 
               <Separator />
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between group">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Push Notifications</label>
-                  <p className="text-sm text-muted-foreground">
+                  <label className="font-sans text-sm font-medium group-hover:text-foreground transition-colors">
+                    Push Notifications
+                  </label>
+                  <p className="font-sans text-xs text-muted-foreground">
                     Receive push notifications in your browser
                   </p>
                 </div>
@@ -190,10 +218,12 @@ export function SettingsPage(): React.ReactElement {
 
               <Separator />
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between group">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Deployment Alerts</label>
-                  <p className="text-sm text-muted-foreground">
+                  <label className="font-sans text-sm font-medium group-hover:text-foreground transition-colors">
+                    Deployment Alerts
+                  </label>
+                  <p className="font-sans text-xs text-muted-foreground">
                     Get notified when deployments complete or fail
                   </p>
                 </div>
@@ -205,10 +235,12 @@ export function SettingsPage(): React.ReactElement {
 
               <Separator />
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between group">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Error Alerts</label>
-                  <p className="text-sm text-muted-foreground">
+                  <label className="font-sans text-sm font-medium group-hover:text-foreground transition-colors">
+                    Error Alerts
+                  </label>
+                  <p className="font-sans text-xs text-muted-foreground">
                     Receive alerts for critical errors and issues
                   </p>
                 </div>
@@ -220,10 +252,12 @@ export function SettingsPage(): React.ReactElement {
 
               <Separator />
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between group">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Weekly Digest</label>
-                  <p className="text-sm text-muted-foreground">
+                  <label className="font-sans text-sm font-medium group-hover:text-foreground transition-colors">
+                    Weekly Digest
+                  </label>
+                  <p className="font-sans text-xs text-muted-foreground">
                     Receive a weekly summary of activity
                   </p>
                 </div>
@@ -239,23 +273,29 @@ export function SettingsPage(): React.ReactElement {
         <TabsContent value="preferences" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <SlidersIcon />
-                App Preferences
-              </CardTitle>
-              <CardDescription>Customize your application experience</CardDescription>
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                  <SlidersIcon className="h-4 w-4 text-primary" />
+                </div>
+                <CardTitle className="font-serif">App Preferences</CardTitle>
+              </div>
+              <CardDescription className="font-mono text-[10px] uppercase tracking-wider">
+                Customize your application experience
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Theme</label>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Theme
+                </label>
                 <Select
                   value={settings.theme}
                   onValueChange={(value) => updateSetting("theme", value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="font-sans text-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="font-sans text-sm">
                     <SelectItem value="light">Light</SelectItem>
                     <SelectItem value="dark">Dark</SelectItem>
                     <SelectItem value="system">System</SelectItem>
@@ -264,15 +304,17 @@ export function SettingsPage(): React.ReactElement {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Default View</label>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Default View
+                </label>
                 <Select
                   value={settings.defaultView}
                   onValueChange={(value) => updateSetting("defaultView", value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="font-sans text-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="font-sans text-sm">
                     <SelectItem value="list">List View</SelectItem>
                     <SelectItem value="grid">Grid View</SelectItem>
                     <SelectItem value="table">Table View</SelectItem>
@@ -280,10 +322,12 @@ export function SettingsPage(): React.ReactElement {
                 </Select>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between group">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-medium">Auto Refresh</label>
-                  <p className="text-sm text-muted-foreground">
+                  <label className="font-sans text-sm font-medium group-hover:text-foreground transition-colors">
+                    Auto Refresh
+                  </label>
+                  <p className="font-sans text-xs text-muted-foreground">
                     Automatically refresh data on dashboard
                   </p>
                 </div>
@@ -294,16 +338,18 @@ export function SettingsPage(): React.ReactElement {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Refresh Interval</label>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Refresh Interval
+                </label>
                 <Select
                   value={settings.refreshInterval.toString()}
                   onValueChange={(value) => updateSetting("refreshInterval", parseInt(value))}
                   disabled={!settings.autoRefresh}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="font-sans text-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="font-sans text-sm">
                     <SelectItem value="15">15 seconds</SelectItem>
                     <SelectItem value="30">30 seconds</SelectItem>
                     <SelectItem value="60">1 minute</SelectItem>
@@ -318,46 +364,60 @@ export function SettingsPage(): React.ReactElement {
         <TabsContent value="api-keys" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <KeyIcon />
-                API Keys
-              </CardTitle>
-              <CardDescription>Manage your API keys for external integrations</CardDescription>
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                  <KeyIcon className="h-4 w-4 text-primary" />
+                </div>
+                <CardTitle className="font-serif">API Keys</CardTitle>
+              </div>
+              <CardDescription className="font-mono text-[10px] uppercase tracking-wider">
+                Manage your API keys for external integrations
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium">API Key Label</label>
-                <Input placeholder="e.g., Production API Key" />
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  API Key Label
+                </label>
+                <Input placeholder="e.g., Production API Key" className="font-sans text-sm" />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Textarea placeholder="Describe what this key will be used for..." rows={3} />
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Description
+                </label>
+                <Textarea
+                  placeholder="Describe what this key will be used for..."
+                  rows={3}
+                  className="font-sans text-sm"
+                />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Existing API Keys</label>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Existing API Keys
+                </label>
                 <div className="rounded-md border p-4 space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between group">
                     <div>
-                      <p className="font-medium">Production Key</p>
-                      <p className="text-sm text-muted-foreground font-mono">
+                      <p className="font-sans text-sm font-medium">Production Key</p>
+                      <p className="font-mono text-xs text-muted-foreground">
                         sk_****************************xyz
                       </p>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="font-sans text-xs">
                       Revoke
                     </Button>
                   </div>
                   <Separator />
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between group">
                     <div>
-                      <p className="font-medium">Development Key</p>
-                      <p className="text-sm text-muted-foreground font-mono">
+                      <p className="font-sans text-sm font-medium">Development Key</p>
+                      <p className="font-mono text-xs text-muted-foreground">
                         sk_****************************abc
                       </p>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="font-sans text-xs">
                       Revoke
                     </Button>
                   </div>
@@ -365,15 +425,19 @@ export function SettingsPage(): React.ReactElement {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="default">Generate New Key</Button>
+              <Button variant="default" className="font-sans text-sm">
+                Generate New Key
+              </Button>
             </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>
 
       <div className="flex justify-end gap-3">
-        <Button variant="outline">Cancel</Button>
-        <Button variant="default" onClick={handleSave}>
+        <Button variant="outline" className="font-sans text-sm">
+          Cancel
+        </Button>
+        <Button variant="default" onClick={handleSave} className="font-sans text-sm">
           Save Changes
         </Button>
       </div>

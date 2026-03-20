@@ -8,8 +8,15 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardHeader, CardTitle, CardAction, CardContent } from "@/shared/components/ui/card";
-import { Trash2, RefreshCw, AlertTriangle } from "lucide-react";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/shared/components/ui/card";
+import { Trash2, RefreshCw, AlertTriangle, PackageIcon } from "lucide-react";
+import { Badge } from "@/shared/components/ui/badge";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -55,7 +62,10 @@ export function ImagesPage(): React.ReactElement {
   if (isLoadingImages) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <RefreshCw className="size-4 animate-spin" />
+          <span className="font-sans text-sm">Loading images...</span>
+        </div>
       </div>
     );
   }
@@ -65,99 +75,162 @@ export function ImagesPage(): React.ReactElement {
 
   return (
     <div className="space-y-6">
-      <Card>
+      {/* Header Card with stats */}
+      <Card className="group overflow-hidden transition-all hover:shadow-lg">
         <CardHeader>
-          <CardTitle>Docker Images</CardTitle>
-          <CardAction>
-            <Button
-              onClick={void handlePrune}
-              disabled={pruneMutation.isPending}
-              variant="outline"
-              size="sm"
-            >
-              {pruneMutation.isPending ? (
-                <RefreshCw className="mr-2 size-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 size-4" />
-              )}
-              Prune Dangling
-            </Button>
-          </CardAction>
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                <PackageIcon className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="font-serif">Docker Images</CardTitle>
+                <CardDescription className="font-mono text-[10px] uppercase tracking-wider">
+                  Container Image Registry
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-mono text-[9px]">
+                {images.length}
+              </Badge>
+              <Button
+                onClick={() => void handlePrune()}
+                disabled={pruneMutation.isPending}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                {pruneMutation.isPending ? (
+                  <RefreshCw className="size-4 animate-spin" />
+                ) : (
+                  <Trash2 className="size-4" />
+                )}
+                <span className="font-sans text-sm">Prune</span>
+              </Button>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Total: {stats?.count ?? 0} images, {formatBytes(stats?.totalBytes ?? 0)}
-          </p>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+              Total Storage
+            </span>
+            <span className="font-sans text-sm font-medium">
+              {stats?.count ?? 0} images · {formatBytes(stats?.totalBytes ?? 0)}
+            </span>
+          </div>
           {pruneResult && (
-            <p className="mt-2 text-sm text-green-600">
-              Deleted {pruneResult.deleted.length} images, freed{" "}
-              {formatBytes(pruneResult.reclaimedBytes)}
-            </p>
+            <div className="flex items-center gap-2 rounded-md bg-success-500/10 px-3 py-2">
+              <AlertTriangle className="size-4 text-success-500" />
+              <span className="font-sans text-sm text-success-500">
+                Freed {formatBytes(pruneResult.reclaimedBytes)} · {pruneResult.deleted.length} image
+                {pruneResult.deleted.length !== 1 ? "s" : ""} deleted
+              </span>
+            </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Error states */}
       {deleteMutation.error && (
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="size-4" />
-              <p className="text-sm">Failed to delete image: {deleteMutation.error.message}</p>
-            </div>
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="flex items-center gap-3 py-4">
+            <AlertTriangle className="size-4 text-destructive shrink-0" />
+            <p className="font-sans text-sm text-destructive">{deleteMutation.error.message}</p>
           </CardContent>
         </Card>
       )}
 
       {pruneMutation.error && (
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="size-4" />
-              <p className="text-sm">Failed to prune images: {pruneMutation.error.message}</p>
-            </div>
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="flex items-center gap-3 py-4">
+            <AlertTriangle className="size-4 text-destructive shrink-0" />
+            <p className="font-sans text-sm text-destructive">{pruneMutation.error.message}</p>
           </CardContent>
         </Card>
       )}
 
-      <Card>
+      {/* Images Table */}
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Tags</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="hover:bg-transparent border-b">
+                <TableHead className="font-mono text-[10px] uppercase tracking-wider w-35">
+                  Image ID
+                </TableHead>
+                <TableHead className="font-mono text-[10px] uppercase tracking-wider">
+                  Tags
+                </TableHead>
+                <TableHead className="font-mono text-[10px] uppercase tracking-wider w-25">
+                  Size
+                </TableHead>
+                <TableHead className="font-mono text-[10px] uppercase tracking-wider w-30">
+                  Created
+                </TableHead>
+                <TableHead className="font-mono text-[10px] uppercase tracking-wider w-17.5 text-right">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {images.map((img) => (
-                <TableRow key={img.id}>
+                <TableRow
+                  key={img.id}
+                  className="group hover:bg-muted/30 transition-colors cursor-default"
+                >
                   <TableCell>
-                    <code className="text-xs">{img.id.slice(7, 19)}</code>
+                    <code className="font-mono text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                      {img.id.slice(7, 19)}
+                    </code>
                   </TableCell>
                   <TableCell>
-                    {(img.repoTags || []).join(", ") || (
-                      <span className="text-muted-foreground italic">&lt;none&gt;</span>
+                    {img.repoTags && img.repoTags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {img.repoTags.map((tag) => (
+                          <Badge key={tag} variant="secondary" className="font-mono text-[9px]">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="font-mono text-xs text-muted-foreground/60 italic">
+                        &lt;none&gt;
+                      </span>
                     )}
                   </TableCell>
-                  <TableCell>{formatBytes(img.size || 0)}</TableCell>
                   <TableCell>
-                    {img.created ? formatTimeAgo(new Date(img.created)) : "N/A"}
+                    <span className="font-sans text-sm">{formatBytes(img.size || 0)}</span>
                   </TableCell>
                   <TableCell>
+                    <span className="font-mono text-[10px] text-muted-foreground uppercase">
+                      {img.created ? formatTimeAgo(new Date(img.created)) : "N/A"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => void handleDelete(img.id)}
                       disabled={deleteMutation.isPending}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="size-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
+              {images.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <PackageIcon className="size-8 opacity-50" />
+                      <span className="font-sans text-sm">No images found</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

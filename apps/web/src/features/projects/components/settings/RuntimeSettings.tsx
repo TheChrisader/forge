@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { usePatchProject } from "@/core/api/hooks/useProjects";
@@ -14,7 +14,7 @@ interface FormErrors {
   general?: string;
 }
 
-export function RuntimeSettings({ project }: RuntimeSettingsProps): React.ReactElement {
+export function RuntimeSettings({ project }: RuntimeSettingsProps): JSX.Element {
   const config = (project.config as Record<string, unknown> | null | undefined) || {};
   const runtimeConfig = (config.runtime as Record<string, unknown> | undefined) || {};
 
@@ -69,9 +69,20 @@ export function RuntimeSettings({ project }: RuntimeSettingsProps): React.ReactE
     }
   };
 
+  const hasChanges =
+    formData.port !== ((runtimeConfig.port as number | undefined) ?? "") ||
+    formData.command !== arrayToString(runtimeConfig.command as string | string[] | undefined) ||
+    formData.entrypoint !== arrayToString(runtimeConfig.entrypoint as string[] | undefined) ||
+    formData.workingDir !== (runtimeConfig.workingDir as string | undefined) ||
+    formData.user !== (runtimeConfig.user as string | undefined) ||
+    formData.nodeVersion !== (runtimeConfig.nodeVersion as string | undefined) ||
+    formData.pythonVersion !== (runtimeConfig.pythonVersion as string | undefined) ||
+    formData.goVersion !== (runtimeConfig.goVersion as string | undefined);
+
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
+    <div className="space-y-5">
+      {/* Port */}
+      <div className="gap-2 flex flex-col">
         <label htmlFor="port" className="text-sm font-medium">
           Port
         </label>
@@ -84,136 +95,140 @@ export function RuntimeSettings({ project }: RuntimeSettingsProps): React.ReactE
           onChange={(e) => setFormData({ ...formData, port: e.target.value })}
           placeholder="3000"
           disabled={updateProject.isPending}
+          className="max-w-xs font-mono"
         />
         {errors.port && <p className="text-sm text-destructive">{errors.port}</p>}
-        <p className="text-xs text-muted-foreground">
-          Main container port (1-65535). Leave empty to use framework default.
-        </p>
+        <p className="text-xs text-muted-foreground font-mono">Main container port (1-65535)</p>
       </div>
 
-      <div className="space-y-2">
-        <label htmlFor="command" className="text-sm font-medium">
-          Command
-        </label>
-        <Input
-          id="command"
-          value={formData.command}
-          onChange={(e) => setFormData({ ...formData, command: e.target.value })}
-          placeholder="npm start"
-          disabled={updateProject.isPending}
-        />
-        <p className="text-xs text-muted-foreground">
-          Override the default container command. Use comma-separated values for arrays (e.g.,
-          &quot;npm, start&quot;)
-        </p>
-      </div>
+      <div className="border-t border-border/40" />
 
-      <div className="space-y-2">
-        <label htmlFor="entrypoint" className="text-sm font-medium">
-          Entrypoint
-        </label>
-        <Input
-          id="entrypoint"
-          value={formData.entrypoint}
-          onChange={(e) => setFormData({ ...formData, entrypoint: e.target.value })}
-          placeholder="/bin/sh, -c"
-          disabled={updateProject.isPending}
-          className="font-mono"
-        />
-        <p className="text-xs text-muted-foreground">
-          Override the default entrypoint. Comma-separated values (e.g., &quot;/bin/sh, -c&quot;)
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <label htmlFor="workingDir" className="text-sm font-medium">
-          Working Directory
-        </label>
-        <Input
-          id="workingDir"
-          value={formData.workingDir}
-          onChange={(e) => setFormData({ ...formData, workingDir: e.target.value })}
-          placeholder="/app"
-          disabled={updateProject.isPending}
-          className="font-mono"
-        />
-        <p className="text-xs text-muted-foreground">
-          Working directory inside the container. Leave empty for image default.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <label htmlFor="user" className="text-sm font-medium">
-          User
-        </label>
-        <Input
-          id="user"
-          value={formData.user}
-          onChange={(e) => setFormData({ ...formData, user: e.target.value })}
-          placeholder="node"
-          disabled={updateProject.isPending}
-        />
-        <p className="text-xs text-muted-foreground">
-          User to run the container as (uid or username). Leave empty for image default.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <label htmlFor="nodeVersion" className="text-sm font-medium">
-            Node.js Version
+      {/* Command & Entrypoint */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="gap-2 flex flex-col">
+          <label htmlFor="command" className="text-sm font-medium">
+            Command
           </label>
           <Input
-            id="nodeVersion"
-            value={formData.nodeVersion}
-            onChange={(e) => setFormData({ ...formData, nodeVersion: e.target.value })}
-            placeholder="20"
+            id="command"
+            value={formData.command}
+            onChange={(e) => setFormData({ ...formData, command: e.target.value })}
+            placeholder="npm start"
             disabled={updateProject.isPending}
           />
-          <p className="text-xs text-muted-foreground">e.g., 20, 18, lts</p>
+          <p className="text-xs text-muted-foreground font-mono">Override default command</p>
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="pythonVersion" className="text-sm font-medium">
-            Python Version
+        <div className="gap-2 flex flex-col">
+          <label htmlFor="entrypoint" className="text-sm font-medium">
+            Entrypoint
           </label>
           <Input
-            id="pythonVersion"
-            value={formData.pythonVersion}
-            onChange={(e) => setFormData({ ...formData, pythonVersion: e.target.value })}
-            placeholder="3.11"
+            id="entrypoint"
+            value={formData.entrypoint}
+            onChange={(e) => setFormData({ ...formData, entrypoint: e.target.value })}
+            placeholder="/bin/sh, -c"
             disabled={updateProject.isPending}
+            className="font-mono"
           />
-          <p className="text-xs text-muted-foreground">e.g., 3.11, 3.12</p>
+          <p className="text-xs text-muted-foreground font-mono">Comma-separated values</p>
+        </div>
+      </div>
+
+      {/* Working Dir & User */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="gap-2 flex flex-col">
+          <label htmlFor="workingDir" className="text-sm font-medium">
+            Working Directory
+          </label>
+          <Input
+            id="workingDir"
+            value={formData.workingDir}
+            onChange={(e) => setFormData({ ...formData, workingDir: e.target.value })}
+            placeholder="/app"
+            disabled={updateProject.isPending}
+            className="font-mono"
+          />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="goVersion" className="text-sm font-medium">
-            Go Version
+        <div className="gap-2 flex flex-col">
+          <label htmlFor="user" className="text-sm font-medium">
+            User
           </label>
           <Input
-            id="goVersion"
-            value={formData.goVersion}
-            onChange={(e) => setFormData({ ...formData, goVersion: e.target.value })}
-            placeholder="1.21"
+            id="user"
+            value={formData.user}
+            onChange={(e) => setFormData({ ...formData, user: e.target.value })}
+            placeholder="node"
             disabled={updateProject.isPending}
           />
-          <p className="text-xs text-muted-foreground">e.g., 1.21, 1.22</p>
+        </div>
+      </div>
+
+      <div className="border-t border-border/40" />
+
+      {/* Runtime Versions */}
+      <div className="gap-2 flex flex-col">
+        <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground/70">
+          Runtime Versions
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="gap-2 flex flex-col">
+            <label htmlFor="nodeVersion" className="text-sm font-medium">
+              Node.js
+            </label>
+            <Input
+              id="nodeVersion"
+              value={formData.nodeVersion}
+              onChange={(e) => setFormData({ ...formData, nodeVersion: e.target.value })}
+              placeholder="20"
+              disabled={updateProject.isPending}
+              className="font-mono"
+            />
+          </div>
+
+          <div className="gap-2 flex flex-col">
+            <label htmlFor="pythonVersion" className="text-sm font-medium">
+              Python
+            </label>
+            <Input
+              id="pythonVersion"
+              value={formData.pythonVersion}
+              onChange={(e) => setFormData({ ...formData, pythonVersion: e.target.value })}
+              placeholder="3.11"
+              disabled={updateProject.isPending}
+              className="font-mono"
+            />
+          </div>
+
+          <div className="gap-2 flex flex-col">
+            <label htmlFor="goVersion" className="text-sm font-medium">
+              Go
+            </label>
+            <Input
+              id="goVersion"
+              value={formData.goVersion}
+              onChange={(e) => setFormData({ ...formData, goVersion: e.target.value })}
+              placeholder="1.21"
+              disabled={updateProject.isPending}
+              className="font-mono"
+            />
+          </div>
         </div>
       </div>
 
       {errors.general && (
-        <div className="rounded-md bg-destructive/10 p-3">
+        <div className="rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2">
           <p className="text-sm text-destructive">{errors.general}</p>
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button
           onClick={() => {
             void handleSave();
           }}
-          disabled={updateProject.isPending}
+          disabled={updateProject.isPending || !hasChanges}
         >
           {updateProject.isPending ? "Saving..." : "Save Changes"}
         </Button>
@@ -222,21 +237,14 @@ export function RuntimeSettings({ project }: RuntimeSettingsProps): React.ReactE
   );
 }
 
-/**
- * Convert array to comma-separated string for display
- */
 function arrayToString(value: string | string[] | undefined): string {
   if (value === undefined) return "";
   if (Array.isArray(value)) return value.join(", ");
   return value;
 }
 
-/**
- * Convert comma-separated string to array for storage
- */
 function stringToArray(value: string): string[] {
   if (!value.trim()) return [];
-  // Split by comma and trim each part
   return value
     .split(",")
     .map((s) => s.trim())

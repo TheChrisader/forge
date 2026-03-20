@@ -1,12 +1,15 @@
 import { Button } from "@/shared/components/ui/button";
 import { useCacheStats, useClearCache } from "@/core/api/hooks/useCache";
+import { HardDriveIcon, ClockIcon, LayersIcon } from "lucide-react";
+import { toast } from "sonner";
 import type { Project } from "@forge/types";
+import { JSX } from "react";
 
 interface CacheSettingsProps {
   project: Project;
 }
 
-export function CacheSettings({ project }: CacheSettingsProps): React.ReactElement {
+export function CacheSettings({ project }: CacheSettingsProps): JSX.Element {
   const { data: stats, isLoading } = useCacheStats(project.id);
   const clearCache = useClearCache();
 
@@ -17,8 +20,22 @@ export function CacheSettings({ project }: CacheSettingsProps): React.ReactEleme
 
     try {
       await clearCache.mutateAsync({ projectId: project.id });
+      toast.success("Cache cleared successfully");
     } catch (err) {
-      // Show error toast
+      const error = err as { code?: string; message?: string };
+      if (error.code === "NOT_FOUND") {
+        toast.error("Failed to clear cache", {
+          description: "Project not found",
+        });
+      } else if (error.code === "FORBIDDEN") {
+        toast.error("Failed to clear cache", {
+          description: "You don't have permission to clear the cache",
+        });
+      } else {
+        toast.error("Failed to clear cache", {
+          description: error.message ?? "An unexpected error occurred. Please try again.",
+        });
+      }
     }
   };
 
@@ -34,43 +51,61 @@ export function CacheSettings({ project }: CacheSettingsProps): React.ReactEleme
   };
 
   if (isLoading) {
-    return <div className="animate-pulse">Loading cache stats...</div>;
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="h-4 w-4 animate-pulse rounded-sm bg-muted" />
+        Loading cache stats...
+      </div>
+    );
   }
 
+  const hasEntries = (stats?.totalEntries ?? 0) > 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Stats Grid */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="border rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">Cached Artifacts</div>
-          <div className="text-2xl font-semibold">{stats?.totalEntries ?? 0}</div>
+        <div className="border border-border/40 rounded-sm bg-muted/20 p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <LayersIcon className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Artifacts</span>
+          </div>
+          <div className="text-xl font-semibold font-mono">{stats?.totalEntries ?? 0}</div>
         </div>
-        <div className="border rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">Cache Size</div>
-          <div className="text-2xl font-semibold">
+        <div className="border border-border/40 rounded-sm bg-muted/20 p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <HardDriveIcon className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Cache Size</span>
+          </div>
+          <div className="text-xl font-semibold font-mono">
             {stats ? formatBytes(stats.totalSizeBytes) : "0 B"}
           </div>
         </div>
-        <div className="border rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">Average Age</div>
-          <div className="text-2xl font-semibold">{stats?.averageAgeDays ?? 0} days</div>
+        <div className="border border-border/40 rounded-sm bg-muted/20 p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <ClockIcon className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Avg Age</span>
+          </div>
+          <div className="text-xl font-semibold font-mono">{stats?.averageAgeDays ?? 0}d</div>
         </div>
       </div>
 
-      <div className="border rounded-lg p-4 space-y-2">
-        <h3 className="font-medium">Cache Configuration</h3>
-        <div className="text-sm text-muted-foreground">
-          Caches node_modules and other build artifacts between deployments. Automatically prunes
-          entries older than 7 days.
-        </div>
+      {/* Info */}
+      <div className="border border-border/40 rounded-sm bg-muted/10 px-4 py-3">
+        <p className="text-sm text-muted-foreground">
+          Caches node_modules and build artifacts between deployments. Automatically prunes entries
+          older than 7 days.
+        </p>
       </div>
 
-      <div className="flex justify-end">
+      {/* Actions */}
+      <div className="flex justify-end pt-2">
         <Button
           variant="outline"
           onClick={() => {
             void handleClear();
           }}
-          disabled={clearCache.isPending || (stats?.totalEntries ?? 0) === 0}
+          disabled={clearCache.isPending || !hasEntries}
         >
           {clearCache.isPending ? "Clearing..." : "Clear Cache"}
         </Button>

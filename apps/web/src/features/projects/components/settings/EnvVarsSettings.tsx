@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { PlusIcon, TrashIcon } from "lucide-react";
+import { PlusIcon, TrashIcon, PencilIcon } from "lucide-react";
 import { usePatchProject } from "@/core/api/hooks/useProjects";
 import type { ApiClientError } from "@/core/api/client";
 import type { Project } from "@forge/types";
@@ -25,7 +25,7 @@ interface FormErrors {
   envVarKey?: string;
 }
 
-export function EnvVarsSettings({ project }: EnvVarsSettingsProps): React.ReactElement {
+export function EnvVarsSettings({ project }: EnvVarsSettingsProps): JSX.Element {
   const config = (project.config as Record<string, unknown> | null | undefined) || {};
   const runtimeConfig = (config.runtime as Record<string, unknown> | undefined) || {};
   const envVars = (runtimeConfig.env as Record<string, string> | undefined) || {};
@@ -125,35 +125,56 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): React.ReactE
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        {Object.entries(localEnvVars).length === 0 ? (
+      {/* Environment Variables List */}
+      {Object.entries(localEnvVars).length === 0 ? (
+        <div className="text-center py-8 border border-dashed border-border/40 rounded-sm">
           <p className="text-sm text-muted-foreground">No environment variables configured</p>
-        ) : (
-          <div className="space-y-2">
-            {Object.entries(localEnvVars).map(([key, value]) => (
-              <div key={key} className="flex items-center gap-2">
-                <Input value={key} disabled className="flex-1 font-mono" />
-                <Input value={value} type="password" disabled className="flex-2 font-mono" />
-                <Button variant="ghost" size="icon-sm" onClick={() => handleOpenEditDialog(key)}>
-                  ✏️
-                </Button>
-                <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteEnvVar(key)}>
-                  <TrashIcon />
-                </Button>
+          <p className="text-xs text-muted-foreground/60 mt-1 font-mono">
+            Add variables to configure your application
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {Object.entries(localEnvVars).map(([key, value]) => (
+            <div
+              key={key}
+              className="flex items-center gap-2 p-2.5 border border-border/40 rounded-sm bg-muted/10 group"
+            >
+              <div className="flex-1 font-mono text-sm">{key}</div>
+              <div className="flex-2 font-mono text-sm text-muted-foreground">
+                {"*".repeat(Math.min(value.length, 20))}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleOpenEditDialog(key)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <PencilIcon className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleDeleteEnvVar(key)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
 
+      {/* Add Button */}
       <Button variant="outline" onClick={handleOpenAddDialog} disabled={updateProject.isPending}>
-        <PlusIcon />
+        <PlusIcon className="h-4 w-4 mr-1.5" />
         Add Variable
       </Button>
 
+      {/* Dialog */}
       {dialog.isOpen && (
-        <div className="rounded-md border bg-background p-4 shadow-sm">
-          <h4 className="mb-4 font-semibold">
+        <div className="border border-border/60 rounded-sm bg-background p-4 shadow-sm">
+          <h4 className="mb-4 font-semibold text-sm">
             {dialog.editMode ? "Edit Environment Variable" : "Add Environment Variable"}
           </h4>
 
@@ -170,7 +191,7 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): React.ReactE
                 className="font-mono"
               />
               {errors.envVarKey && <p className="text-sm text-destructive">{errors.envVarKey}</p>}
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground font-mono">
                 Uppercase letters, numbers, and underscores only
               </p>
             </div>
@@ -199,21 +220,22 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): React.ReactE
         </div>
       )}
 
-      {hasChanges && (
-        <div className="rounded-md bg-muted p-3">
-          <p className="text-sm text-muted-foreground">
+      {/* Unsaved Changes Warning */}
+      {hasChanges && !dialog.isOpen && (
+        <div className="rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+          <p className="text-sm text-amber-200">
             You have unsaved changes. Click "Save Changes" to persist them.
           </p>
         </div>
       )}
 
       {errors.general && (
-        <div className="rounded-md bg-destructive/10 p-3">
+        <div className="rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2">
           <p className="text-sm text-destructive">{errors.general}</p>
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button
           onClick={() => {
             void handleSave();

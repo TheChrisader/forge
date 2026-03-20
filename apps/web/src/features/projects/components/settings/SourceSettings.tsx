@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, JSX } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
@@ -27,7 +27,7 @@ interface FormErrors {
   general?: string;
 }
 
-export function SourceSettings({ project }: SourceSettingsProps): React.ReactElement {
+export function SourceSettings({ project }: SourceSettingsProps): JSX.Element {
   const config = (project.config as Record<string, unknown> | null | undefined) || {};
   const buildConfig = (config.build as Record<string, unknown> | undefined) || {};
 
@@ -94,10 +94,16 @@ export function SourceSettings({ project }: SourceSettingsProps): React.ReactEle
     }
   };
 
+  const hasChanges =
+    formData.sourceType !== currentSourceType ||
+    formData.sourceUrl !== project.sourceUrl ||
+    formData.branch !== (buildConfig.branch as string | undefined);
+
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <label htmlFor="sourceType" className="text-sm font-medium">
+    <div className="space-y-5">
+      {/* Source Type */}
+      <div className="gap-2 flex flex-col">
+        <label htmlFor="sourceType" className="text-sm font-medium text-foreground">
           Source Type
         </label>
         <Select
@@ -107,7 +113,7 @@ export function SourceSettings({ project }: SourceSettingsProps): React.ReactEle
           }
           disabled={updateProject.isPending}
         >
-          <SelectTrigger id="sourceType" className="w-full">
+          <SelectTrigger id="sourceType" className="max-w-md">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -118,9 +124,10 @@ export function SourceSettings({ project }: SourceSettingsProps): React.ReactEle
         </Select>
       </div>
 
-      <div className="space-y-2">
-        <label htmlFor="sourceUrl" className="text-sm font-medium">
-          {formData.sourceType === "git" && "Git Repository URL"}
+      {/* Source URL */}
+      <div className="gap-2 flex flex-col">
+        <label htmlFor="sourceUrl" className="text-sm font-medium text-foreground">
+          {formData.sourceType === "git" && "Repository URL"}
           {formData.sourceType === "local" && "Local Path"}
           {formData.sourceType === "image" && "Image Reference"}
         </label>
@@ -136,18 +143,20 @@ export function SourceSettings({ project }: SourceSettingsProps): React.ReactEle
                 : "registry.example.com/image:tag"
           }
           disabled={updateProject.isPending}
+          className="font-mono max-w-md"
         />
         {errors.sourceUrl && <p className="text-sm text-destructive">{errors.sourceUrl}</p>}
-        <p className="text-xs text-muted-foreground">
-          {formData.sourceType === "git" && "Use https:// or git@ for SSH URLs"}
+        <p className="text-xs text-muted-foreground font-mono">
+          {formData.sourceType === "git" && "https:// or git@ for SSH URLs"}
           {formData.sourceType === "local" && "Absolute path to project directory"}
           {formData.sourceType === "image" && "Docker image with registry and tag"}
         </p>
       </div>
 
+      {/* Branch (Git only) */}
       {formData.sourceType === "git" && (
-        <div className="space-y-2">
-          <label htmlFor="branch" className="text-sm font-medium">
+        <div className="gap-2 flex flex-col">
+          <label htmlFor="branch" className="text-sm font-medium text-foreground">
             Branch
           </label>
           <Input
@@ -156,23 +165,26 @@ export function SourceSettings({ project }: SourceSettingsProps): React.ReactEle
             onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
             placeholder="main"
             disabled={updateProject.isPending}
+            className="font-mono max-w-md"
           />
-          <p className="text-xs text-muted-foreground">Leave empty to use the default branch</p>
+          <p className="text-xs text-muted-foreground font-mono">
+            Leave empty to use the default branch
+          </p>
         </div>
       )}
 
       {errors.general && (
-        <div className="rounded-md bg-destructive/10 p-3">
+        <div className="rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2">
           <p className="text-sm text-destructive">{errors.general}</p>
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button
           onClick={() => {
             void handleSave();
           }}
-          disabled={updateProject.isPending}
+          disabled={updateProject.isPending || !hasChanges}
         >
           {updateProject.isPending ? "Saving..." : "Save Changes"}
         </Button>

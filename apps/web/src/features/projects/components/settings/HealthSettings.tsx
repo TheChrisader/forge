@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
@@ -24,7 +24,7 @@ interface FormErrors {
 
 const DURATION_PRESETS = ["5s", "10s", "30s", "1m", "5m"] as const;
 
-export function HealthSettings({ project }: HealthSettingsProps): React.ReactElement {
+export function HealthSettings({ project }: HealthSettingsProps): JSX.Element {
   const config = (project.config as Record<string, unknown> | null | undefined) || {};
   const healthCheckConfig = (config.healthCheck as Record<string, unknown> | undefined) || {};
   const lifecycleConfig = (config.lifecycle as Record<string, unknown> | undefined) || {};
@@ -127,15 +127,12 @@ export function HealthSettings({ project }: HealthSettingsProps): React.ReactEle
   return (
     <div className="space-y-6">
       {/* Health Check Section */}
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-medium">Health Check</h3>
-          <p className="text-xs text-muted-foreground">
-            Configure how the container health is monitored
-          </p>
+      <div className="gap-2 flex flex-col">
+        <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground/70">
+          Health Check
         </div>
 
-        <div className="space-y-2">
+        <div className="gap-2 flex flex-col">
           <label htmlFor="testCommand" className="text-sm font-medium">
             Test Command
           </label>
@@ -148,162 +145,69 @@ export function HealthSettings({ project }: HealthSettingsProps): React.ReactEle
             className="font-mono"
           />
           {errors.testCommand && <p className="text-sm text-destructive">{errors.testCommand}</p>}
-          <p className="text-xs text-muted-foreground">
-            Command to check health. Use comma-separated values (e.g., &quot;CMD-SHELL, curl -f
-            http://localhost/&quot;). Leave empty to disable health checks.
+          <p className="text-xs text-muted-foreground font-mono">
+            Leave empty to disable health checks
           </p>
         </div>
 
         {formData.testCommand && (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="interval" className="text-sm font-medium">
-                Interval
-              </label>
-              <div className="flex gap-2">
-                <Select
-                  value={DURATION_PRESETS.find((v) => formData.interval === v) || "custom"}
-                  onValueChange={(value) => {
-                    if (value !== "custom") {
-                      setFormData({ ...formData, interval: value });
-                    }
-                  }}
-                  disabled={updateProject.isPending}
-                >
-                  <SelectTrigger className="w-25">
-                    <SelectValue placeholder="Preset" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DURATION_PRESETS.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  id="interval"
-                  value={formData.interval}
-                  onChange={(e) => setFormData({ ...formData, interval: e.target.value })}
-                  placeholder="30s"
-                  disabled={updateProject.isPending}
-                  className="font-mono"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Time between checks</p>
+          <>
+            <div className="grid grid-cols-3 gap-4">
+              <DurationField
+                label="Interval"
+                value={formData.interval}
+                onChange={(value) => setFormData({ ...formData, interval: value })}
+                disabled={updateProject.isPending}
+                placeholder="30s"
+                helpText="Time between checks"
+              />
+              <DurationField
+                label="Timeout"
+                value={formData.timeout}
+                onChange={(value) => setFormData({ ...formData, timeout: value })}
+                disabled={updateProject.isPending}
+                placeholder="10s"
+                helpText="Max time per check"
+              />
+              <DurationField
+                label="Start Period"
+                value={formData.startPeriod}
+                onChange={(value) => setFormData({ ...formData, startPeriod: value })}
+                disabled={updateProject.isPending}
+                placeholder="30s"
+                helpText="Grace period on startup"
+              />
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="timeout" className="text-sm font-medium">
-                Timeout
+            <div className="space-y-2 max-w-xs">
+              <label htmlFor="retries" className="text-sm font-medium">
+                Consecutive Failures
               </label>
-              <div className="flex gap-2">
-                <Select
-                  value={DURATION_PRESETS.find((v) => formData.timeout === v) || "custom"}
-                  onValueChange={(value) => {
-                    if (value !== "custom") {
-                      setFormData({ ...formData, timeout: value });
-                    }
-                  }}
-                  disabled={updateProject.isPending}
-                >
-                  <SelectTrigger className="w-25">
-                    <SelectValue placeholder="Preset" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DURATION_PRESETS.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  id="timeout"
-                  value={formData.timeout}
-                  onChange={(e) => setFormData({ ...formData, timeout: e.target.value })}
-                  placeholder="10s"
-                  disabled={updateProject.isPending}
-                  className="font-mono"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Max time per check</p>
+              <Input
+                id="retries"
+                type="number"
+                min="0"
+                value={formData.retries}
+                onChange={(e) => setFormData({ ...formData, retries: e.target.value })}
+                placeholder="3"
+                disabled={updateProject.isPending}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground font-mono">Before marking as unhealthy</p>
             </div>
-
-            <div className="space-y-2">
-              <label htmlFor="startPeriod" className="text-sm font-medium">
-                Start Period
-              </label>
-              <div className="flex gap-2">
-                <Select
-                  value={DURATION_PRESETS.find((v) => formData.startPeriod === v) || "custom"}
-                  onValueChange={(value) => {
-                    if (value !== "custom") {
-                      setFormData({ ...formData, startPeriod: value });
-                    }
-                  }}
-                  disabled={updateProject.isPending}
-                >
-                  <SelectTrigger className="w-25">
-                    <SelectValue placeholder="Preset" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DURATION_PRESETS.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  id="startPeriod"
-                  value={formData.startPeriod}
-                  onChange={(e) => setFormData({ ...formData, startPeriod: e.target.value })}
-                  placeholder="30s"
-                  disabled={updateProject.isPending}
-                  className="font-mono"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Grace period on startup</p>
-            </div>
-          </div>
-        )}
-
-        {formData.testCommand && (
-          <div className="space-y-2">
-            <label htmlFor="retries" className="text-sm font-medium">
-              Consecutive Failures
-            </label>
-            <Input
-              id="retries"
-              type="number"
-              min="0"
-              value={formData.retries}
-              onChange={(e) => setFormData({ ...formData, retries: e.target.value })}
-              placeholder="3"
-              disabled={updateProject.isPending}
-              className="max-w-50"
-            />
-            <p className="text-xs text-muted-foreground">
-              Number of consecutive failures before marking as unhealthy
-            </p>
-          </div>
+          </>
         )}
       </div>
 
+      <div className="border-t border-border/40" />
+
       {/* Lifecycle Section */}
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-medium">Container Lifecycle</h3>
-          <p className="text-xs text-muted-foreground">
-            Configure container restart and cleanup behavior
-          </p>
+      <div className="gap-2 flex flex-col">
+        <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground/70">
+          Container Lifecycle
         </div>
 
-        <div className="space-y-2">
+        <div className="gap-2 flex flex-col">
           <label htmlFor="restart" className="text-sm font-medium">
             Restart Policy
           </label>
@@ -312,7 +216,7 @@ export function HealthSettings({ project }: HealthSettingsProps): React.ReactEle
             onValueChange={(value) => setFormData({ ...formData, restart: value })}
             disabled={updateProject.isPending}
           >
-            <SelectTrigger id="restart">
+            <SelectTrigger id="restart" className="max-w-md">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -329,11 +233,12 @@ export function HealthSettings({ project }: HealthSettingsProps): React.ReactEle
             {formData.restart === "on-failure" &&
               "Container restarts only on failure (non-zero exit)"}
             {formData.restart === "unless-stopped" && "Container restarts unless manually stopped"}
+            {formData.restart === "" && "Container will not be restarted if it exits"}
           </p>
         </div>
 
         {formData.restart === "on-failure" && (
-          <div className="space-y-2">
+          <div className="space-y-2 max-w-xs">
             <label htmlFor="restartRetries" className="text-sm font-medium">
               Maximum Restart Attempts
             </label>
@@ -345,20 +250,18 @@ export function HealthSettings({ project }: HealthSettingsProps): React.ReactEle
               onChange={(e) => setFormData({ ...formData, restartRetries: e.target.value })}
               placeholder="10"
               disabled={updateProject.isPending}
-              className="max-w-50"
+              className="font-mono"
             />
-            <p className="text-xs text-muted-foreground">
-              Maximum number of restart attempts before giving up
-            </p>
+            <p className="text-xs text-muted-foreground font-mono">Before giving up</p>
           </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
+        <div className="flex items-center justify-between py-1">
+          <div>
             <label htmlFor="autoRemove" className="text-sm font-medium">
               Auto Remove Container
             </label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Automatically remove container when it exits
             </p>
           </div>
@@ -372,12 +275,12 @@ export function HealthSettings({ project }: HealthSettingsProps): React.ReactEle
       </div>
 
       {errors.general && (
-        <div className="rounded-md bg-destructive/10 p-3">
+        <div className="rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2">
           <p className="text-sm text-destructive">{errors.general}</p>
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button
           onClick={() => {
             void handleSave();
@@ -387,6 +290,61 @@ export function HealthSettings({ project }: HealthSettingsProps): React.ReactEle
           {updateProject.isPending ? "Saving..." : "Save Changes"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+interface DurationFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  placeholder: string;
+  helpText: string;
+}
+
+function DurationField({
+  label,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+  helpText,
+}: DurationFieldProps): JSX.Element {
+  return (
+    <div className="gap-2 flex flex-col">
+      <label className="text-sm font-medium">{label}</label>
+      <div className="flex gap-2">
+        <Select
+          value={DURATION_PRESETS.find((v) => value === v) || "custom"}
+          onValueChange={(val) => {
+            if (val !== "custom") {
+              onChange(val);
+            }
+          }}
+          disabled={disabled}
+        >
+          <SelectTrigger className="w-24">
+            <SelectValue placeholder="Preset" />
+          </SelectTrigger>
+          <SelectContent>
+            {DURATION_PRESETS.map((v) => (
+              <SelectItem key={v} value={v}>
+                {v}
+              </SelectItem>
+            ))}
+            <SelectItem value="custom">Custom</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="font-mono"
+        />
+      </div>
+      <p className="text-xs text-muted-foreground font-mono">{helpText}</p>
     </div>
   );
 }

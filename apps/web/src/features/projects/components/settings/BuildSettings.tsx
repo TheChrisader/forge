@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { JSX, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
-import { PlusIcon, TrashIcon } from "lucide-react";
+import { PlusIcon, TrashIcon, PencilIcon } from "lucide-react";
 import { usePatchProject } from "@/core/api/hooks/useProjects";
 import type { ApiClientError } from "@/core/api/client";
 import type { Project } from "@forge/types";
@@ -24,7 +24,7 @@ interface FormErrors {
   buildArgKey?: string;
 }
 
-export function BuildSettings({ project }: BuildSettingsProps): React.ReactElement {
+export function BuildSettings({ project }: BuildSettingsProps): JSX.Element {
   const config = (project.config as Record<string, unknown> | null | undefined) || {};
   const buildConfig = (config.build as Record<string, unknown> | undefined) || {};
   const runtimeConfig = (config.runtime as Record<string, unknown> | undefined) || {};
@@ -156,71 +156,87 @@ export function BuildSettings({ project }: BuildSettingsProps): React.ReactEleme
   return (
     <div className="space-y-6">
       {/* Framework Detection */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Framework</label>
+      <div className="flex items-center gap-3">
+        <div className="text-sm text-muted-foreground">Framework</div>
         <div className="flex items-center gap-2">
-          <Input value={framework || "Not detected"} disabled className="max-w-xs" />
-          {framework && <Badge variant="secondary">Auto-detected</Badge>}
+          <span className="text-sm font-medium">{framework || "Not detected"}</span>
+          {framework && (
+            <Badge variant="secondary" className="text-xs">
+              Auto-detected
+            </Badge>
+          )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Framework is automatically detected from your repository
-        </p>
       </div>
 
-      {/* Docker Build Settings */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium">Docker Build</h3>
+      <div className="border-t border-border/40" />
 
-        <div className="space-y-2">
-          <label htmlFor="dockerfile" className="text-sm font-medium">
-            Dockerfile Path
-          </label>
-          <Input
-            id="dockerfile"
-            value={formData.dockerfile}
-            onChange={(e) => handleFieldChange("dockerfile", e.target.value)}
-            placeholder="Dockerfile"
-            disabled={updateProject.isPending}
-            className="font-mono"
-          />
-          <p className="text-xs text-muted-foreground">
-            Path to Dockerfile relative to project root
-          </p>
+      {/* Docker Build Settings */}
+      <div className="gap-2 flex flex-col">
+        <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground/70">
+          Docker Build
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="context" className="text-sm font-medium">
-            Build Context
-          </label>
-          <Input
-            id="context"
-            value={formData.context}
-            onChange={(e) => handleFieldChange("context", e.target.value)}
-            placeholder="."
-            disabled={updateProject.isPending}
-            className="font-mono"
-          />
-          <p className="text-xs text-muted-foreground">
-            Build context directory (default: project root)
-          </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="gap-2 flex flex-col">
+            <label htmlFor="dockerfile" className="text-sm font-medium">
+              Dockerfile Path
+            </label>
+            <Input
+              id="dockerfile"
+              value={formData.dockerfile}
+              onChange={(e) => handleFieldChange("dockerfile", e.target.value)}
+              placeholder="Dockerfile"
+              disabled={updateProject.isPending}
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground font-mono">Relative to project root</p>
+          </div>
+
+          <div className="gap-2 flex flex-col">
+            <label htmlFor="context" className="text-sm font-medium">
+              Build Context
+            </label>
+            <Input
+              id="context"
+              value={formData.context}
+              onChange={(e) => handleFieldChange("context", e.target.value)}
+              placeholder="."
+              disabled={updateProject.isPending}
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground font-mono">Default: project root</p>
+          </div>
         </div>
 
         {/* Build Args */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Build Arguments</label>
+        <div className="gap-2 flex flex-col">
+          <div className="text-sm font-medium">Build Arguments</div>
           {Object.entries(localBuildArgs).length === 0 ? (
             <p className="text-sm text-muted-foreground">No build arguments configured</p>
           ) : (
-            <div className="space-y-2">
+            <div className="gap-2 flex flex-col">
               {Object.entries(localBuildArgs).map(([key, value]) => (
-                <div key={key} className="flex items-center gap-2">
-                  <Input value={key} disabled className="flex-1 font-mono text-sm" />
-                  <Input value={value} disabled className="flex-2 font-mono text-sm" />
-                  <Button variant="ghost" size="icon-sm" onClick={() => handleOpenEditDialog(key)}>
-                    ✏️
+                <div
+                  key={key}
+                  className="flex items-center gap-2 p-2 border border-border/40 rounded-sm bg-muted/10 group"
+                >
+                  <div className="flex-1 font-mono text-sm">{key}</div>
+                  <div className="flex-2 font-mono text-sm text-muted-foreground">{value}</div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => handleOpenEditDialog(key)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <PencilIcon className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteBuildArg(key)}>
-                    <TrashIcon />
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => handleDeleteBuildArg(key)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               ))}
@@ -231,17 +247,17 @@ export function BuildSettings({ project }: BuildSettingsProps): React.ReactEleme
             onClick={handleOpenAddDialog}
             disabled={updateProject.isPending}
           >
-            <PlusIcon />
+            <PlusIcon className="h-4 w-4 mr-1.5" />
             Add Build Arg
           </Button>
 
           {dialog.isOpen && (
-            <div className="rounded-md border bg-background p-4 shadow-sm">
-              <h4 className="mb-4 font-semibold">
+            <div className="border border-border/60 rounded-sm bg-background p-4 shadow-sm">
+              <h4 className="mb-4 font-semibold text-sm">
                 {dialog.editMode ? "Edit Build Argument" : "Add Build Argument"}
               </h4>
               <div className="space-y-4">
-                <div className="space-y-2">
+                <div className="gap-2 flex flex-col">
                   <label htmlFor="arg-key" className="text-sm font-medium">
                     Key
                   </label>
@@ -256,7 +272,7 @@ export function BuildSettings({ project }: BuildSettingsProps): React.ReactEleme
                     <p className="text-sm text-destructive">{errors.buildArgKey}</p>
                   )}
                 </div>
-                <div className="space-y-2">
+                <div className="gap-2 flex flex-col">
                   <label htmlFor="arg-value" className="text-sm font-medium">
                     Value
                   </label>
@@ -280,11 +296,15 @@ export function BuildSettings({ project }: BuildSettingsProps): React.ReactEleme
         </div>
       </div>
 
-      {/* Framework Build Settings */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium">Framework Build</h3>
+      <div className="border-t border-border/40" />
 
-        <div className="space-y-2">
+      {/* Framework Build Settings */}
+      <div className="gap-2 flex flex-col">
+        <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground/70">
+          Framework Build
+        </div>
+
+        <div className="gap-2 flex flex-col">
           <label htmlFor="installCommand" className="text-sm font-medium">
             Install Command
           </label>
@@ -297,14 +317,19 @@ export function BuildSettings({ project }: BuildSettingsProps): React.ReactEleme
               disabled={updateProject.isPending}
             />
             {isAutoDetected("installCommand") && !modifiedFields.has("installCommand") && (
-              <Badge variant="secondary">Auto-detected</Badge>
+              <Badge variant="secondary" className="text-xs">
+                Auto-detected
+              </Badge>
             )}
-            {modifiedFields.has("installCommand") && <Badge variant="outline">Custom</Badge>}
+            {modifiedFields.has("installCommand") && (
+              <Badge variant="outline" className="text-xs">
+                Custom
+              </Badge>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground">Command to install dependencies</p>
         </div>
 
-        <div className="space-y-2">
+        <div className="gap-2 flex flex-col">
           <label htmlFor="buildCommand" className="text-sm font-medium">
             Build Command
           </label>
@@ -317,16 +342,23 @@ export function BuildSettings({ project }: BuildSettingsProps): React.ReactEleme
               disabled={updateProject.isPending}
             />
             {isAutoDetected("buildCommand") && !modifiedFields.has("buildCommand") && (
-              <Badge variant="secondary">Auto-detected</Badge>
+              <Badge variant="secondary" className="text-xs">
+                Auto-detected
+              </Badge>
             )}
-            {modifiedFields.has("buildCommand") && <Badge variant="outline">Custom</Badge>}
+            {modifiedFields.has("buildCommand") && (
+              <Badge variant="outline" className="text-xs">
+                Custom
+              </Badge>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground">Command to build your application</p>
         </div>
       </div>
 
+      <div className="border-t border-border/40" />
+
       {/* Start Command */}
-      <div className="space-y-2">
+      <div className="gap-2 flex flex-col">
         <label htmlFor="startCommand" className="text-sm font-medium">
           Start Command
         </label>
@@ -339,20 +371,25 @@ export function BuildSettings({ project }: BuildSettingsProps): React.ReactEleme
             disabled={updateProject.isPending}
           />
           {isAutoDetected("startCommand") && !modifiedFields.has("startCommand") && (
-            <Badge variant="secondary">Auto-detected</Badge>
+            <Badge variant="secondary" className="text-xs">
+              Auto-detected
+            </Badge>
           )}
-          {modifiedFields.has("startCommand") && <Badge variant="outline">Custom</Badge>}
+          {modifiedFields.has("startCommand") && (
+            <Badge variant="outline" className="text-xs">
+              Custom
+            </Badge>
+          )}
         </div>
-        <p className="text-xs text-muted-foreground">Command to start your application</p>
       </div>
 
       {errors.general && (
-        <div className="rounded-md bg-destructive/10 p-3">
+        <div className="rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2">
           <p className="text-sm text-destructive">{errors.general}</p>
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button
           onClick={() => {
             void handleSave();
