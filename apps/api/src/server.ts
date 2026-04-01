@@ -13,6 +13,7 @@ import { LoggerModule } from "@forge/logger";
 import { InfrastructureModule } from "./modules/infrastructure.module.js";
 import { setupSwagger } from "./plugins/swagger.js";
 import { setupMiddleware } from "./middleware/index.js";
+import { setupAuditLogging } from "./middleware/audit.js";
 import { setupRoutes } from "./routes/index.js";
 import { setupWebSocket } from "./websocket/index.js";
 import { PrismaClient } from "@forge/database";
@@ -24,6 +25,9 @@ import { BuildLogModule } from "./modules/build-log.module.js";
 import { SSEModule } from "./modules/sse.module.js";
 import { ImageModule } from "./modules/image.module.js";
 import { ContainerModule } from "./modules/container.module.js";
+import { AuthModule } from "./modules/auth.module.js";
+import { PermissionsService } from "@forge/auth";
+import { attachPermissionsToRequest } from "./middleware/permissions.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -32,6 +36,7 @@ declare module "fastify" {
     registry: ServiceRegistry;
     db: PrismaClient;
     redis: Redis;
+    permissionsService: PermissionsService;
   }
 }
 
@@ -53,6 +58,7 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   registry.registerModule("buildLog", new BuildLogModule());
   registry.registerModule("image", new ImageModule());
   registry.registerModule("container", new ContainerModule());
+  registry.registerModule("auth", new AuthModule());
 
   await registry.initialize();
 
@@ -99,6 +105,16 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   await setupSwagger(server);
 
   await setupMiddleware(server, config);
+
+  setupAuditLogging(server);
+
+  const permissionsService = new PermissionsService(db, redis);
+  server.decorate("permissionsService", permissionsService);
+
+  server.addHook("onRequest", (request, _, done) => {
+    attachPermissionsToRequest(request, permissionsService);
+    done();
+  });
 
   setupRoutes(server);
 

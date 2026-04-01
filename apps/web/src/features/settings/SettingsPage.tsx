@@ -22,6 +22,7 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { Alert, AlertTitle, AlertDescription } from "@/shared/components/ui/alert";
 import { Separator } from "@/shared/components/ui/separator";
 import { UserIcon, BellIcon, SlidersIcon, KeyIcon, CheckIcon } from "lucide-react";
+import { TeamSettingsPage } from "./TeamSettingsPage";
 
 export function SettingsPage(): React.ReactElement {
   const [saveAlert, setSaveAlert] = useState(false);
@@ -82,6 +83,7 @@ export function SettingsPage(): React.ReactElement {
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -430,6 +432,10 @@ export function SettingsPage(): React.ReactElement {
               </Button>
             </CardFooter>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="team" className="space-y-6">
+          <TeamSettingsPage />
         </TabsContent>
       </Tabs>
 

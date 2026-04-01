@@ -4,13 +4,10 @@ import { z } from "zod";
 import { SERVICE_KEY_STRINGS, NotFoundError } from "@forge/core";
 import type { IContainerService } from "@forge/core";
 import { requireAuth } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/permissions.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 import { ConnectionLimitError } from "../errors/connection-limit.error.js";
 import { SSEManagerService } from "../services/sse-manager.service.js";
-
-/**
- * Zod schemas for request/response validation
- */
 
 const ContainerIdParamsSchema = z.object({
   id: z.uuid(),
@@ -43,15 +40,6 @@ const ContainerExecBodySchema = z.object({
   command: z.array(z.string()).min(1),
 });
 
-/**
- * Container API routes
- *
- * Provides endpoints for managing Docker containers:
- * - List containers by project or deployment
- * - Get container details, logs, stats
- * - Start, stop, restart, remove containers
- * - Execute commands in containers
- */
 export function registerContainerRoutes(_server: FastifyInstance, _config: Config): void {
   const server = getTypedFastifyInstance(_server);
   const registry = server.registry.getContainer();
@@ -73,6 +61,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "read" });
       const { projectId } = request.params as { projectId: string };
 
       const containers = await containerService.getByProject(projectId);
@@ -93,6 +82,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "read" });
       const { deploymentId } = request.params as { deploymentId: string };
 
       const containers = await containerService.getByDeployment(deploymentId);
@@ -113,6 +103,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "read" });
       const { id } = request.params as { id: string };
 
       const container = await containerService.getById(id);
@@ -140,6 +131,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "update" });
       const { id } = request.params as { id: string };
 
       await containerService.start(id);
@@ -161,6 +153,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "update" });
       const { id } = request.params as { id: string };
       const { timeout } = request.query as { timeout?: number };
 
@@ -182,6 +175,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "update" });
       const { id } = request.params as { id: string };
 
       await containerService.restart(id);
@@ -203,6 +197,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "delete" });
       const { id } = request.params as { id: string };
       const { force } = request.query as { force: boolean };
 
@@ -225,6 +220,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "read" });
       const { id } = request.params as { id: string };
       const { tail, follow, stdout, stderr } = request.query as {
         tail?: number | "all";
@@ -258,6 +254,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "read" });
       const params = ContainerIdParamsSchema.parse(request.params);
 
       const container = await containerService.getById(params.id);
@@ -314,6 +311,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "read" });
       const { id } = request.params as { id: string };
 
       const stats = await containerService.getStats(id);
@@ -335,6 +333,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "containers", action: "update" });
       const { id } = request.params as { id: string };
       const { command } = request.body as { command: string[] };
 

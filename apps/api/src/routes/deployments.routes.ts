@@ -8,6 +8,7 @@ import {
   type BuildLogService,
 } from "@forge/core";
 import { requireAuth } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/permissions.js";
 import { DeploymentService } from "../services/deployment.service.js";
 import { SSEManagerService } from "../services/sse-manager.service.js";
 import { ConnectionLimitError } from "../errors/connection-limit.error.js";
@@ -66,6 +67,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "deployments", action: "read" });
 
       const query = request.query;
       const page = Math.max(1, query.page ?? 1);
@@ -116,6 +118,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     },
     async (request, reply) => {
       const userId = requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "deployments", action: "create" });
       const params = request.params;
       const body = request.body;
 
@@ -150,6 +153,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "deployments", action: "read" });
       const params = request.params as { id: string };
 
       const deployment = await deploymentService.getById(params.id);
@@ -178,6 +182,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "deployments", action: "update" });
       const params = request.params as { id: string };
 
       await deploymentService.cancel(params.id);
@@ -208,6 +213,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "deployments", action: "read" });
       const params = request.params as { id: string };
       const query = DeploymentLogsQuerySchema.parse(request.query);
 
@@ -259,6 +265,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "deployments", action: "read" });
       const params = request.params as { id: string };
 
       try {
@@ -301,6 +308,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "deployments", action: "read" });
       const params = DeploymentIdParamsSchema.parse(request.params);
 
       const deployment = await deploymentService.getById(params.id);

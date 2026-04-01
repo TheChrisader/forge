@@ -42,6 +42,9 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
 
   await server.register(jwt, {
     secret: config.security.jwt.secret,
+    sign: {
+      expiresIn: config.security.jwt.expiresIn,
+    },
   });
 
   // Auth hook - tries JWT first, falls back to API key

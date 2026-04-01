@@ -41,6 +41,7 @@ export class ApiClient {
   private requestInterceptors: RequestInterceptor[] = [];
   private responseInterceptors: ResponseInterceptor[] = [];
   private defaultRetryOptions: RetryOptions = {};
+  private refreshPromise: Promise<string | null> | null = null;
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl || import.meta.env.VITE_API_URL || "http://localhost:4000";
@@ -119,6 +120,20 @@ export class ApiClient {
       }
 
       if (!finalResponse.ok) {
+        if (finalResponse.status === 401 && this.getRefreshToken() && attempt === 1) {
+          const newToken = await this.refreshAccessToken();
+          if (newToken) {
+            const retryHeaders = new Headers(finalFetchOptions.headers);
+            retryHeaders.set("Authorization", `Bearer ${newToken}`);
+            clearTimeout(timeoutId);
+            return this.request<T>(
+              endpoint,
+              { ...options, headers: Object.fromEntries(retryHeaders.entries()) },
+              2
+            );
+          }
+        }
+
         const error = await this.handleErrorResponse(finalResponse);
 
         const shouldRetry =
@@ -244,8 +259,70 @@ export class ApiClient {
 
     try {
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("refresh_token");
     } catch (error) {
       console.error("Failed to remove auth token:", error);
+    }
+  }
+
+  private getRefreshToken(): string | null {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return null;
+    }
+    try {
+      return localStorage.getItem("refresh_token");
+    } catch {
+      return null;
+    }
+  }
+
+  public setRefreshToken(token: string): void {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return;
+    }
+    try {
+      localStorage.setItem("refresh_token", token);
+    } catch (error) {
+      console.error("Failed to store refresh token:", error);
+    }
+  }
+
+  private async refreshAccessToken(): Promise<string | null> {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.doRefreshAccessToken();
+
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  private async doRefreshAccessToken(): Promise<string | null> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) return null;
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        this.removeAuthToken();
+        return null;
+      }
+
+      const data = (await response.json()) as { accessToken: string; refreshToken: string };
+      this.setAuthToken(data.accessToken);
+      this.setRefreshToken(data.refreshToken);
+      return data.accessToken;
+    } catch {
+      return null;
     }
   }
 

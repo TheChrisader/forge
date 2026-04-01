@@ -145,7 +145,8 @@ export const SecurityConfigSchema = z.object({
   }),
   jwt: z.object({
     secret: z.string().min(32),
-    expiresIn: z.string().default("7d"),
+    expiresIn: z.string().default("15m"),
+    refreshExpiresIn: z.string().default("7d"),
     issuer: z.string().default("forge"),
   }),
   apiKey: z
@@ -158,6 +159,9 @@ export const SecurityConfigSchema = z.object({
     enabled: z.boolean().default(true),
     max: z.number().int().positive().default(1000),
     windowMs: z.number().int().positive().default(60000),
+  }),
+  registration: z.object({
+    enabled: z.boolean().default(false),
   }),
 });
 

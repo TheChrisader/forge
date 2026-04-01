@@ -270,6 +270,11 @@ export class ConfigLoader {
             this.parseNumber(process.env.SECURITY_RATE_LIMIT_WINDOW) ??
             fileConfig.security?.rateLimit?.windowMs,
         },
+        registration: {
+          enabled:
+            this.parseBoolean(process.env.REGISTRATION_ENABLED) ??
+            fileConfig.security?.registration?.enabled,
+        },
       },
 
       features: {

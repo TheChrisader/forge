@@ -1,16 +1,29 @@
 import { apiClient } from "../client";
-import type { LoginRequest, LoginResponse, AuthMeResponse } from "@forge/types";
+import type {
+  LoginRequest,
+  LoginResponse,
+  AuthMeResponse,
+  ChangePasswordRequest,
+} from "@forge/types";
 
 export const authApi = {
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-    return apiClient.post("/api/auth/login", credentials);
+    const response = await apiClient.post<LoginResponse>("/api/auth/login", credentials);
+    if (response.refreshToken) {
+      apiClient.setRefreshToken(response.refreshToken);
+    }
+    return response;
   },
 
   me: async (): Promise<AuthMeResponse> => {
-    return apiClient.get("/api/auth/me");
+    return apiClient.get<AuthMeResponse>("/api/auth/me");
   },
 
   logout: async (): Promise<void> => {
     return Promise.resolve();
+  },
+
+  changePassword: async (data: ChangePasswordRequest): Promise<{ success: boolean }> => {
+    return apiClient.post("/api/auth/change-password", data);
   },
 };

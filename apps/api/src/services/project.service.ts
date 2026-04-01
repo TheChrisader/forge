@@ -40,6 +40,7 @@ export class ProjectService implements IProjectService {
     page?: number;
     limit?: number;
     status?: ProjectStatus[];
+    teamIds?: string[];
   }): Promise<{ projects: Project[]; total: number }> {
     const page = Math.max(1, filters?.page ?? 1);
     const limit = Math.min(100, Math.max(1, filters?.limit ?? 10));
@@ -50,12 +51,18 @@ export class ProjectService implements IProjectService {
     const where: {
       status?: { in: ProjectStatus[] };
       deletedAt?: null;
+      teamId?: { in: string[] };
     } = {
       deletedAt: null,
     };
 
     if (status && status.length > 0) {
       where.status = { in: status };
+    }
+
+    // Filter projects to those belonging to the user's teams
+    if (filters?.teamIds && filters.teamIds.length > 0) {
+      where.teamId = { in: filters.teamIds };
     }
 
     const [projects, total] = await Promise.all([

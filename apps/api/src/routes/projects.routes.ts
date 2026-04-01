@@ -3,6 +3,7 @@ import type { Config } from "@forge/core";
 import { z } from "zod";
 import { NotFoundError, SERVICE_KEY_STRINGS } from "@forge/core";
 import { requireAuth } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/permissions.js";
 import { ProjectService } from "../services/project.service.js";
 import type { BuildCacheService } from "@forge/docker";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
@@ -21,17 +22,9 @@ import {
   CacheClearResultSchema,
 } from "@forge/types";
 
-// =============================================================================
-// Schemas
-// =============================================================================
-
 const ProjectIncludeQuerySchema = z.object({
   include: z.array(z.enum(["gitIntegration", "deployments", "containers"])).optional(),
 });
-
-// =============================================================================
-// Routes
-// =============================================================================
 
 export function registerProjectRoutes(_server: FastifyInstance, _config: Config): void {
   const server = getTypedFastifyInstance(_server);
@@ -54,6 +47,32 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "projects", action: "read" });
+
+      const userId = (request as { userId?: string }).userId!;
+      const db = server.db;
+
+      const userWithRoles = await db.user.findUnique({
+        where: { id: userId },
+        select: {
+          roleAssignments: {
+            select: { role: { select: { isSystem: true, name: true } } },
+          },
+        },
+      });
+
+      const isPlatformAdmin = userWithRoles?.roleAssignments.some(
+        (ra) => ra.role.isSystem && ra.role.name === "platform_admin"
+      );
+
+      let teamIds: string[] | undefined;
+      if (!isPlatformAdmin) {
+        const userTeams = await db.teamMember.findMany({
+          where: { userId },
+          select: { teamId: true },
+        });
+        teamIds = userTeams.map((m) => m.teamId);
+      }
 
       const query = request.query;
       const page = Math.max(1, query.page ?? 1);
@@ -72,7 +91,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
         filters.status = query.status;
       }
 
-      const { projects, total } = await projectService.list(filters);
+      const { projects, total } = await projectService.list({ ...filters, teamIds });
       const totalPages = Math.ceil(total / limit);
 
       return reply.status(200).send({
@@ -103,6 +122,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     },
     async (request, reply) => {
       const userId = requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "projects", action: "create" });
       const body = request.body;
 
       const project = await projectService.create({
@@ -131,6 +151,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "projects", action: "read" });
       const params = request.params;
       const query = request.query ?? {};
 
@@ -161,6 +182,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     },
     async (request, reply) => {
       const userId = requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "projects", action: "update" });
       const params = request.params;
       const body = request.body;
 
@@ -194,6 +216,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     },
     async (request, reply) => {
       const userId = requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "projects", action: "update" });
       const params = request.params;
       const body = request.body;
 
@@ -223,6 +246,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "projects", action: "delete" });
       const params = request.params;
 
       await projectService.delete(params.id);
@@ -247,6 +271,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "projects", action: "read" });
       const params = request.params;
 
       const project = await projectService.getById(params.id);
@@ -280,6 +305,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "projects", action: "delete" });
       const params = request.params;
 
       const project = await projectService.getById(params.id);

@@ -6,6 +6,7 @@ import type { DockerRuntime } from "@forge/docker";
 import { generateImageTagPrefix } from "@forge/build";
 import { getDatabaseClient } from "@forge/database";
 import { requireAuth } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/permissions.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 
 const ProjectIdParamsSchema = z.object({
@@ -33,6 +34,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "images", action: "read" });
       const { project, dangling } = request.query;
 
       let tagPrefix = "forge/";
@@ -74,6 +76,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "images", action: "read" });
       const { project } = request.query;
 
       let tagPrefix = "forge/";
@@ -111,6 +114,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "images", action: "delete" });
       const { id } = request.params;
       const { force } = request.query;
 
@@ -125,6 +129,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
    */
   server.post("/api/images/prune", {}, async (request, reply) => {
     requireAuth((request as { userId?: string }).userId);
+    await requirePermission(request, { resource: "images", action: "delete" });
     const result = await runtime.pruneDanglingImages();
     return reply.send({ data: result });
   });
@@ -145,6 +150,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "images", action: "delete" });
       const { id } = request.params as { id: string };
       const { maxAgeDays } = request.body as { maxAgeDays?: number };
 

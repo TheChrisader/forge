@@ -1,6 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { registerHealthRoutes } from "./health.routes.js";
 import { registerAuthRoutes } from "./auth.routes.js";
+import { registerInvitationRoutes } from "./invitations.routes.js";
+import { registerPasswordRoutes } from "./password.routes.js";
+import { registerApiKeyRoutes } from "./api-keys.routes.js";
 import { registerProjectRoutes } from "./projects.routes.js";
 import { registerDeploymentRoutes } from "./deployments.routes.js";
 import { registerImageRoutes } from "./images.routes.js";
@@ -9,6 +12,9 @@ import { registerContainerRoutes } from "./containers.routes.js";
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
   registerAuthRoutes(server, server.config);
+  registerInvitationRoutes(server, server.config);
+  registerPasswordRoutes(server, server.config);
+  registerApiKeyRoutes(server, server.config);
   registerProjectRoutes(server, server.config);
   registerDeploymentRoutes(server, server.config);
   registerImageRoutes(server, server.config);

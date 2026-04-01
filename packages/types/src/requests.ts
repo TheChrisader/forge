@@ -70,6 +70,20 @@ import {
   LoginRequestSchema,
   LoginResponseSchema,
   AuthMeResponseSchema,
+  RefreshTokenRequestSchema,
+  RefreshTokenResponseSchema,
+  RegisterRequestSchema,
+  RegisterResponseSchema,
+  ForgotPasswordRequestSchema,
+  ResetPasswordRequestSchema,
+  ChangePasswordRequestSchema,
+  AcceptInviteRequestSchema,
+  AcceptInviteResponseSchema,
+  CreateInvitationRequestSchema,
+  InvitationResponseSchema,
+  UpdateMemberRoleRequestSchema,
+  MemberResponseSchema,
+  TeamResponseSchema,
 } from "./schemas";
 
 // =============================================================================
@@ -81,6 +95,34 @@ export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 
 export type AuthMeResponse = z.infer<typeof AuthMeResponseSchema>;
+
+export type RefreshTokenRequest = z.infer<typeof RefreshTokenRequestSchema>;
+
+export type RefreshTokenResponse = z.infer<typeof RefreshTokenResponseSchema>;
+
+export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
+
+export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
+
+export type ForgotPasswordRequest = z.infer<typeof ForgotPasswordRequestSchema>;
+
+export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;
+
+export type ChangePasswordRequest = z.infer<typeof ChangePasswordRequestSchema>;
+
+export type AcceptInviteRequest = z.infer<typeof AcceptInviteRequestSchema>;
+
+export type AcceptInviteResponse = z.infer<typeof AcceptInviteResponseSchema>;
+
+export type CreateInvitationRequest = z.infer<typeof CreateInvitationRequestSchema>;
+
+export type InvitationResponse = z.infer<typeof InvitationResponseSchema>;
+
+export type UpdateMemberRoleRequest = z.infer<typeof UpdateMemberRoleRequestSchema>;
+
+export type MemberResponse = z.infer<typeof MemberResponseSchema>;
+
+export type TeamResponse = z.infer<typeof TeamResponseSchema>;
 
 // =============================================================================
 // Project Requests

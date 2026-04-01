@@ -25,6 +25,9 @@ export const SERVICE_KEYS = {
   LOG_SERVICE: Symbol.for("forge:log-service"),
   METRICS_SERVICE: Symbol.for("forge:metrics-service"),
   SECRET_SERVICE: Symbol.for("forge:secret-service"),
+  PERMISSIONS_SERVICE: Symbol.for("forge:permissions-service"),
+  SESSION_SERVICE: Symbol.for("forge:session-service"),
+  INVITATION_SERVICE: Symbol.for("forge:invitation-service"),
 
   NOTIFICATION_PROVIDER: Symbol.for("forge:notification-provider"),
   AUTH_PROVIDER: Symbol.for("forge:auth-provider"),
@@ -56,6 +59,9 @@ export const SERVICE_KEY_STRINGS = {
   PROJECT_SERVICE: "projectService",
   SERVICE_SERVICE: "serviceService", // alias for backward compatibility
   SERVICE_MANAGEMENT_SERVICE: "serviceManagementService",
+  PERMISSIONS_SERVICE: "permissionsService",
+  SESSION_SERVICE: "sessionService",
+  INVITATION_SERVICE: "invitationService",
   CONTAINER_SERVICE: "containerService",
   LOG_SERVICE: "logService",
   METRICS_SERVICE: "metricsService",
