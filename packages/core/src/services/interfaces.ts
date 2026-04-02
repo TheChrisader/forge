@@ -270,15 +270,35 @@ export interface ISecretService {
     projectId?: string;
     key: string;
     value: string;
-  }): Promise<{ id: string; key: string }>;
-  update(id: string, value: string): Promise<void>;
-  delete(id: string): Promise<void>;
-  get(id: string): Promise<string>; // Returns decrypted value
+    description?: string;
+    createdBy?: string;
+  }): Promise<{
+    id: string;
+    key: string;
+    description: string | null;
+    projectId: string | null;
+    lastAccessedAt: Date | null;
+    accessCount: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
+
+  update(id: string, value: string, updatedBy?: string): Promise<void>;
+
+  delete(id: string): Promise<void>; // Soft delete — sets deletedAt; throws NotFoundError if already deleted
+
+  get(id: string): Promise<string>; // Returns decrypted plaintext; bumps accessCount + lastAccessedAt; throws NotFoundError if soft-deleted
+
   list(projectId?: string): Promise<
     Array<{
       id: string;
       key: string;
-      projectId?: string;
+      description: string | null;
+      projectId: string | null;
+      lastAccessedAt: Date | null;
+      accessCount: number;
+      createdAt: Date;
+      updatedAt: Date;
     }>
-  >;
+  >; // Never returns values. Filters out soft-deleted (deletedAt IS NULL).
 }

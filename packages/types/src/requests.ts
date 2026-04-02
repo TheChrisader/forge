@@ -21,8 +21,8 @@ import {
   CreateServiceRequestSchema,
   CreateServiceBackupRequestSchema,
   UpdateServiceBackupRequestSchema,
-  CreateSecretRequestSchema,
-  UpdateSecretRequestSchema,
+  // CreateSecretRequestSchema,
+  // UpdateSecretRequestSchema,
   CreateEnvironmentVariableRequestSchema,
   UpdateEnvironmentVariableRequestSchema,
   CreateTracingConfigRequestSchema,
@@ -203,9 +203,9 @@ export type UpdateServiceBackupRequest = z.infer<typeof UpdateServiceBackupReque
 // Secrets & Environment Variables
 // =============================================================================
 
-export type CreateSecretRequest = z.infer<typeof CreateSecretRequestSchema>;
+// export type CreateSecretRequest = z.infer<typeof CreateSecretRequestSchema>;
 
-export type UpdateSecretRequest = z.infer<typeof UpdateSecretRequestSchema>;
+// export type UpdateSecretRequest = z.infer<typeof UpdateSecretRequestSchema>;
 
 export type CreateEnvironmentVariableRequest = z.infer<
   typeof CreateEnvironmentVariableRequestSchema

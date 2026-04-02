@@ -65,7 +65,7 @@ export const ProjectListQuerySchema = z.object({
 });
 
 export const ProjectIdParamsSchema = z.object({
-  id: IdSchema,
+  projectId: IdSchema,
 });
 
 export const DeploymentFiltersSchema = z.object({

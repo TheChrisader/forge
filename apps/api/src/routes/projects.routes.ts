@@ -135,11 +135,14 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
   );
 
   /**
-   * GET /api/projects/:id
+   * GET /api/projects/:projectId
    * Gets a single project by ID with optional included relations
    */
-  server.get<{ Params: { id: string }; Querystring: z.infer<typeof ProjectIncludeQuerySchema> }>(
-    "/api/projects/:id",
+  server.get<{
+    Params: { projectId: string };
+    Querystring: z.infer<typeof ProjectIncludeQuerySchema>;
+  }>(
+    "/api/projects/:projectId",
     {
       schema: {
         params: ProjectIdParamsSchema,
@@ -155,7 +158,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
       const params = request.params;
       const query = request.query ?? {};
 
-      const project = await projectService.getById(params.id, { include: query.include });
+      const project = await projectService.getById(params.projectId, { include: query.include });
 
       if (!project) {
         throw new NotFoundError("Project");
@@ -170,7 +173,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
    * Updates a project (full update - replaces all fields)
    */
   server.put(
-    "/api/projects/:id",
+    "/api/projects/:projectId",
     {
       schema: {
         params: ProjectIdParamsSchema,
@@ -190,7 +193,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
         throw new NotFoundError("At least one field must be provided for update");
       }
 
-      const project = await projectService.update(params.id, {
+      const project = await projectService.update(params.projectId, {
         ...body,
         metadata: { ...(body.metadata ?? {}), updatedBy: userId },
       });
@@ -204,7 +207,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
    * Updates a project (partial update - only provided fields)
    */
   server.patch(
-    "/api/projects/:id",
+    "/api/projects/:projectId",
     {
       schema: {
         params: ProjectIdParamsSchema,
@@ -224,7 +227,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
         throw new NotFoundError("At least one field must be provided for update");
       }
 
-      const project = await projectService.update(params.id, {
+      const project = await projectService.update(params.projectId, {
         ...body,
         metadata: { ...(body.metadata ?? {}), updatedBy: userId },
       });
@@ -238,7 +241,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
    * Deletes a project
    */
   server.delete(
-    "/api/projects/:id",
+    "/api/projects/:projectId",
     {
       schema: {
         params: ProjectIdParamsSchema,
@@ -249,7 +252,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
       await requirePermission(request, { resource: "projects", action: "delete" });
       const params = request.params;
 
-      await projectService.delete(params.id);
+      await projectService.delete(params.projectId);
 
       return reply.status(204).send();
     }
@@ -274,7 +277,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
       await requirePermission(request, { resource: "projects", action: "read" });
       const params = request.params;
 
-      const project = await projectService.getById(params.id);
+      const project = await projectService.getById(params.projectId);
 
       if (!project) {
         throw new NotFoundError("Project");
@@ -283,7 +286,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
       const cacheService = container.resolveSync<BuildCacheService>(
         SERVICE_KEY_STRINGS.BUILD_CACHE_SERVICE
       );
-      const stats = await cacheService.getCacheStats(params.id);
+      const stats = await cacheService.getCacheStats(params.projectId);
 
       return reply.status(200).send({ data: stats });
     }
@@ -308,7 +311,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
       await requirePermission(request, { resource: "projects", action: "delete" });
       const params = request.params;
 
-      const project = await projectService.getById(params.id);
+      const project = await projectService.getById(params.projectId);
 
       if (!project) {
         throw new NotFoundError("Project");
@@ -317,7 +320,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
       const cacheService = container.resolveSync<BuildCacheService>(
         SERVICE_KEY_STRINGS.BUILD_CACHE_SERVICE
       );
-      const result = await cacheService.clearCache(params.id);
+      const result = await cacheService.clearCache(params.projectId);
 
       return reply.status(200).send({ data: result });
     }

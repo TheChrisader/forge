@@ -32,6 +32,7 @@
     "@forge/database": "workspace:*",
     "@forge/logger": "workspace:*",
     "@forge/queue": "workspace:*",
+    "@forge/security": "workspace:*",
     "@forge/types": "workspace:*",
     "argon2": "^0.44.0",
     "bullmq": "^5.46.0",

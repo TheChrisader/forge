@@ -1,8 +1,11 @@
-import { JSX, useState } from "react";
+import { JSX, useState, useEffect, useCallback } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { PlusIcon, TrashIcon, PencilIcon } from "lucide-react";
-import { usePatchProject } from "@/core/api/hooks/useProjects";
+import {
+  useEnvironmentVariables,
+  useUpsertEnvVars,
+} from "@/core/api/hooks/useEnvironmentVariables";
 import type { ApiClientError } from "@/core/api/client";
 import type { Project } from "@forge/types";
 
@@ -26,11 +29,10 @@ interface FormErrors {
 }
 
 export function EnvVarsSettings({ project }: EnvVarsSettingsProps): JSX.Element {
-  const config = (project.config as Record<string, unknown> | null | undefined) || {};
-  const runtimeConfig = (config.runtime as Record<string, unknown> | undefined) || {};
-  const envVars = (runtimeConfig.env as Record<string, string> | undefined) || {};
+  const { data: envVars = [], isLoading } = useEnvironmentVariables(project.id);
+  const upsertMutation = useUpsertEnvVars();
 
-  const [localEnvVars, setLocalEnvVars] = useState<Record<string, string>>(envVars);
+  const [localEnvVars, setLocalEnvVars] = useState<Record<string, string>>({});
   const [dialog, setDialog] = useState<EnvVarDialog>({
     isOpen: false,
     key: "",
@@ -39,7 +41,24 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): JSX.Element 
   });
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const updateProject = usePatchProject();
+  // Sync server data to local state
+  useEffect(() => {
+    if (envVars.length > 0 && Object.keys(localEnvVars).length === 0) {
+      const mapped: Record<string, string> = {};
+      for (const v of envVars) {
+        mapped[v.key] = v.value;
+      }
+      setLocalEnvVars(mapped);
+    }
+  }, [envVars]);
+
+  const originalEnvVars = useCallback((): Record<string, string> => {
+    const mapped: Record<string, string> = {};
+    for (const v of envVars) {
+      mapped[v.key] = v.value;
+    }
+    return mapped;
+  }, [envVars]);
 
   const handleOpenAddDialog = (): void => {
     setDialog({ isOpen: true, key: "", value: "", editMode: false });
@@ -103,17 +122,9 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): JSX.Element 
     setErrors({});
 
     try {
-      await updateProject.mutateAsync({
-        id: project.id,
-        data: {
-          config: {
-            ...(typeof config === "object" ? config : {}),
-            runtime: {
-              ...(typeof runtimeConfig === "object" ? runtimeConfig : {}),
-              env: localEnvVars,
-            },
-          } as Record<string, unknown>,
-        },
+      await upsertMutation.mutateAsync({
+        projectId: project.id,
+        data: { variables: localEnvVars },
       });
     } catch (err) {
       const error = err as ApiClientError;
@@ -121,7 +132,17 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): JSX.Element 
     }
   };
 
-  const hasChanges = JSON.stringify(localEnvVars) !== JSON.stringify(envVars);
+  const hasChanges = JSON.stringify(localEnvVars) !== JSON.stringify(originalEnvVars());
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center py-8">
+          <p className="text-sm text-muted-foreground">Loading environment variables...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -156,6 +177,7 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): JSX.Element 
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => handleDeleteEnvVar(key)}
+                disabled={hasChanges}
                 className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
               >
                 <TrashIcon className="h-3.5 w-3.5" />
@@ -166,7 +188,7 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): JSX.Element 
       )}
 
       {/* Add Button */}
-      <Button variant="outline" onClick={handleOpenAddDialog} disabled={updateProject.isPending}>
+      <Button variant="outline" onClick={handleOpenAddDialog} disabled={upsertMutation.isPending}>
         <PlusIcon className="h-4 w-4 mr-1.5" />
         Add Variable
       </Button>
@@ -189,6 +211,7 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): JSX.Element 
                 onChange={(e) => setDialog({ ...dialog, key: e.target.value.toUpperCase() })}
                 placeholder="API_KEY"
                 className="font-mono"
+                disabled={dialog.editMode}
               />
               {errors.envVarKey && <p className="text-sm text-destructive">{errors.envVarKey}</p>}
               <p className="text-xs text-muted-foreground font-mono">
@@ -240,9 +263,9 @@ export function EnvVarsSettings({ project }: EnvVarsSettingsProps): JSX.Element 
           onClick={() => {
             void handleSave();
           }}
-          disabled={updateProject.isPending || !hasChanges}
+          disabled={upsertMutation.isPending || !hasChanges}
         >
-          {updateProject.isPending ? "Saving..." : "Save Changes"}
+          {upsertMutation.isPending ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </div>

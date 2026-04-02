@@ -1,0 +1,22 @@
+{
+  "name": "@forge/security",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "shx rm -rf dist",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@forge/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^20.11.0"
+  }
+}

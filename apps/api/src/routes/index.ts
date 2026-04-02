@@ -8,6 +8,8 @@ import { registerProjectRoutes } from "./projects.routes.js";
 import { registerDeploymentRoutes } from "./deployments.routes.js";
 import { registerImageRoutes } from "./images.routes.js";
 import { registerContainerRoutes } from "./containers.routes.js";
+import { registerSecretRoutes } from "./secrets.routes.js";
+import { registerEnvironmentVariableRoutes } from "./environment-variables.routes.js";
 
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
@@ -19,4 +21,6 @@ export function setupRoutes(server: FastifyInstance): void {
   registerDeploymentRoutes(server, server.config);
   registerImageRoutes(server, server.config);
   registerContainerRoutes(server, server.config);
+  registerSecretRoutes(server, server.config);
+  registerEnvironmentVariableRoutes(server, server.config);
 }

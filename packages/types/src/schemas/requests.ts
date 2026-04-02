@@ -519,22 +519,22 @@ export const UpdateServiceBackupRequestSchema = z
 // SECRETS & ENVIRONMENT VARIABLES
 // =============================================================================
 
-export const CreateSecretRequestSchema = z
-  .object({
-    projectId: IdSchema.nullable().optional(),
-    key: NonEmptyStringSchema.max(255),
-    value: z.string(),
-    description: z.string().nullable().optional(),
-  })
-  .strict();
+// export const CreateSecretRequestSchema = z
+//   .object({
+//     projectId: IdSchema.nullable().optional(),
+//     key: NonEmptyStringSchema.max(255),
+//     value: z.string(),
+//     description: z.string().nullable().optional(),
+//   })
+//   .strict();
 
-export const UpdateSecretRequestSchema = z
-  .object({
-    key: NonEmptyStringSchema.max(255).optional(),
-    value: z.string().optional(),
-    description: z.string().nullable().optional(),
-  })
-  .strict();
+// export const UpdateSecretRequestSchema = z
+//   .object({
+//     key: NonEmptyStringSchema.max(255).optional(),
+//     value: z.string().optional(),
+//     description: z.string().nullable().optional(),
+//   })
+//   .strict();
 
 // -----------------------------------------------------------------------------
 // Environment Variable

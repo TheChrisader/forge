@@ -8,10 +8,7 @@ import { getDatabaseClient } from "@forge/database";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permissions.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
-
-const ProjectIdParamsSchema = z.object({
-  id: z.string().uuid(),
-});
+import { ProjectIdParamsSchema } from "@forge/types";
 
 export function registerImageRoutes(_server: FastifyInstance, _config: Config): void {
   const server = getTypedFastifyInstance(_server);
@@ -139,7 +136,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
    * Prunes old images for a specific project
    */
   server.post(
-    "/api/projects/:id/images/prune",
+    "/api/projects/:projectId/images/prune",
     {
       schema: {
         params: ProjectIdParamsSchema,
@@ -151,12 +148,12 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
       await requirePermission(request, { resource: "images", action: "delete" });
-      const { id } = request.params as { id: string };
+      const { projectId } = request.params as { projectId: string };
       const { maxAgeDays } = request.body as { maxAgeDays?: number };
 
       const db = getDatabaseClient();
       const targetProject = await db.project.findUnique({
-        where: { id },
+        where: { id: projectId },
         select: { name: true },
       });
 

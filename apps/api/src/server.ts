@@ -26,6 +26,8 @@ import { SSEModule } from "./modules/sse.module.js";
 import { ImageModule } from "./modules/image.module.js";
 import { ContainerModule } from "./modules/container.module.js";
 import { AuthModule } from "./modules/auth.module.js";
+import { SecretModule } from "./modules/secret.module.js";
+import { EnvironmentVariableModule } from "./modules/environment-variable.module.js";
 import { PermissionsService } from "@forge/auth";
 import { attachPermissionsToRequest } from "./middleware/permissions.js";
 
@@ -59,6 +61,8 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   registry.registerModule("image", new ImageModule());
   registry.registerModule("container", new ContainerModule());
   registry.registerModule("auth", new AuthModule());
+  registry.registerModule("secrets", new SecretModule());
+  registry.registerModule("environmentVariables", new EnvironmentVariableModule());
 
   await registry.initialize();
 

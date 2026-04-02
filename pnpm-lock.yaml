@@ -134,6 +134,9 @@ importers:
       '@forge/queue':
         specifier: workspace:*
         version: link:../../packages/queue
+      '@forge/security':
+        specifier: workspace:*
+        version: link:../../packages/security
       '@forge/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -683,6 +686,19 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.2.0)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/security:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.31
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   packages/storage:
     devDependencies:

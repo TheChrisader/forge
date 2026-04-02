@@ -23,6 +23,7 @@ import {
   DeploymentLogsResponseSchema,
   DeploymentStatus,
   DeploymentStrategy,
+  ProjectIdParamsSchema,
 } from "@forge/types";
 
 const DeploymentIdParamsSchema = z.object({
@@ -36,10 +37,6 @@ const CreateDeploymentBodySchema = z.object({
     .regex(/^[a-f0-9]{7,40}$/i)
     .optional(),
   buildArgs: z.record(z.string(), z.string()).optional(),
-});
-
-const ProjectIdParamsSchema = z.object({
-  projectId: IdSchema,
 });
 
 export function registerDeploymentRoutes(_server: FastifyInstance, _config: Config): void {

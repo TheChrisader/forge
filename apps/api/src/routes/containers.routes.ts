@@ -8,13 +8,10 @@ import { requirePermission } from "../middleware/permissions.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 import { ConnectionLimitError } from "../errors/connection-limit.error.js";
 import { SSEManagerService } from "../services/sse-manager.service.js";
+import { ProjectIdParamsSchema } from "@forge/types";
 
 const ContainerIdParamsSchema = z.object({
   id: z.uuid(),
-});
-
-const ProjectIdParamsSchema = z.object({
-  projectId: z.uuid(),
 });
 
 const DeploymentIdParamsSchema = z.object({
