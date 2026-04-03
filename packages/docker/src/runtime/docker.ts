@@ -20,6 +20,7 @@ import type {
   EventFilters,
   Network,
   NetworkConfig,
+  NetworkConnectConfig,
   NetworkFilters,
   Volume,
   VolumeConfig,
@@ -243,6 +244,21 @@ export class DockerRuntime implements IContainerRuntime {
   async create(config: ContainerConfig): Promise<Container> {
     await this.ensureImage(config.image);
 
+    // Resolve networks: prefer new `networks` array, fall back to legacy `network` string
+    const resolvedNetworks =
+      config.networks ??
+      (config.network ? [{ name: config.network, aliases: config.networkAliases }] : []);
+    const primaryNetwork = resolvedNetworks[0]?.name;
+
+    // Build ExposedPorts from config.ports so Traefik and other tools can discover them
+    const exposedPorts = this.buildExposedPorts(config.ports);
+
+    // Build EndpointsConfig for all networks
+    const endpointsConfig: Docker.EndpointsConfig | undefined =
+      resolvedNetworks.length > 0
+        ? Object.fromEntries(resolvedNetworks.map((net) => [net.name, { Aliases: net.aliases }]))
+        : undefined;
+
     const createOptions: Docker.ContainerCreateOptions = {
       name: config.name,
       Image: config.image,
@@ -250,6 +266,7 @@ export class DockerRuntime implements IContainerRuntime {
       Entrypoint: config.entrypoint,
       Env: config.env ? Object.entries(config.env).map(([k, v]) => `${k}=${v}`) : undefined,
       Labels: config.labels,
+      ExposedPorts: exposedPorts,
       WorkingDir: config.workingDir,
       User: config.user,
       HostConfig: {
@@ -268,17 +285,9 @@ export class DockerRuntime implements IContainerRuntime {
         CpuShares: config.resources?.cpuShares,
         PortBindings: this.buildPortBindings(config.ports),
         Binds: config.volumes?.map((v) => `${v.source}:${v.target}${v.readOnly ? ":ro" : ""}`),
-        NetworkMode: config.network,
+        NetworkMode: primaryNetwork,
       },
-      NetworkingConfig: config.network
-        ? {
-            EndpointsConfig: {
-              [config.network]: {
-                Aliases: config.networkAliases,
-              },
-            },
-          }
-        : undefined,
+      NetworkingConfig: endpointsConfig ? { EndpointsConfig: endpointsConfig } : undefined,
       Healthcheck: config.healthCheck
         ? {
             Test: config.healthCheck.test,
@@ -630,6 +639,38 @@ export class DockerRuntime implements IContainerRuntime {
     return networks.map((n) => this.mapNetworkInfo(n));
   }
 
+  async connectNetwork(
+    containerId: string,
+    networkId: string,
+    config?: NetworkConnectConfig
+  ): Promise<void> {
+    const network = this.docker.getNetwork(networkId);
+
+    await network.connect({
+      Container: containerId,
+      EndpointConfig: config
+        ? {
+            Aliases: config.aliases,
+            IPAddress: config.ipAddress,
+            Links: config.links,
+          }
+        : undefined,
+    });
+  }
+
+  async disconnectNetwork(
+    containerId: string,
+    networkId: string,
+    force: boolean = false
+  ): Promise<void> {
+    const network = this.docker.getNetwork(networkId);
+
+    await network.disconnect({
+      Container: containerId,
+      Force: force,
+    });
+  }
+
   async createVolume(config: VolumeConfig): Promise<Volume> {
     await this.docker.createVolume({
       Name: config.name,
@@ -910,6 +951,23 @@ export class DockerRuntime implements IContainerRuntime {
       count: filtered.length,
       totalBytes,
     };
+  }
+
+  private buildExposedPorts(
+    ports?: Array<{
+      containerPort: number;
+      protocol?: "tcp" | "udp";
+    }>
+  ): Docker.ContainerCreateOptions["ExposedPorts"] | undefined {
+    if (!ports || ports.length === 0) return undefined;
+
+    const exposed: Docker.ContainerCreateOptions["ExposedPorts"] = {};
+    for (const port of ports) {
+      const key = `${port.containerPort}/${port.protocol || "tcp"}`;
+      exposed[key] = {};
+    }
+
+    return exposed;
   }
 
   private buildPortBindings(

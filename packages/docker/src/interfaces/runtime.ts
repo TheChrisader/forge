@@ -25,6 +25,13 @@ export interface IContainerRuntime {
   removeNetwork(id: string): Promise<void>;
   listNetworks(filters?: NetworkFilters): Promise<Network[]>;
 
+  connectNetwork(
+    containerId: string,
+    networkId: string,
+    config?: NetworkConnectConfig
+  ): Promise<void>;
+  disconnectNetwork(containerId: string, networkId: string, force?: boolean): Promise<void>;
+
   createVolume(config: VolumeConfig): Promise<Volume>;
   removeVolume(name: string): Promise<void>;
   listVolumes(filters?: VolumeFilters): Promise<Volume[]>;
@@ -51,6 +58,11 @@ export interface IContainerRuntime {
   }>;
 }
 
+export interface NetworkAttachment {
+  name: string;
+  aliases?: string[];
+}
+
 export interface ContainerConfig {
   name?: string;
   image: string;
@@ -61,8 +73,12 @@ export interface ContainerConfig {
   ports?: PortMapping[];
   volumes?: VolumeMount[];
   readOnly?: boolean;
+  /** @deprecated Use `networks` instead */
   network?: string;
+  /** @deprecated Use `networks[0].aliases` instead */
   networkAliases?: string[];
+  /** Attach container to multiple networks. When provided, takes precedence over the legacy `network` field. */
+  networks?: NetworkAttachment[];
   workingDir?: string;
   capabilities?: {
     add?: string[];
@@ -315,6 +331,12 @@ export interface NetworkConfig {
   attachable?: boolean;
   labels?: Record<string, string>;
   options?: Record<string, string>;
+}
+
+export interface NetworkConnectConfig {
+  aliases?: string[];
+  ipAddress?: string;
+  links?: string[];
 }
 
 export interface Network {

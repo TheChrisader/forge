@@ -16,6 +16,7 @@ import type {
   VolumeMount as DockerVolumeMount,
   RestartPolicy as DockerRestartPolicy,
 } from "@forge/docker";
+import { generateNetworkName } from "@forge/docker";
 import type {
   DeploymentStatus,
   ContainerConfig,
@@ -226,12 +227,12 @@ export class DeploymentOrchestrator {
       .toLowerCase()
       .replace(/[^a-z0-9-]+/g, "-")}-${deployment.id.substring(0, 8)}`;
 
-    const networkName = `forge-project-${project.id}`;
+    const networkName = generateNetworkName(project.id, project.name);
     const dockerContainer = await this.runtime.create({
       ...containerConfig,
       volumes: volumeMounts,
       name: containerName,
-      network: networkName,
+      networks: [{ name: networkName }],
       // labels,
     });
 
@@ -360,7 +361,7 @@ export class DeploymentOrchestrator {
    * Ensures a project network exists, creates if missing
    */
   private async ensureNetwork(projectId: string, projectName: string): Promise<void> {
-    const networkName = `forge-project-${projectId}`;
+    const networkName = generateNetworkName(projectId, projectName);
 
     const existingNetworks = await this.runtime.listNetworks({
       name: [networkName],

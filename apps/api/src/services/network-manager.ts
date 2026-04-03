@@ -6,20 +6,9 @@
  */
 
 import type { DockerRuntime, Network } from "@forge/docker";
+import { generateNetworkName } from "@forge/docker";
 import type { PrismaClient } from "@forge/database";
 import type { NamingConfig } from "./container.types";
-
-/**
- * Slugify a string for use in resource names
- * Converts to lowercase, replaces spaces with hyphens, removes special characters
- */
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .substring(0, 50); // Limit length for resource names
-}
 
 /**
  * Default naming configuration
@@ -130,13 +119,14 @@ export class NetworkManager {
    */
   generateNetworkName(projectId: string, projectName: string, namingConfig?: NamingConfig): string {
     const config = { ...DEFAULT_NAMING, ...namingConfig };
-    const prefix = config.networkPrefix || DEFAULT_NAMING.networkPrefix!;
-    const slug = config.useProjectSlug !== false ? slugify(projectName) : "";
 
-    if (slug) {
-      return `${prefix}-${slug}-${projectId}`;
+    if (config.useProjectSlug === false) {
+      return `${config.networkPrefix || DEFAULT_NAMING.networkPrefix!}-${projectId}`;
     }
-    return `${prefix}-${projectId}`;
+
+    return generateNetworkName(projectId, projectName, {
+      prefix: config.networkPrefix,
+    });
   }
 
   /**
