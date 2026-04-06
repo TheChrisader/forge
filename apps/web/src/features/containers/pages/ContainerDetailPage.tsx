@@ -1,9 +1,18 @@
+import { useState, useCallback } from "react";
 import { useParams, Link } from "@tanstack/react-router";
 import { useContainer, useContainerStats } from "@/core/api/hooks";
 import { ContainerStatusBadge } from "../components/ContainerStatusBadge";
 import { ContainerActions } from "../components/ContainerActions";
 import { ContainerStatsCard } from "../components/ContainerStatsCard";
-import { LoaderIcon, ArrowLeft, Settings, FileText, CpuIcon } from "lucide-react";
+import { TerminalComponent } from "../components/Terminal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/shared/components/ui/dialog";
+import { LoaderIcon, ArrowLeft, Settings, FileText, CpuIcon, TerminalIcon } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -26,10 +35,21 @@ export function ContainerDetailPage(): React.ReactElement {
     error: containerError,
   } = useContainer(containerId);
 
-  // Extract projectId from container labels (set by Forge when creating containers)
   const projectId = container?.labels?.["forge.projectId"];
 
   const { data: stats, isLoading: statsLoading } = useContainerStats(containerId);
+
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalKey, setTerminalKey] = useState(0);
+
+  const handleOpenTerminal = useCallback(() => {
+    setTerminalKey((k) => k + 1);
+    setTerminalOpen(true);
+  }, []);
+
+  const handleCloseTerminal = useCallback(() => {
+    setTerminalOpen(false);
+  }, []);
 
   if (containerLoading) {
     return (
@@ -52,13 +72,14 @@ export function ContainerDetailPage(): React.ReactElement {
     );
   }
 
-  // Determine status from Docker container
   const status =
     container.status === "running"
       ? ("RUNNING" as const)
       : container.status === "exited"
         ? ("STOPPED" as const)
         : ("ERROR" as const);
+
+  const isRunning = container.status === "running";
 
   return (
     <div className="flex h-full flex-col">
@@ -86,17 +107,25 @@ export function ContainerDetailPage(): React.ReactElement {
               <span className="font-sans text-sm">View Logs</span>
             </Button>
           </Link>
+          {isRunning && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="group transition-all hover:shadow-md"
+              onClick={handleOpenTerminal}
+            >
+              <TerminalIcon className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
+              <span className="font-sans text-sm">Terminal</span>
+            </Button>
+          )}
           <ContainerActions containerId={container.id} status={status} />
         </div>
       </div>
 
       <div className="space-y-6">
-        {/* Stats */}
         <ContainerStatsCard stats={stats} isLoading={statsLoading} />
 
-        {/* Configuration */}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Basic Info */}
           <Card className="group transition-all hover:shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-serif">
@@ -140,7 +169,6 @@ export function ContainerDetailPage(): React.ReactElement {
             </CardContent>
           </Card>
 
-          {/* Labels */}
           <Card className="group transition-all hover:shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-serif">
@@ -171,6 +199,28 @@ export function ContainerDetailPage(): React.ReactElement {
           </Card>
         </div>
       </div>
+
+      <Dialog open={terminalOpen} onOpenChange={setTerminalOpen}>
+        <DialogContent
+          className="flex h-[80vh] max-w-7xl flex-col p-0 gap-0"
+          showCloseButton={false}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>Terminal — {container.name || container.id.slice(0, 12)}</DialogTitle>
+            <DialogDescription>
+              Interactive shell session for container {container.name || container.id.slice(0, 12)}
+            </DialogDescription>
+          </DialogHeader>
+          <TerminalComponent
+            key={terminalKey}
+            containerId={container.id}
+            containerName={container.name}
+            onClose={handleCloseTerminal}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

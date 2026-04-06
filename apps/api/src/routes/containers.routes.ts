@@ -2,12 +2,14 @@ import type { FastifyInstance } from "fastify";
 import type { Config } from "@forge/core";
 import { z } from "zod";
 import { SERVICE_KEY_STRINGS, NotFoundError } from "@forge/core";
-import type { IContainerService } from "@forge/core";
+import type { IContainerService, ILogger } from "@forge/core";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permissions.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 import { ConnectionLimitError } from "../errors/connection-limit.error.js";
 import { SSEManagerService } from "../services/sse-manager.service.js";
+import type { TerminalService } from "../services/terminal.service.js";
+import { writeTerminalAudit } from "../utils/auditTerminal.js";
 import { ProjectIdParamsSchema } from "@forge/types";
 
 const ContainerIdParamsSchema = z.object({
@@ -35,6 +37,12 @@ const ContainerLogsQuerySchema = z.object({
 
 const ContainerExecBodySchema = z.object({
   command: z.array(z.string()).min(1),
+});
+
+const ContainerTerminalQuerySchema = z.object({
+  rows: z.coerce.number().int().positive().optional(),
+  cols: z.coerce.number().int().positive().optional(),
+  shell: z.string().optional(),
 });
 
 export function registerContainerRoutes(_server: FastifyInstance, _config: Config): void {
@@ -336,6 +344,165 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
 
       const result = await containerService.exec(id, command);
       return reply.send({ data: result });
+    }
+  );
+}
+
+interface TerminalControlMessage {
+  type: "resize";
+  rows: number;
+  cols: number;
+}
+
+const WS_OPEN = 1;
+
+export function registerContainerWebSocketRoutes(server: FastifyInstance): void {
+  const registry = server.registry.getContainer();
+  const terminalService = registry.resolveSync<TerminalService>(
+    SERVICE_KEY_STRINGS.TERMINAL_SERVICE
+  );
+  const logger = registry.resolveSync<ILogger>(SERVICE_KEY_STRINGS.LOGGER);
+  const db = server.db;
+
+  /**
+   * GET /api/containers/:id/terminal (WebSocket)
+   * Interactive terminal session inside a running container.
+   */
+  server.get(
+    "/api/containers/:id/terminal",
+    {
+      websocket: true,
+      schema: {
+        params: ContainerIdParamsSchema,
+        querystring: ContainerTerminalQuerySchema,
+      },
+    },
+    async (socket, request) => {
+      const { id: containerId } = request.params as { id: string };
+
+      let userId: string;
+      try {
+        userId = requireAuth((request as { userId?: string }).userId);
+      } catch {
+        socket.close(1008, "Authentication required");
+        return;
+      }
+
+      try {
+        await requirePermission(request, { resource: "containers", action: "update" });
+      } catch {
+        socket.close(1008, "Insufficient permissions");
+        return;
+      }
+
+      const query = request.query as {
+        rows?: number;
+        cols?: number;
+        shell?: string;
+      };
+
+      let sessionId: string;
+      try {
+        const result = await terminalService.createSession(containerId, userId, {
+          shell: query.shell,
+          rows: query.rows,
+          cols: query.cols,
+        });
+        sessionId = result.sessionId;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to create terminal session";
+        socket.close(1011, message);
+        return;
+      }
+
+      socket.send(JSON.stringify({ type: "session", sessionId }));
+
+      const sessionOpenedAt = Date.now();
+      writeTerminalAudit(db, logger, {
+        userId,
+        containerId,
+        action: "terminal.open",
+        ipAddress: request.ip,
+        userAgent: request.headers["user-agent"],
+        metadata: {
+          sessionId,
+          shell: query.shell ?? undefined,
+          rows: query.rows,
+          cols: query.cols,
+        },
+      });
+
+      const outputStream = terminalService.getOutputStream(sessionId);
+      if (outputStream) {
+        outputStream.on("data", (chunk: Buffer) => {
+          if (socket.readyState === WS_OPEN) {
+            socket.send(chunk);
+          }
+        });
+      }
+
+      const session = terminalService.getSession(sessionId);
+      if (session) {
+        session.execSession.onExit.then(
+          ({ exitCode }) => {
+            if (socket.readyState === WS_OPEN) {
+              socket.send(JSON.stringify({ type: "exit", exitCode }));
+              socket.close(1000, `Process exited with code ${exitCode}`);
+            }
+          },
+          () => {
+            if (socket.readyState === WS_OPEN) {
+              socket.close(1011, "Exec process error");
+            }
+          }
+        );
+      }
+
+      socket.on("message", (data: Buffer) => {
+        try {
+          // Check if this is a JSON control message (starts with '{')
+          // Raw terminal data in TTY mode shouldn't start with '{' as a
+          // valid escape sequence at the start of a frame.
+          if (data[0] === 0x7b) {
+            const control = JSON.parse(data.toString()) as TerminalControlMessage;
+
+            if (control.type === "resize") {
+              void terminalService.resize(sessionId, userId, control.rows, control.cols);
+            }
+          } else {
+            void terminalService.write(sessionId, userId, data);
+          }
+        } catch (err) {
+          logger.warn("Error handling terminal message", {
+            sessionId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      });
+
+      socket.on("close", () => {
+        logger.debug("Terminal WebSocket closed", { sessionId });
+        void terminalService.closeSession(sessionId, userId);
+
+        writeTerminalAudit(db, logger, {
+          userId,
+          containerId,
+          action: "terminal.close",
+          ipAddress: request.ip,
+          userAgent: request.headers["user-agent"],
+          metadata: {
+            sessionId,
+            durationMs: Date.now() - sessionOpenedAt,
+          },
+        });
+      });
+
+      socket.on("error", (err) => {
+        logger.error("Terminal WebSocket error", {
+          sessionId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     }
   );
 }

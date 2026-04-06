@@ -320,6 +320,23 @@ export class ConfigLoader {
         batchMaxSize:
           this.parseNumber(process.env.SSE_BATCH_MAX_SIZE) ?? fileConfig.sse?.batchMaxSize,
       },
+
+      terminal: {
+        maxSessionsPerUser:
+          this.parseNumber(process.env.TERMINAL_MAX_SESSIONS_PER_USER) ??
+          fileConfig.terminal?.maxSessionsPerUser,
+        idleTimeoutMs:
+          this.parseNumber(process.env.TERMINAL_IDLE_TIMEOUT_MS) ??
+          fileConfig.terminal?.idleTimeoutMs,
+        cleanupIntervalMs:
+          this.parseNumber(process.env.TERMINAL_CLEANUP_INTERVAL_MS) ??
+          fileConfig.terminal?.cleanupIntervalMs,
+        defaultShell: process.env.TERMINAL_DEFAULT_SHELL ?? fileConfig.terminal?.defaultShell,
+        defaultRows:
+          this.parseNumber(process.env.TERMINAL_DEFAULT_ROWS) ?? fileConfig.terminal?.defaultRows,
+        defaultCols:
+          this.parseNumber(process.env.TERMINAL_DEFAULT_COLS) ?? fileConfig.terminal?.defaultCols,
+      },
     } as Config;
   }
 

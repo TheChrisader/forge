@@ -9,3 +9,4 @@ export * from "./useImages";
 export * from "./useContainers";
 export * from "./useSecrets";
 export * from "./useEnvironmentVariables";
+export * from "./useTerminal";

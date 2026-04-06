@@ -39,6 +39,8 @@ import type {
   BuildProgress,
   NetworkEndpoint,
   ContainerHealthStatus,
+  InteractiveExecOptions,
+  InteractiveExecSession,
 } from "../interfaces/runtime";
 import {
   DockerRuntimeError,
@@ -429,6 +431,108 @@ export class DockerRuntime implements IContainerRuntime {
 
       stream.on("error", reject);
     });
+  }
+
+  async interactiveExec(
+    containerId: string,
+    options?: InteractiveExecOptions
+  ): Promise<InteractiveExecSession> {
+    const container = this.docker.getContainer(containerId);
+    const shell = options?.shell ?? "/bin/bash";
+    const rows = options?.rows ?? 24;
+    const cols = options?.cols ?? 80;
+
+    const envEntries: string[] = [`TERM=xterm-256color`, `COLUMNS=${cols}`, `LINES=${rows}`];
+
+    if (options?.env) {
+      for (const [key, value] of Object.entries(options.env)) {
+        envEntries.push(`${key}=${value}`);
+      }
+    }
+
+    const exec = await container.exec({
+      Cmd: options?.command ?? [shell],
+      AttachStdin: true,
+      AttachStdout: true,
+      AttachStderr: true,
+      Tty: true,
+      Env: envEntries,
+      WorkingDir: options?.workingDir,
+      User: options?.user,
+    });
+
+    const stream = await exec.start({
+      Tty: true,
+      stdin: true,
+      hijack: true,
+    });
+
+    // When TTY + hijack are enabled, stream is a raw Duplex —
+    // stdout and stderr are merged into a single stream, no demuxing needed.
+    const sessionId = exec.id;
+
+    let exitResolve: (value: { exitCode: number }) => void;
+    let exitReject: (reason: unknown) => void;
+    const onExit = new Promise<{ exitCode: number }>((resolve, reject) => {
+      exitResolve = resolve;
+      exitReject = reject;
+    });
+
+    stream.on("end", () => {
+      exec
+        .inspect()
+        .then((inspectData) => {
+          exitResolve({ exitCode: inspectData.ExitCode ?? 0 });
+        })
+        .catch((err: unknown) => {
+          exitReject(err);
+        });
+    });
+
+    stream.on("error", (err: Error) => {
+      exitReject(err);
+    });
+
+    return {
+      id: sessionId,
+      write(data: Buffer): void {
+        if (!stream.destroyed) {
+          stream.write(data);
+        }
+      },
+      async resize(newRows: number, newCols: number): Promise<void> {
+        await exec.resize({ h: newRows, w: newCols });
+      },
+      output: stream,
+      async kill(): Promise<void> {
+        try {
+          const inspectData = await exec.inspect();
+          if (inspectData.Running) {
+            await new Promise<void>((resolve, reject) => {
+              (
+                container.modem as {
+                  delete: (path: string, cb: (err: Error | null) => void) => void;
+                }
+              ).delete(`/exec/${sessionId}`, (err: Error | null) => {
+                if (err) reject(err);
+                else resolve();
+              });
+            });
+          }
+        } catch {
+          // Exec may have already exited or API call failed.
+        }
+        // Always destroy the local stream to ensure cleanup
+        try {
+          if (!stream.destroyed) {
+            stream.destroy();
+          }
+        } catch {
+          // Stream destroy is idempotent, but edge cases be wildin'
+        }
+      },
+      onExit,
+    };
   }
 
   async *logs(id: string, options?: LogOptions): AsyncIterableIterator<LogEntry> {

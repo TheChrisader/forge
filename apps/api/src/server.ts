@@ -28,8 +28,10 @@ import { ContainerModule } from "./modules/container.module.js";
 import { AuthModule } from "./modules/auth.module.js";
 import { SecretModule } from "./modules/secret.module.js";
 import { EnvironmentVariableModule } from "./modules/environment-variable.module.js";
+import { TerminalModule } from "./modules/terminal.module.js";
 import { PermissionsService } from "@forge/auth";
 import { attachPermissionsToRequest } from "./middleware/permissions.js";
+import { TerminalService } from "./services/terminal.service.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -63,6 +65,7 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   registry.registerModule("auth", new AuthModule());
   registry.registerModule("secrets", new SecretModule());
   registry.registerModule("environmentVariables", new EnvironmentVariableModule());
+  registry.registerModule("terminal", new TerminalModule());
 
   await registry.initialize();
 
@@ -138,6 +141,16 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
 
   server.addHook("onClose", async () => {
     logger.info("Server shutting down, disposing services...");
+
+    try {
+      const terminalService = await container.resolve<TerminalService>(
+        SERVICE_KEY_STRINGS.TERMINAL_SERVICE
+      );
+      await terminalService.dispose();
+    } catch {
+      // Terminal service may not be initialized
+    }
+
     const infraModule = registry.getModule<InfrastructureModule>("infrastructure");
     if (infraModule) {
       await infraModule.dispose();

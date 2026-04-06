@@ -10,6 +10,11 @@ export interface IContainerRuntime {
 
   exec(id: string, command: string[], options?: ExecOptions): Promise<ExecResult>;
 
+  interactiveExec(
+    containerId: string,
+    options?: InteractiveExecOptions
+  ): Promise<InteractiveExecSession>;
+
   logs(id: string, options?: LogOptions): AsyncIterableIterator<LogEntry>;
 
   stats(id: string, stream?: boolean): Promise<ContainerStats>;
@@ -459,6 +464,30 @@ export interface WaitOptions {
   timeout?: number;
   interval?: number;
   signal?: AbortSignal;
+}
+
+export interface InteractiveExecOptions {
+  command?: string[];
+  shell?: string;
+  env?: Record<string, string>;
+  workingDir?: string;
+  user?: string;
+  rows?: number;
+  cols?: number;
+}
+
+export interface InteractiveExecSession {
+  id: string;
+  /** Write raw bytes (user keystrokes) into the exec stream */
+  write(data: Buffer): void;
+  /** Resize the TTY dimensions */
+  resize(rows: number, cols: number): Promise<void>;
+  /** Raw output stream from the exec process (stdout + stderr multiplexed via TTY) */
+  output: NodeJS.ReadableStream;
+  /** Close the exec session */
+  kill(): Promise<void>;
+  /** Resolves when the exec process exits */
+  onExit: Promise<{ exitCode: number }>;
 }
 
 export interface DockerSystemInfo {

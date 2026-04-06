@@ -196,6 +196,23 @@ export const SSEConfigSchema = z.object({
 
 export type SSEConfig = z.infer<typeof SSEConfigSchema>;
 
+export const TerminalConfigSchema = z.object({
+  maxSessionsPerUser: z.number().int().positive().default(5),
+  idleTimeoutMs: z
+    .int()
+    .positive()
+    .default(15 * 60 * 1000),
+  cleanupIntervalMs: z
+    .int()
+    .positive()
+    .default(30 * 1000),
+  defaultShell: z.string().default("/bin/bash"),
+  defaultRows: z.number().int().positive().default(24),
+  defaultCols: z.number().int().positive().default(80),
+});
+
+export type TerminalConfig = z.infer<typeof TerminalConfigSchema>;
+
 export const ConfigSchema = z.object({
   nodeEnv: EnvironmentSchema.default("development"),
   server: ServerConfigSchema,
@@ -211,6 +228,7 @@ export const ConfigSchema = z.object({
   features: FeaturesConfigSchema,
   paths: PathsConfigSchema,
   sse: SSEConfigSchema.optional(),
+  terminal: TerminalConfigSchema.optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

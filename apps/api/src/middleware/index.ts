@@ -47,9 +47,9 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
     },
   });
 
-  // Auth hook - tries JWT first, falls back to API key
-  // This hook never throws - unauthenticated requests are allowed through
-  // Routes decide if they need auth via requireAuth()
+  // Auth hook: tries JWT first, falls back to API key, then query param token
+  // This hook never throws. Unauthenticated requests are allowed through
+  // Routes decide if they need auth with requireAuth()
   server.addHook("onRequest", async (request) => {
     try {
       await request.jwtVerify();
@@ -59,6 +59,22 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
       (request as { userId?: string; authenticatedVia?: "jwt" | "api_key" }).authenticatedVia =
         "jwt";
     } catch {
+      // For WebSocket upgrade requests, browsers cannot set custom headers.
+      // Check for a token query parameter as a fallback.
+      const queryToken = (request.query as { token?: string }).token;
+      if (queryToken) {
+        try {
+          const decoded = server.jwt.verify<{ id: string }>(queryToken);
+          (request as { userId?: string; authenticatedVia?: "jwt" | "api_key" }).userId =
+            decoded.id;
+          (request as { userId?: string; authenticatedVia?: "jwt" | "api_key" }).authenticatedVia =
+            "jwt";
+          return;
+        } catch {
+          // Token query param is invalid; continue to API key check
+        }
+      }
+
       const apiKeyHeader = config.security.apiKey?.header ?? "x-api-key";
       const apiKey = request.headers[apiKeyHeader];
 
