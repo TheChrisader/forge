@@ -48,3 +48,6 @@ volumes:
 networks:
   forge-network:
     driver: bridge
+  forge-proxy:
+    name: forge-proxy
+    driver: bridge

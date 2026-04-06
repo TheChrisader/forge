@@ -1,8 +1,3 @@
-/**
- * Reverse proxy interface
- * Allows pluggable reverse proxy implementations (Traefik, Caddy, Nginx, etc.)
- */
-
 export interface Route {
   id: string;
   domain: string;
@@ -77,10 +72,10 @@ export interface IReverseProxy {
 }
 
 export interface IReverseProxyFactory {
-  create(config: ReverseProxyConfig): IReverseProxy;
+  create(config: ReverseProxyConfig): Promise<IReverseProxy>;
 }
 
-export type ReverseProxyType = "traefik" | "caddy" | "nginx" | "custom";
+export type ReverseProxyType = "traefik" | "caddy" | "nginx" | "custom" | "none";
 
 export interface ReverseProxyConfig {
   type: ReverseProxyType;
@@ -88,4 +83,15 @@ export interface ReverseProxyConfig {
   httpsPort?: number;
   apiUrl?: string;
   configPath?: string;
+  domain?: string;
+  ssl?: {
+    enabled?: boolean;
+    autoGenerate?: boolean;
+    email?: string;
+  };
+  network?: string;
+  dashboard?: boolean;
+  traefikImage?: string;
+  logLevel?: string;
+  dockerSocketPath?: string;
 }

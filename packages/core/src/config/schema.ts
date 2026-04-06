@@ -103,14 +103,20 @@ export const StorageConfigSchema = z.object({
 });
 
 export const ProxyConfigSchema = z.object({
-  provider: z.enum(["traefik", "caddy", "nginx", "custom"]).default("traefik"),
+  provider: z.enum(["traefik", "caddy", "nginx", "none", "custom"]).default("traefik"),
   httpPort: z.number().int().positive().default(80),
   httpsPort: z.number().int().positive().default(443),
-  domain: z.string().default("local.dev"),
+  domain: z.string().default("localhost"),
   ssl: z.object({
     enabled: z.boolean().default(true),
     autoGenerate: z.boolean().default(true),
+    email: z.email().optional(),
   }),
+  network: z.string().default("forge-proxy"),
+  apiUrl: z.string().optional(),
+  dashboard: z.boolean().default(false),
+  traefikImage: z.string().default("traefik:v3"),
+  logLevel: z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).default("INFO"),
 });
 
 export const ObservabilityConfigSchema = z.object({

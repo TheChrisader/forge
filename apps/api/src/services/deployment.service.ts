@@ -37,30 +37,9 @@ function uuidToLockKey(uuid: string): bigint {
   const MAX_INT64 = BigInt("0x7FFFFFFFFFFFFFFF");
   const UINT64_MOD = BigInt("0x10000000000000000"); // 2^64
 
-  // Reinterpret as signed int64
   return unsigned > MAX_INT64 ? unsigned - UINT64_MOD : unsigned;
 }
 
-/**
- * DeploymentService manages deployment operations
- *
- * Thread-safety notes:
- * - Concurrent deployment prevention uses PostgreSQL advisory locks
- * - Build job enqueue happens AFTER transaction commits to avoid race condition
- *
- * @remarks
- * The deploy() method uses a PostgreSQL advisory lock to prevent concurrent
- * deployments for the same project. The lock is acquired inside a transaction
- * using pg_try_advisory_xact_lock(), which automatically releases when the
- * transaction ends.
- *
- * If the lock cannot be acquired, it means another deployment is already
- * in progress for this project, and we return a ConflictError.
- *
- * The build job is enqueued AFTER the transaction commits. This ensures
- * the deployment record exists before the queue worker attempts to process it.
- * If the enqueue fails, we best-effort update the deployment to FAILED status.
- */
 export class DeploymentService implements IDeploymentService {
   constructor(
     private readonly db: PrismaClient,
@@ -136,6 +115,7 @@ export class DeploymentService implements IDeploymentService {
   async getById(id: string): Promise<Deployment | null> {
     return this.db.deployment.findUnique({
       where: { id },
+      include: { urls: true },
     });
   }
 

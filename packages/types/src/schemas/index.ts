@@ -17,3 +17,5 @@ export * from "./utils";
 export * from "./project-config";
 
 export * from "./secrets";
+
+export * from "./domains";

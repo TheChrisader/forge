@@ -3,10 +3,11 @@ import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { ArrowLeftIcon, DownloadIcon } from "lucide-react";
 import { DeploymentStatus } from "@/features/projects/components/DeploymentStatus";
-import type { Deployment } from "@forge/types";
+import { DeploymentUrl } from "./DeploymentUrl";
+import type { DeploymentWithRelations } from "@forge/types";
 
 interface LogsHeaderProps {
-  deployment: Deployment | null | undefined;
+  deployment: DeploymentWithRelations | null | undefined;
   projectId: string;
   onDownloadLogs?: () => void;
   isLoading?: boolean;
@@ -96,6 +97,13 @@ export function LogsHeader({
           <p className="text-sm text-muted-foreground">
             Started {new Date(deployment.createdAt).toLocaleString()} • Duration: {duration}
           </p>
+          {deployment.urls && deployment.urls.length > 0 && (
+            <div className="flex items-center gap-2 mt-1.5">
+              {deployment.urls.map((u) => (
+                <DeploymentUrl key={u.id} url={u.url} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

@@ -87,7 +87,7 @@ describe("ConfigValidator", () => {
         provider: "traefik",
         httpPort: 80,
         httpsPort: 443,
-        domain: "local.dev",
+        domain: "localhost",
         ssl: { enabled: true, autoGenerate: true },
       },
       observability: {
@@ -146,7 +146,7 @@ describe("ConfigValidator", () => {
       },
       docker: {},
       storage: { provider: "local" },
-      proxy: { provider: "traefik", httpPort: 80, httpsPort: 443, domain: "local.dev", ssl: {} },
+      proxy: { provider: "traefik", httpPort: 80, httpsPort: 443, domain: "localhost", ssl: {} },
       observability: { logs: {}, metrics: {}, tracing: {} },
       security: {
         secrets: {},
@@ -198,7 +198,7 @@ describe("ConfigValidator", () => {
         provider: "traefik",
         httpPort: 80,
         httpsPort: 443,
-        domain: "local.dev",
+        domain: "localhost",
         ssl: { enabled: true, autoGenerate: true },
       },
       observability: {
@@ -258,7 +258,7 @@ describe("ConfigValidator", () => {
       },
       docker: {},
       storage: { provider: "local" },
-      proxy: { provider: "traefik", httpPort: 80, httpsPort: 443, domain: "local.dev", ssl: {} },
+      proxy: { provider: "traefik", httpPort: 80, httpsPort: 443, domain: "localhost", ssl: {} },
       observability: { logs: {}, metrics: {}, tracing: {} },
       security: {
         secrets: {},

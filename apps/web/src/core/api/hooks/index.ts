@@ -10,3 +10,4 @@ export * from "./useContainers";
 export * from "./useSecrets";
 export * from "./useEnvironmentVariables";
 export * from "./useTerminal";
+export * from "./useDomains";

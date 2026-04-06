@@ -25,11 +25,8 @@ import type {
   ProjectHealthCheckConfig,
 } from "@forge/types";
 import { toPrismaJson } from "@forge/types";
+import type { IProxyIntegration } from "@forge/proxy";
 
-/**
- * Progress callback for deployment events
- * Called at various stages of the deployment lifecycle
- */
 export interface DeployProgressCallback {
   (event: {
     message: string;
@@ -39,16 +36,10 @@ export interface DeployProgressCallback {
   }): void | Promise<void>;
 }
 
-/**
- * Deployment data returned from Prisma query
- */
 interface DeploymentData {
   id: string;
 }
 
-/**
- * Project data returned from Prisma query
- */
 interface ProjectData {
   id: string;
   name: string;
@@ -72,7 +63,8 @@ export class DeploymentOrchestrator {
   constructor(
     private readonly db: PrismaClient,
     private readonly runtime: DockerRuntime,
-    private readonly logger: ILogger
+    private readonly logger: ILogger,
+    private readonly proxyIntegration: IProxyIntegration
   ) {}
 
   private async emitProgress(
@@ -87,13 +79,6 @@ export class DeploymentOrchestrator {
     }
   }
 
-  /**
-   * Orchestrates the full deployment lifecycle:
-   * 1. Create container from built image
-   * 2. Start container
-   * 3. Wait for health check
-   * 4. Update deployment status
-   */
   async deploy(deploymentId: string, image: string, options?: DeployOptions): Promise<void> {
     this.logger.info("Starting deployment orchestration", { deploymentId, image });
 
@@ -186,6 +171,36 @@ export class DeploymentOrchestrator {
         data: { status: "HEALTHY", healthStatus: "HEALTHY" },
       });
 
+      const projectSlug = project.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+
+      try {
+        const proxyResult = await this.proxyIntegration.onContainerDeployed({
+          projectId: project.id,
+          projectSlug,
+          deploymentId,
+          containerId: container.containerId,
+          networkName: generateNetworkName(project.id, project.name),
+        });
+
+        for (const url of proxyResult.urls) {
+          await this.db.deploymentUrl.create({
+            data: {
+              deploymentId,
+              url,
+              isPreview: false,
+            },
+          });
+        }
+      } catch (proxyError) {
+        this.logger.warn(
+          "Proxy integration failed — container is running but may not be externally routable",
+          {
+            deploymentId,
+            error: proxyError instanceof Error ? proxyError.message : String(proxyError),
+          }
+        );
+      }
+
       await this.emitProgress(
         options?.progressCallback,
         "Deployment completed successfully",
@@ -207,9 +222,6 @@ export class DeploymentOrchestrator {
     }
   }
 
-  /**
-   * Creates a container and its database records
-   */
   private async createContainer(
     deployment: DeploymentData,
     project: ProjectData,
@@ -223,17 +235,43 @@ export class DeploymentOrchestrator {
 
     const volumeMounts = this.convertToDockerVolumeMounts(containerConfig.volumes, volumeMap);
 
-    const containerName = `${project.name
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, "-")}-${deployment.id.substring(0, 8)}`;
+    const projectSlug = project.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
 
     const networkName = generateNetworkName(project.id, project.name);
+
+    let mergedLabels = containerConfig.labels || {};
+    const networks: Array<{ name: string; aliases?: string[] }> = [{ name: networkName }];
+
+    try {
+      const proxyReqs = await this.proxyIntegration.prepareContainer({
+        projectId: project.id,
+        projectSlug,
+        deploymentId: deployment.id,
+        targetPort: this.getTargetPort(project),
+        domains: [],
+        networkName,
+      });
+
+      mergedLabels = { ...containerConfig.labels, ...proxyReqs.labels };
+
+      networks.push(...proxyReqs.additionalNetworks);
+    } catch (proxyError) {
+      this.logger.warn(
+        "Proxy prepareContainer failed — container will be created without proxy routing",
+        {
+          deploymentId: deployment.id,
+          error: proxyError instanceof Error ? proxyError.message : String(proxyError),
+        }
+      );
+    }
+
+    const containerName = `${projectSlug}-${deployment.id.substring(0, 8)}`;
     const dockerContainer = await this.runtime.create({
       ...containerConfig,
       volumes: volumeMounts,
       name: containerName,
-      networks: [{ name: networkName }],
-      // labels,
+      labels: mergedLabels,
+      networks,
     });
 
     const container = await this.createContainerDatabaseRecords(
@@ -249,9 +287,6 @@ export class DeploymentOrchestrator {
     return container;
   }
 
-  /**
-   * Converts ProjectVolumeConfig[] to Docker's VolumeMount[] format
-   */
   private convertToDockerVolumeMounts(
     volumes: ProjectVolumeConfig[],
     volumeMap: Map<string, string>
@@ -263,9 +298,6 @@ export class DeploymentOrchestrator {
     }));
   }
 
-  /**
-   * Creates all database records for a container in a transaction
-   */
   private async createContainerDatabaseRecords(
     dockerContainer: { id: string },
     deployment: DeploymentData,
@@ -300,7 +332,6 @@ export class DeploymentOrchestrator {
         });
       }
 
-      // Volume mappings (only for named volumes, not bind mounts)
       if (containerConfig.volumes && containerConfig.volumes.length > 0) {
         await tx.volumeMapping.createMany({
           data: containerConfig.volumes
@@ -357,9 +388,6 @@ export class DeploymentOrchestrator {
     });
   }
 
-  /**
-   * Ensures a project network exists, creates if missing
-   */
   private async ensureNetwork(projectId: string, projectName: string): Promise<void> {
     const networkName = generateNetworkName(projectId, projectName);
 
@@ -387,10 +415,6 @@ export class DeploymentOrchestrator {
     this.logger.info("Created project network", { networkName, projectName });
   }
 
-  /**
-   * Ensures all volumes exist, creates if missing
-   * Returns map of mount paths to volume names
-   */
   private async ensureVolumes(
     volumes: ProjectVolumeConfig[],
     projectId: string
@@ -433,9 +457,6 @@ export class DeploymentOrchestrator {
     return volumeMap;
   }
 
-  /**
-   * Generates a volume name
-   */
   private generateVolumeName(projectId: string, mountPath: string, customName?: string): string {
     if (customName) {
       return customName;
@@ -446,9 +467,6 @@ export class DeploymentOrchestrator {
     return `forge-volume-${pathSlug}-${projectId}`;
   }
 
-  /**
-   * Parses time string (e.g., "30s", "5m") to integer seconds
-   */
   private parseTimeToInt(time?: string): number | undefined {
     if (!time) return undefined;
     const match = time.match(/^(\d+)(s|m|h)?$/);
@@ -461,9 +479,6 @@ export class DeploymentOrchestrator {
     return value * multipliers[unit];
   }
 
-  /**
-   * Parses memory string to bytes (e.g., "512m" -> 536870912)
-   */
   private parseMemoryToBytes(memory?: string): bigint | undefined {
     if (!memory) return undefined;
     const match = memory.match(/^(\d+(?:\.\d+)?)(b|k|m|g)?$/i);
@@ -482,9 +497,6 @@ export class DeploymentOrchestrator {
     return BigInt(Math.floor(value * multipliers[unit]));
   }
 
-  /**
-   * Builds container configuration from deployment and project
-   */
   private buildContainerConfig(
     deployment: DeploymentData,
     project: ProjectData,
@@ -510,7 +522,7 @@ export class DeploymentOrchestrator {
     let ports: Array<{ containerPort: number; hostPort?: number; protocol?: "tcp" | "udp" }> = [];
     if (networking?.ports && networking.ports.length > 0) {
       ports = networking.ports
-        .filter((p) => !p.exposedOnly) // Only publish ports that aren't exposedOnly
+        .filter((p) => !p.exposedOnly)
         .map((p) => ({
           containerPort: p.containerPort,
           hostPort: p.hostPort,
@@ -580,10 +592,6 @@ export class DeploymentOrchestrator {
     };
   }
 
-  /**
-   * Extracts health check config from Project.config
-   * Derives sensible defaults if not specified
-   */
   private getHealthCheckConfig(project: ProjectData): ProjectHealthCheckConfig | undefined {
     const config = project.config || {};
 
@@ -601,9 +609,6 @@ export class DeploymentOrchestrator {
     };
   }
 
-  /**
-   * Waits for container to become healthy
-   */
   private async waitForHealthy(containerId: string, timeoutMs: number): Promise<boolean> {
     this.logger.info("Waiting for container to be healthy", { containerId, timeoutMs });
 
@@ -616,10 +621,6 @@ export class DeploymentOrchestrator {
     }
   }
 
-  /**
-   * Handles deployment failure
-   * Stops and removes container, updates deployment status
-   */
   async handleFailure(
     deploymentId: string,
     containerId: string | null,
@@ -628,6 +629,28 @@ export class DeploymentOrchestrator {
     this.logger.error("Handling deployment failure", { deploymentId, containerId, error });
 
     if (containerId) {
+      try {
+        const deployment = await this.db.deployment.findUnique({
+          where: { id: deploymentId },
+          include: { project: { select: { id: true, name: true } } },
+        });
+
+        if (deployment?.project) {
+          const networkName = generateNetworkName(deployment.project.id, deployment.project.name);
+          await this.proxyIntegration.onContainerRemoved({
+            projectId: deployment.project.id,
+            deploymentId,
+            containerId,
+            networkName,
+          });
+        }
+      } catch (proxyError) {
+        this.logger.warn("Proxy onContainerRemoved failed", {
+          deploymentId,
+          error: proxyError instanceof Error ? proxyError.message : String(proxyError),
+        });
+      }
+
       try {
         await this.runtime.stop(containerId, { timeout: 10_000 });
         await this.runtime.remove(containerId, { force: true });
@@ -656,5 +679,10 @@ export class DeploymentOrchestrator {
     }
 
     throw new Error(`Deployment failed: ${error}`);
+  }
+
+  private getTargetPort(project: ProjectData): number {
+    const config = project.config || {};
+    return config.runtime?.port || 3000;
   }
 }

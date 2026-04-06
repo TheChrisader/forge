@@ -6,6 +6,8 @@ import { LoggerService } from "@forge/logger";
 import type { LogLevel } from "@forge/types";
 import { BuildLogService } from "@forge/core";
 import type { BuildLogSource } from "@forge/types";
+import { ReverseProxyFactory, NoOpProxyIntegration } from "@forge/proxy";
+import type { IProxyIntegration } from "@forge/proxy";
 import { PriorityLogBuffer, parseBufferSize, parseErrorSlotReserve } from "./log-buffer.js";
 import { FlushManager, createFlushManagerOptions } from "./flush-manager.js";
 import type { DeployProgressCallback } from "../deployment-orchestrator.service.js";
@@ -27,9 +29,47 @@ export async function handleDeployJob(context: IJobContext<DeployJobData>): Prom
   const db = getDatabaseClient();
   const buildLogService = new BuildLogService(db);
   const runtime = new DockerRuntime();
-  const orchestrator = new DeploymentOrchestrator(db, runtime, logger);
 
-  // Initialize line number ref from existing logs to continue sequence
+  const proxyProvider = process.env.PROXY_PROVIDER ?? "none";
+  let proxyIntegration: IProxyIntegration;
+
+  if (proxyProvider === "none") {
+    proxyIntegration = new NoOpProxyIntegration();
+  } else {
+    try {
+      const proxyFactory = new ReverseProxyFactory(runtime);
+      const { integration } = await proxyFactory.createProvider({
+        type: proxyProvider as "traefik" | "caddy" | "nginx" | "custom",
+        domain: process.env.PROXY_DOMAIN,
+        httpPort: process.env.PROXY_HTTP_PORT
+          ? parseInt(process.env.PROXY_HTTP_PORT, 10)
+          : undefined,
+        httpsPort: process.env.PROXY_HTTPS_PORT
+          ? parseInt(process.env.PROXY_HTTPS_PORT, 10)
+          : undefined,
+        network: process.env.PROXY_NETWORK,
+        ssl: {
+          enabled: process.env.PROXY_SSL_ENABLED !== "false",
+          autoGenerate: process.env.PROXY_SSL_AUTO !== "false",
+          email: process.env.PROXY_SSL_EMAIL,
+        },
+        dashboard: process.env.PROXY_DASHBOARD === "true",
+        traefikImage: process.env.PROXY_TRAEFIK_IMAGE,
+        logLevel: process.env.PROXY_LOG_LEVEL,
+        dockerSocketPath: process.env.DOCKER_SOCKET,
+      });
+      proxyIntegration = integration;
+    } catch (proxyError) {
+      logger.warn("Failed to initialize proxy integration — falling back to no-op", {
+        provider: proxyProvider,
+        error: proxyError instanceof Error ? proxyError.message : String(proxyError),
+      });
+      proxyIntegration = new NoOpProxyIntegration();
+    }
+  }
+
+  const orchestrator = new DeploymentOrchestrator(db, runtime, logger, proxyIntegration);
+
   const lineNumberRef = await initializeLineNumberRef(buildLogService, deploymentId);
 
   logger.info("Deploy handler initialized", {
@@ -37,7 +77,6 @@ export async function handleDeployJob(context: IJobContext<DeployJobData>): Prom
     lastLineNumber: lineNumberRef.value,
   });
 
-  // Configure log buffer with size limits from environment
   const bufferMaxSize = parseBufferSize(process.env.DEPLOY_LOG_BUFFER_SIZE, 500);
   const errorSlotReserve = parseErrorSlotReserve(process.env.DEPLOY_LOG_ERROR_SLOT_RESERVE, 0.1);
 
@@ -46,11 +85,9 @@ export async function handleDeployJob(context: IJobContext<DeployJobData>): Prom
     errorSlotReserve,
   });
 
-  // Configure flush manager with retry and circuit breaker
   const flushManagerOptions = createFlushManagerOptions();
   const flushManager = new FlushManager(buildLogService, logger, flushManagerOptions);
 
-  // Schedule automatic flushing
   flushManager.scheduleFlush(logBuffer, deploymentId, () => {
     const stats = logBuffer.getStats();
     if (stats.droppedCount > 0) {
@@ -64,7 +101,6 @@ export async function handleDeployJob(context: IJobContext<DeployJobData>): Prom
     }
   });
 
-  // Create progress callback for orchestrator
   const progressCallback: DeployProgressCallback = async (event) => {
     await emitProgress(
       context,
@@ -89,7 +125,6 @@ export async function handleDeployJob(context: IJobContext<DeployJobData>): Prom
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    // Emit error progress
     await emitProgress(
       context,
       deploymentId,
@@ -106,17 +141,13 @@ export async function handleDeployJob(context: IJobContext<DeployJobData>): Prom
 
     logger.error("Deployment failed", { deploymentId, error: errorMessage });
 
-    // Update deployment status to FAILED and cleanup
     await orchestrator.handleFailure(deploymentId, null, errorMessage);
 
-    // Re-throw for BullMQ retry logic (will be marked failed after max retries)
     throw error;
   } finally {
-    // Final flush before cleanup
     const finalResult = await flushManager.flush(logBuffer, deploymentId);
     flushManager.stop();
 
-    // Log final buffer statistics
     const finalStats = logBuffer.getStats();
     logger.info("Deploy log buffer final statistics", {
       deploymentId,

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { deploymentsApi } from "../clients/deployments";
-import type { Deployment } from "@forge/types";
+import type { Deployment, DeploymentWithRelations } from "@forge/types";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { SseClient } from "../streaming/sse-client";
 import type { SSEConnectionState } from "../streaming/types";
@@ -64,8 +64,8 @@ export function useProjectDeploymentsWithFilters(
   });
 }
 
-export function useDeployment(deploymentId: string): ReturnType<typeof useQuery<Deployment>> {
-  return useQuery<Deployment>({
+export function useDeployment(deploymentId: string): ReturnType<typeof useQuery<DeploymentWithRelations>> {
+  return useQuery<DeploymentWithRelations>({
     queryKey: deploymentKeys.detail(deploymentId),
     queryFn: async () => {
       const response = await deploymentsApi.getById(deploymentId);

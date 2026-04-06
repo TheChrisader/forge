@@ -10,6 +10,7 @@ export const SERVICE_KEYS = {
 
   REVERSE_PROXY: Symbol.for("forge:reverse-proxy"),
   REVERSE_PROXY_FACTORY: Symbol.for("forge:reverse-proxy-factory"),
+  PROXY_INTEGRATION: Symbol.for("forge:proxy-integration"),
 
   BUILD_SERVICE: Symbol.for("forge:build-service"),
   BUILD_STRATEGY_REGISTRY: Symbol.for("forge:build-strategy-registry"),
@@ -53,6 +54,7 @@ export const SERVICE_KEY_STRINGS = {
   STORAGE_FACTORY: "storageFactory",
   REVERSE_PROXY: "reverseProxy",
   REVERSE_PROXY_FACTORY: "reverseProxyFactory",
+  PROXY_INTEGRATION: "proxyIntegration",
   BUILD_SERVICE: "buildService",
   BUILD_STRATEGY_REGISTRY: "buildStrategyRegistry",
   BUILD_CACHE_SERVICE: "buildCacheService",

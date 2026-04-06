@@ -33,6 +33,7 @@
     "@forge/docker": "workspace:*",
     "@forge/git": "workspace:*",
     "@forge/logger": "workspace:*",
+    "@forge/proxy": "workspace:*",
     "@forge/queue": "workspace:*",
     "@forge/types": "workspace:*",
     "cron": "^4.4.0",

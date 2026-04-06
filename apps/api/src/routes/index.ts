@@ -10,6 +10,7 @@ import { registerImageRoutes } from "./images.routes.js";
 import { registerContainerRoutes } from "./containers.routes.js";
 import { registerSecretRoutes } from "./secrets.routes.js";
 import { registerEnvironmentVariableRoutes } from "./environment-variables.routes.js";
+import { registerDomainRoutes } from "./domains.routes.js";
 
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
@@ -23,4 +24,5 @@ export function setupRoutes(server: FastifyInstance): void {
   registerContainerRoutes(server, server.config);
   registerSecretRoutes(server, server.config);
   registerEnvironmentVariableRoutes(server, server.config);
+  registerDomainRoutes(server, server.config);
 }

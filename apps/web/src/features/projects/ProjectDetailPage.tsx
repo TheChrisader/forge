@@ -49,6 +49,7 @@ import { DeploymentProgress } from "./components/DeploymentProgress";
 import { DeployConfigModal } from "./components/DeployConfigModal";
 import { ContainerStatusBadge } from "@/features/containers/components/ContainerStatusBadge";
 import { ContainerActions } from "@/features/containers/components/ContainerActions";
+import { DomainsTab } from "./components/DomainsTab";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useMemo } from "react";
 import { ApiClientError } from "@/core/api/client";
@@ -172,7 +173,6 @@ function ContainersTabContent({
     containers?.filter((c: { status: string }) => c.status === "running").length ?? 0;
   const stoppedCount = totalCount - runningCount;
 
-  // Status bar color based on container status
   const getStatusBarColor = (status: string): string => {
     const normalized = status.toLowerCase();
     if (normalized === "running" || normalized === "healthy") return "bg-primary";
@@ -183,7 +183,6 @@ function ContainersTabContent({
 
   return (
     <div className="space-y-5">
-      {/* Header bar - refined */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-5">
           <div>
@@ -209,7 +208,6 @@ function ContainersTabContent({
         </div>
       </div>
 
-      {/* Empty state */}
       {totalCount === 0 ? (
         <div className="border border-dashed rounded-lg py-14 text-center border-border/50">
           <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted/50 mx-auto mb-3">
@@ -221,7 +219,6 @@ function ContainersTabContent({
           </EmptyDescription>
         </div>
       ) : (
-        /* Infrastructure cards - horizontal monitoring strips */
         <div className="space-y-2.5">
           {containers?.map((container) => {
             const dbStatus = mapDockerStatusToDbStatus(container.status);
@@ -243,17 +240,14 @@ function ContainersTabContent({
               >
                 <CardContent className="p-0">
                   <div className="flex items-stretch">
-                    {/* Status indicator strip */}
                     <div
                       className={`w-1 ${getStatusBarColor(container.status)} ${
                         isRunning ? "animate-pulse" : ""
                       }`}
                     />
 
-                    {/* Main content */}
                     <div className="flex-1 p-3">
                       <div className="flex items-center justify-between gap-4">
-                        {/* Left: Name and status */}
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center shrink-0">
                             <BoxIcon className="h-4 w-4 text-muted-foreground" />
@@ -273,7 +267,6 @@ function ContainersTabContent({
                           </div>
                         </div>
 
-                        {/* Right: Quick actions */}
                         <div
                           className="flex items-center gap-1.5 shrink-0"
                           onClick={(e) => e.stopPropagation()}
@@ -345,7 +338,6 @@ function DeploymentsTabContent({
 
   const canDeploy = !activeDeployment && !createDeployment.isPending;
 
-  // Timeline node color based on status
   const getNodeColor = (status: string): string => {
     const info = getDeploymentStatusInfo(status);
     switch (info.category) {
@@ -369,7 +361,6 @@ function DeploymentsTabContent({
 
   return (
     <div className="space-y-6">
-      {/* Action bar - refined, subtle */}
       <div className="border border-border/50 rounded-lg p-4 bg-muted/20">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -440,7 +431,6 @@ function DeploymentsTabContent({
         )}
       </div>
 
-      {/* Active deployment highlight */}
       {activeDeployment && (
         <Card className="border-primary/20">
           <CardContent className="p-3.5">
@@ -449,7 +439,6 @@ function DeploymentsTabContent({
         </Card>
       )}
 
-      {/* Timeline view */}
       {deployments.length === 0 ? (
         <div className="border border-dashed rounded-lg py-16 text-center border-border/50">
           <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted/50 mx-auto mb-4">
@@ -462,7 +451,6 @@ function DeploymentsTabContent({
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Timeline header */}
           <div className="flex items-center justify-between text-xs">
             <h3 className="font-serif text-sm font-medium">Timeline</h3>
             <Button
@@ -476,7 +464,6 @@ function DeploymentsTabContent({
             </Button>
           </div>
 
-          {/* Timeline */}
           <div className="space-y-0">
             {deployments.map((deployment, index) => {
               const statusInfo = getDeploymentStatusInfo(deployment.status);
@@ -490,7 +477,6 @@ function DeploymentsTabContent({
 
               return (
                 <div key={deployment.id} className="relative">
-                  {/* Timeline item */}
                   <div
                     className={`flex gap-3 pb-6 last:pb-0 group cursor-pointer`}
                     onClick={() =>
@@ -499,15 +485,12 @@ function DeploymentsTabContent({
                       })
                     }
                   >
-                    {/* Timeline node column */}
                     <div className="flex flex-col items-center">
-                      {/* Node */}
                       <div
                         className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 z-10 transition-transform group-hover:scale-125 ${getNodeColor(deployment.status)} ${
                           isActive ? "animate-pulse" : ""
                         }`}
                       />
-                      {/* Connecting line */}
                       {index < deployments.length - 1 && (
                         <div
                           className={`w-0.5 flex-1 mt-1.5 min-h-10 ${getLineClass(index, deployments.length, isActive)}`}
@@ -515,7 +498,6 @@ function DeploymentsTabContent({
                       )}
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0 pt-0.5">
                       <div
                         className={`border rounded-lg p-3 transition-colors ${
@@ -526,7 +508,6 @@ function DeploymentsTabContent({
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
-                            {/* Deployment ID and badges */}
                             <div className="flex items-center gap-2 flex-wrap mb-1.5">
                               <code className="text-xs font-mono font-medium">
                                 {deployment.id.slice(0, 8)}
@@ -555,7 +536,6 @@ function DeploymentsTabContent({
                               )}
                             </div>
 
-                            {/* Time and duration */}
                             <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
                               <span className="flex items-center gap-1">
                                 <ClockIcon className="h-2.5 w-2.5" />
@@ -573,7 +553,6 @@ function DeploymentsTabContent({
                             </div>
                           </div>
 
-                          {/* Arrow indicator */}
                           <ArrowRightIcon className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors shrink-0" />
                         </div>
                       </div>
@@ -651,14 +630,11 @@ export function ProjectDetailPage(): React.ReactElement {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Operational Command Bar - refined, subtle */}
       <div className="border border-border/50 rounded-lg bg-muted/20">
         <div className="flex items-center justify-between gap-6 px-4 py-3">
-          {/* Left: Status Signal + Deployment Info */}
           <div className="flex items-center gap-5">
             {deployments.length > 0 ? (
               <>
-                {/* Status Signal - refined, subtle */}
                 <div className="flex items-center gap-2.5">
                   <div className="relative flex items-center justify-center">
                     {["PENDING", "QUEUED", "BUILDING", "DEPLOYING"].includes(
@@ -695,10 +671,8 @@ export function ProjectDetailPage(): React.ReactElement {
                   </div>
                 </div>
 
-                {/* Vertical separator */}
                 <div className="h-6 w-px bg-border/50" />
 
-                {/* Deployment data - refined monospace */}
                 <div className="hidden sm:flex items-center gap-3 text-[10px] font-mono text-muted-foreground/80">
                   <span>
                     LAST{" "}
@@ -722,7 +696,6 @@ export function ProjectDetailPage(): React.ReactElement {
             )}
           </div>
 
-          {/* Right: Actions */}
           <div className="flex items-center gap-2 shrink-0">
             <span className="hidden md:inline font-mono text-[9px] text-muted-foreground/60 uppercase tracking-wider">
               {project.name}
@@ -754,12 +727,11 @@ export function ProjectDetailPage(): React.ReactElement {
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <TabsTrigger value="containers">Containers</TabsTrigger>
+          <TabsTrigger value="domains">Domains</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Health & Status Hero Section */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {/* Primary Status Card - Takes 2 columns on large screens */}
             <Card className="lg:col-span-2 border-border/50">
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between">
@@ -784,7 +756,6 @@ export function ProjectDetailPage(): React.ReactElement {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Quick Actions - refined */}
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
@@ -817,7 +788,6 @@ export function ProjectDetailPage(): React.ReactElement {
                   )}
                 </div>
 
-                {/* Metadata Pills - subtle */}
                 <div className="flex flex-wrap gap-3 pt-2 border-t border-border/50">
                   <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50">
                     <ClockIcon className="h-3 w-3 text-muted-foreground" />
@@ -833,7 +803,6 @@ export function ProjectDetailPage(): React.ReactElement {
               </CardContent>
             </Card>
 
-            {/* Latest Deployment Card */}
             <Card className="flex flex-col border-border/50">
               <CardHeader className="pb-3">
                 <CardTitle className="font-serif text-sm">Latest Deployment</CardTitle>
@@ -883,7 +852,6 @@ export function ProjectDetailPage(): React.ReactElement {
             </Card>
           </div>
 
-          {/* Recent Deployments Timeline */}
           {deployments.length > 0 && (
             <Card className="border-border/50">
               <CardHeader className="pb-3">
@@ -915,7 +883,6 @@ export function ProjectDetailPage(): React.ReactElement {
                       ? formatDistanceToNow(new Date(deployment.createdAt), { addSuffix: true })
                       : "Unknown";
 
-                    // Color coding based on status - using solid colors
                     const iconColor =
                       statusInfo.category === "success"
                         ? "text-emerald-500"
@@ -983,9 +950,7 @@ export function ProjectDetailPage(): React.ReactElement {
             </Card>
           )}
 
-          {/* Project Details & Configuration */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* Repository & Source */}
             {repository !== "No repository configured" && (
               <Card className="border-border/50">
                 <CardHeader className="pb-3">
@@ -1017,7 +982,6 @@ export function ProjectDetailPage(): React.ReactElement {
               </Card>
             )}
 
-            {/* Project Metadata */}
             <Card className="border-border/50">
               <CardHeader className="pb-3">
                 <CardTitle className="font-serif text-base flex items-center gap-2">
@@ -1044,7 +1008,6 @@ export function ProjectDetailPage(): React.ReactElement {
             </Card>
           </div>
 
-          {/* Empty State for No Deployments */}
           {deployments.length === 0 && (
             <Card className="border-dashed border-border/50">
               <CardContent className="py-12">
@@ -1107,6 +1070,10 @@ export function ProjectDetailPage(): React.ReactElement {
 
         <TabsContent value="containers" className="space-y-6">
           <ContainersTabContent projectId={projectId} router={router} />
+        </TabsContent>
+
+        <TabsContent value="domains" className="space-y-6">
+          <DomainsTab project={project} />
         </TabsContent>
       </Tabs>
     </div>

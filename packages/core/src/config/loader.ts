@@ -202,7 +202,13 @@ export class ConfigLoader {
             this.parseBoolean(process.env.PROXY_SSL_ENABLED) ?? fileConfig.proxy?.ssl?.enabled,
           autoGenerate:
             this.parseBoolean(process.env.PROXY_SSL_AUTO) ?? fileConfig.proxy?.ssl?.autoGenerate,
+          email: process.env.PROXY_SSL_EMAIL ?? fileConfig.proxy?.ssl?.email,
         },
+        network: process.env.PROXY_NETWORK ?? fileConfig.proxy?.network,
+        apiUrl: process.env.PROXY_API_URL ?? fileConfig.proxy?.apiUrl,
+        dashboard: this.parseBoolean(process.env.PROXY_DASHBOARD) ?? fileConfig.proxy?.dashboard,
+        traefikImage: process.env.PROXY_TRAEFIK_IMAGE ?? fileConfig.proxy?.traefikImage,
+        logLevel: process.env.PROXY_LOG_LEVEL ?? fileConfig.proxy?.logLevel,
       },
 
       observability: {

@@ -109,7 +109,7 @@ describe("LoggerModule", () => {
         provider: "traefik",
         httpPort: 80,
         httpsPort: 443,
-        domain: "local.dev",
+        domain: "localhost",
         ssl: {
           enabled: true,
           autoGenerate: true,
