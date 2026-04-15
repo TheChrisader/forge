@@ -94,6 +94,7 @@ export interface ContainerConfig {
   healthCheck?: HealthCheckConfig;
   restartPolicy?: RestartPolicy;
   autoRemove?: boolean;
+  extraHosts?: string[];
 }
 
 export interface PortMapping {

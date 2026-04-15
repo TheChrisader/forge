@@ -11,9 +11,11 @@ import { registerContainerRoutes } from "./containers.routes.js";
 import { registerSecretRoutes } from "./secrets.routes.js";
 import { registerEnvironmentVariableRoutes } from "./environment-variables.routes.js";
 import { registerDomainRoutes } from "./domains.routes.js";
+import { registerCrlRoutes } from "./crl.routes.js";
 
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
+  registerCrlRoutes(server, server.config);
   registerAuthRoutes(server, server.config);
   registerInvitationRoutes(server, server.config);
   registerPasswordRoutes(server, server.config);

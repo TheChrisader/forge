@@ -200,9 +200,14 @@ export class ConfigLoader {
         ssl: {
           enabled:
             this.parseBoolean(process.env.PROXY_SSL_ENABLED) ?? fileConfig.proxy?.ssl?.enabled,
+          mode: process.env.PROXY_SSL_MODE ?? fileConfig.proxy?.ssl?.mode,
           autoGenerate:
             this.parseBoolean(process.env.PROXY_SSL_AUTO) ?? fileConfig.proxy?.ssl?.autoGenerate,
           email: process.env.PROXY_SSL_EMAIL ?? fileConfig.proxy?.ssl?.email,
+          certPath: process.env.PROXY_CERT_PATH ?? fileConfig.proxy?.ssl?.certPath,
+          caCertFile: process.env.PROXY_CA_CERT_FILE ?? fileConfig.proxy?.ssl?.caCertFile,
+          certFile: process.env.PROXY_CERT_FILE ?? fileConfig.proxy?.ssl?.certFile,
+          keyFile: process.env.PROXY_KEY_FILE ?? fileConfig.proxy?.ssl?.keyFile,
         },
         network: process.env.PROXY_NETWORK ?? fileConfig.proxy?.network,
         apiUrl: process.env.PROXY_API_URL ?? fileConfig.proxy?.apiUrl,

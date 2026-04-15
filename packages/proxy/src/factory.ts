@@ -44,7 +44,11 @@ export class ReverseProxyFactory implements IReverseProxyFactory {
     const providerConfig: TraefikProviderConfig = {
       defaultDomain: config.domain ?? "localhost",
       httpsRedirect: config.ssl?.enabled ?? true,
-      tlsResolver: config.ssl?.autoGenerate ? "letsencrypt" : undefined,
+      // ACME mode: set resolver name
+      tlsResolver:
+        config.ssl?.mode === "letsencrypt" && config.ssl?.autoGenerate ? "letsencrypt" : undefined,
+      // Self-signed mode: enable TLS without resolver
+      tlsEnabled: config.ssl?.mode === "selfsigned",
       proxyNetworkName: config.network ?? "forge-proxy",
       apiUrl: config.apiUrl,
     };
@@ -57,9 +61,15 @@ export class ReverseProxyFactory implements IReverseProxyFactory {
       httpsPort: config.httpsPort ?? 443,
       dashboard: config.dashboard ?? false,
       logLevel: config.logLevel ?? "INFO",
+      apiUrl: config.apiUrl,
       ssl: {
         enabled: config.ssl?.enabled ?? true,
+        mode: config.ssl?.mode ?? "letsencrypt",
         email: config.ssl?.email,
+        certPath: config.ssl?.certPath,
+        caCertFile: config.ssl?.caCertFile,
+        certFile: config.ssl?.certFile,
+        keyFile: config.ssl?.keyFile,
       },
       volumeMounts: {
         dockerSocket: config.dockerSocketPath ?? "/var/run/docker.sock",

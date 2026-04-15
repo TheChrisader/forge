@@ -64,7 +64,9 @@ export function useProjectDeploymentsWithFilters(
   });
 }
 
-export function useDeployment(deploymentId: string): ReturnType<typeof useQuery<DeploymentWithRelations>> {
+export function useDeployment(
+  deploymentId: string
+): ReturnType<typeof useQuery<DeploymentWithRelations>> {
   return useQuery<DeploymentWithRelations>({
     queryKey: deploymentKeys.detail(deploymentId),
     queryFn: async () => {

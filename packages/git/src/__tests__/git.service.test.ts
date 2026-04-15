@@ -29,7 +29,7 @@ vi.mock("node:fs/promises", () => ({
 
 // Mock os.tmpdir
 vi.mock("node:os", () => ({
-  tmpdir: vi.fn(() => process.platform === "win32" ? "C:\\tmp" : "/tmp"),
+  tmpdir: vi.fn(() => (process.platform === "win32" ? "C:\\tmp" : "/tmp")),
 }));
 
 // Mock path.resolve for consistent test paths

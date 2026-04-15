@@ -34,6 +34,7 @@
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "docker:ps": "docker-compose ps",
+    "setup:certs": "tsx tools/scripts/setup-certs.ts",
     "test:queue": "pnpm --filter @forge/queue test:connection",
     "test:cache": "pnpm --filter @forge/cache test:connection",
     "forge": "pnpm --filter @forge/cli start"
@@ -43,7 +44,9 @@
   "license": "ISC",
   "packageManager": "pnpm@10.28.1",
   "pnpm": {
-    "onlyBuiltDependencies": ["argon2"]
+    "onlyBuiltDependencies": [
+      "argon2"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -68,9 +71,13 @@
     "shx": "^0.4.0",
     "supertest": "^7.2.2",
     "testcontainers": "^11.11.0",
+    "tsx": "^4.21.0",
     "turbo": "^2.8.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0",
     "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@forge/certificate": "workspace:*"
   }
 }

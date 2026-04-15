@@ -49,8 +49,13 @@ export async function startProxyHealthMonitor(): Promise<void> {
       network: process.env.PROXY_NETWORK,
       ssl: {
         enabled: process.env.PROXY_SSL_ENABLED !== "false",
+        mode: (process.env.PROXY_SSL_MODE ?? "letsencrypt") as "letsencrypt" | "selfsigned",
         autoGenerate: process.env.PROXY_SSL_AUTO !== "false",
         email: process.env.PROXY_SSL_EMAIL,
+        certPath: process.env.PROXY_CERT_PATH,
+        caCertFile: process.env.PROXY_CA_CERT_FILE,
+        certFile: process.env.PROXY_CERT_FILE,
+        keyFile: process.env.PROXY_KEY_FILE,
       },
       dockerSocketPath: process.env.DOCKER_SOCKET,
     });

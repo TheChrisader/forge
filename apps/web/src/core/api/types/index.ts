@@ -1,5 +1,3 @@
-export * from "@forge/types";
-
 export interface ApiError {
   message: string;
   code?: string;

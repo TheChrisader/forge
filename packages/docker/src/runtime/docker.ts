@@ -57,6 +57,8 @@ const DEFAULT_SOCKET_PATHS = {
   linux: "/var/run/docker.sock",
 } as const;
 
+const DEFAULT_EXTRA_HOST = "host.docker.internal:host-gateway";
+
 function getDefaultSocketPath(): string {
   return (
     DEFAULT_SOCKET_PATHS[process.platform as keyof typeof DEFAULT_SOCKET_PATHS] ||
@@ -275,6 +277,7 @@ export class DockerRuntime implements IContainerRuntime {
         AutoRemove: config.autoRemove,
         CapAdd: config.capabilities?.add ?? [],
         CapDrop: config.capabilities?.drop ?? [],
+        ExtraHosts: config.extraHosts ?? [DEFAULT_EXTRA_HOST],
         RestartPolicy: config.restartPolicy
           ? {
               Name: config.restartPolicy.name,

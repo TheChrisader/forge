@@ -1,5 +1,27 @@
 import type { IContainerRuntime } from "@forge/docker";
 import { TRAEFIK_CONTAINER_LABELS } from "./constants";
+import { validateCertFiles } from "../../utils/cert-files";
+import { generateFullChain, generateTlsConfig } from "./tls-config";
+import { resolve } from "path";
+
+/**
+ * Resolves a path relative to the project root.
+ * Handles the case where the process is running from apps/api or apps/workers.
+ */
+function resolveProjectPath(relativePath: string): string {
+  const cwd = process.cwd();
+
+  // If running from apps/api or apps/workers, resolve relative to project root
+  if (cwd.includes("/apps/") || cwd.includes("\\apps\\")) {
+    // Find the apps directory and go up to project root
+    const appsIndex = Math.max(cwd.lastIndexOf("/apps/"), cwd.lastIndexOf("\\apps\\"));
+    const projectRoot = cwd.substring(0, appsIndex);
+    return resolve(projectRoot, relativePath);
+  }
+
+  // Otherwise, resolve relative to current directory
+  return resolve(cwd, relativePath);
+}
 
 export interface TraefikLifecycleConfig {
   image: string;
@@ -9,9 +31,18 @@ export interface TraefikLifecycleConfig {
   httpsPort: number;
   dashboard: boolean;
   logLevel: string;
+  /** URL where the Forge API is reachable from inside the Traefik container
+   *  (e.g. "http://host.docker.internal:4000"). When set, the file-provider
+   *  config includes an HTTP route that forwards CRL requests to the API. */
+  apiUrl?: string;
   ssl: {
     enabled: boolean;
+    mode?: "letsencrypt" | "selfsigned";
     email?: string;
+    certPath?: string;
+    caCertFile?: string;
+    certFile?: string;
+    keyFile?: string;
   };
   volumeMounts: {
     dockerSocket: string;
@@ -29,6 +60,10 @@ export interface ProxyStatus {
 
 export class TraefikLifecycleManager {
   private containerId?: string;
+
+  /** Directory for Traefik-generated artifacts (fullchain, TOML config).
+   *  Separate from the user-facing cert store to keep provider concerns isolated. */
+  private static readonly PROVIDER_CONFIG_DIR = "./data/traefik";
 
   constructor(
     private readonly runtime: IContainerRuntime,
@@ -77,7 +112,45 @@ export class TraefikLifecycleManager {
       return { containerId: existingContainer.id, created: false };
     }
 
+    // For self-signed mode, validate certs and generate provider artifacts
+    const certVolumes: Array<{ source: string; target: string; readOnly: boolean }> = [];
+    if (this.config.ssl.enabled && this.config.ssl.mode === "selfsigned") {
+      const certValidation = this.validateAndPrepareCerts();
+      if (!certValidation.valid) {
+        console.error(
+          "[Traefik] Self-signed TLS mode enabled but certificate files are missing:\n" +
+            "  " +
+            certValidation.missing.join("\n  ") +
+            "\n" +
+            "  To fix this, run: pnpm setup:certs\n" +
+            "  Falling back to HTTP-only mode."
+        );
+      } else {
+        // Mount user's cert files (read-only)
+        certVolumes.push({
+          source: resolveProjectPath(this.config.ssl.certPath ?? "./data/certs"),
+          target: "/certs",
+          readOnly: true,
+        });
+        // Mount provider artifacts (read-only)
+        certVolumes.push({
+          source: resolveProjectPath(TraefikLifecycleManager.PROVIDER_CONFIG_DIR),
+          target: "/traefik-config",
+          readOnly: true,
+        });
+      }
+    }
+
     const command = this.buildCommand();
+
+    const volumes: Array<{ source: string; target: string; readOnly: boolean }> = [
+      {
+        source: this.config.volumeMounts.dockerSocket,
+        target: "/var/run/docker.sock",
+        readOnly: true,
+      },
+      ...certVolumes,
+    ];
 
     const container = await this.runtime.create({
       image: this.config.image,
@@ -87,13 +160,7 @@ export class TraefikLifecycleManager {
         { containerPort: this.config.httpPort, hostPort: this.config.httpPort, protocol: "tcp" },
         { containerPort: this.config.httpsPort, hostPort: this.config.httpsPort, protocol: "tcp" },
       ],
-      volumes: [
-        {
-          source: this.config.volumeMounts.dockerSocket,
-          target: "/var/run/docker.sock",
-          readOnly: true,
-        },
-      ],
+      volumes,
       labels: {
         [TRAEFIK_CONTAINER_LABELS.MANAGED]: "true",
         [TRAEFIK_CONTAINER_LABELS.TYPE]: "proxy",
@@ -107,6 +174,50 @@ export class TraefikLifecycleManager {
     this.containerId = container.id;
 
     return { containerId: container.id, created: true };
+  }
+
+  private validateAndPrepareCerts(): { valid: boolean; missing: string[] } {
+    const certPath = resolveProjectPath(this.config.ssl.certPath ?? "./data/certs");
+    const caCertFile = this.config.ssl.caCertFile ?? "ca.crt";
+    const certFile = this.config.ssl.certFile ?? "cert.crt";
+    const keyFile = this.config.ssl.keyFile ?? "cert.key";
+    const providerConfigDir = resolveProjectPath(TraefikLifecycleManager.PROVIDER_CONFIG_DIR);
+
+    const validation = validateCertFiles(certPath, { caCertFile, certFile, keyFile });
+
+    if (!validation.valid) {
+      return validation;
+    }
+
+    // Generate Traefik-specific artifacts (fullchain and TOML config)
+    if (validation.certSet) {
+      try {
+        generateFullChain(validation.certSet, providerConfigDir);
+        // Fullchain is generated in providerConfigDir (mounted at /traefik-config)
+        // Key is in the certPath (mounted at /certs)
+        // Translate localhost → host.docker.internal so the Traefik container
+        // can reach the Forge API on the host. Other proxy providers would
+        // use the URL as-is — this translation is Traefik-specific.
+        const containerApiUrl = this.config.apiUrl?.replace(
+          "//localhost",
+          "//host.docker.internal"
+        );
+        generateTlsConfig(
+          "/traefik-config/fullchain.pem",
+          "/certs/" + keyFile,
+          providerConfigDir,
+          containerApiUrl
+        );
+      } catch (error) {
+        console.error("[Traefik] Failed to generate TLS config:", error);
+        return {
+          valid: false,
+          missing: ["Failed to generate TLS config: " + (error as Error).message],
+        };
+      }
+    }
+
+    return validation;
   }
 
   async connectToProjectNetwork(networkName: string): Promise<void> {
@@ -210,12 +321,20 @@ export class TraefikLifecycleManager {
       `--entrypoints.websecure.address=:${this.config.httpsPort}`,
     ];
 
-    if (this.config.ssl.enabled && this.config.ssl.email) {
-      flags.push(
-        `--certificatesResolvers.letsencrypt.acme.email=${this.config.ssl.email}`,
-        "--certificatesResolvers.letsencrypt.acme.storage=/letsencrypt/acme.json",
-        "--certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint=web"
-      );
+    if (this.config.ssl.enabled) {
+      if (this.config.ssl.mode === "selfsigned" && this.config.ssl.certPath) {
+        // File provider for self-signed certs
+        // /traefik-config/tls-config.toml references /certs/... and /traefik-config/...
+        flags.push("--providers.file.filename=/traefik-config/tls-config.toml");
+        flags.push("--providers.file.watch=true");
+      } else if (this.config.ssl.email) {
+        // ACME for Let's Encrypt (existing)
+        flags.push(
+          `--certificatesResolvers.letsencrypt.acme.email=${this.config.ssl.email}`,
+          "--certificatesResolvers.letsencrypt.acme.storage=/letsencrypt/acme.json",
+          "--certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint=web"
+        );
+      }
     }
 
     if (this.config.dashboard) {

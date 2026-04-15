@@ -73,7 +73,7 @@ export function DomainsTab({ project }: DomainsTabProps): JSX.Element {
     }
   };
 
-  const autoSubdomain = `${project.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}.localhost`;
+  const autoSubdomain = `${project.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}.forge.localhost`;
 
   return (
     <div className="space-y-6">

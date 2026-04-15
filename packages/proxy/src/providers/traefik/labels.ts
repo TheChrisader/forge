@@ -5,6 +5,7 @@ export interface TraefikRouteConfig {
   pathPrefix?: string;
   httpsRedirect?: boolean;
   tlsResolver?: string;
+  tlsEnabled?: boolean;
   middlewares?: string[];
   stickySessions?: boolean;
   headers?: Record<string, string>;
@@ -55,6 +56,9 @@ export function buildTraefikLabels(config: TraefikRouteConfig): Record<string, s
 
   if (config.tlsResolver) {
     labels[`traefik.http.routers.${rid}.tls.certresolver`] = config.tlsResolver;
+    labels[`traefik.http.routers.${rid}.tls`] = "true";
+  } else if (config.tlsEnabled) {
+    // Self-signed mode: use default certificate store (no resolver needed)
     labels[`traefik.http.routers.${rid}.tls`] = "true";
   }
 

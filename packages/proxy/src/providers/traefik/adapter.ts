@@ -13,6 +13,7 @@ export interface TraefikProviderConfig {
   defaultDomain: string;
   httpsRedirect: boolean;
   tlsResolver?: string;
+  tlsEnabled?: boolean;
   proxyNetworkName: string;
   apiUrl?: string;
 }

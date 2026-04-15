@@ -88,6 +88,11 @@ export interface ReverseProxyConfig {
     enabled?: boolean;
     autoGenerate?: boolean;
     email?: string;
+    certFile?: string;
+    keyFile?: string;
+    caCertFile?: string;
+    certPath?: string;
+    mode?: "letsencrypt" | "selfsigned";
   };
   network?: string;
   dashboard?: boolean;

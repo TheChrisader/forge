@@ -35,6 +35,7 @@ export class TraefikProxyIntegration implements IProxyIntegration {
       targetPort: context.targetPort,
       httpsRedirect: this.config.httpsRedirect,
       tlsResolver: this.config.tlsResolver,
+      tlsEnabled: this.config.tlsEnabled,
       enabled: true,
     });
 
