@@ -6,8 +6,9 @@ import { LoggerService } from "@forge/logger";
 import type { LogLevel } from "@forge/types";
 import { BuildLogService } from "@forge/core";
 import type { BuildLogSource } from "@forge/types";
-import { ReverseProxyFactory, NoOpProxyIntegration } from "@forge/proxy";
 import type { IProxyIntegration } from "@forge/proxy";
+import { ContainerLifecycle } from "@forge/deploy";
+import { createDefaultStrategyRegistry } from "@forge/deploy";
 import { PriorityLogBuffer, parseBufferSize, parseErrorSlotReserve } from "./log-buffer.js";
 import { FlushManager, createFlushManagerOptions } from "./flush-manager.js";
 import type { DeployProgressCallback } from "../deployment-orchestrator.service.js";
@@ -21,59 +22,28 @@ const logger = new LoggerService({
   name: "deploy-handler",
 });
 
-export async function handleDeployJob(context: IJobContext<DeployJobData>): Promise<void> {
+export async function handleDeployJob(
+  context: IJobContext<DeployJobData>,
+  proxyIntegration: IProxyIntegration,
+  runtime: DockerRuntime
+): Promise<void> {
   const { deploymentId, projectId, image } = context.job.data;
 
   logger.info("Processing deploy job", { deploymentId, projectId, image });
 
   const db = getDatabaseClient();
   const buildLogService = new BuildLogService(db);
-  const runtime = new DockerRuntime();
 
-  const proxyProvider = process.env.PROXY_PROVIDER ?? "none";
-  let proxyIntegration: IProxyIntegration;
+  const lifecycle = new ContainerLifecycle(db, runtime, logger, proxyIntegration);
+  const strategyRegistry = createDefaultStrategyRegistry(lifecycle, logger);
 
-  if (proxyProvider === "none") {
-    proxyIntegration = new NoOpProxyIntegration();
-  } else {
-    try {
-      const proxyFactory = new ReverseProxyFactory(runtime);
-      const { integration } = await proxyFactory.createProvider({
-        type: proxyProvider as "traefik" | "caddy" | "nginx" | "custom",
-        domain: process.env.PROXY_DOMAIN,
-        httpPort: process.env.PROXY_HTTP_PORT
-          ? parseInt(process.env.PROXY_HTTP_PORT, 10)
-          : undefined,
-        httpsPort: process.env.PROXY_HTTPS_PORT
-          ? parseInt(process.env.PROXY_HTTPS_PORT, 10)
-          : undefined,
-        network: process.env.PROXY_NETWORK,
-        ssl: {
-          enabled: process.env.PROXY_SSL_ENABLED !== "false",
-          mode: (process.env.PROXY_SSL_MODE ?? "letsencrypt") as "letsencrypt" | "selfsigned",
-          autoGenerate: process.env.PROXY_SSL_AUTO !== "false",
-          email: process.env.PROXY_SSL_EMAIL,
-          certPath: process.env.PROXY_CERT_PATH,
-          caCertFile: process.env.PROXY_CA_CERT_FILE,
-          certFile: process.env.PROXY_CERT_FILE,
-          keyFile: process.env.PROXY_KEY_FILE,
-        },
-        dashboard: process.env.PROXY_DASHBOARD === "true",
-        traefikImage: process.env.PROXY_TRAEFIK_IMAGE,
-        logLevel: process.env.PROXY_LOG_LEVEL,
-        dockerSocketPath: process.env.DOCKER_SOCKET,
-      });
-      proxyIntegration = integration;
-    } catch (proxyError) {
-      logger.warn("Failed to initialize proxy integration — falling back to no-op", {
-        provider: proxyProvider,
-        error: proxyError instanceof Error ? proxyError.message : String(proxyError),
-      });
-      proxyIntegration = new NoOpProxyIntegration();
-    }
-  }
-
-  const orchestrator = new DeploymentOrchestrator(db, runtime, logger, proxyIntegration);
+  const orchestrator = new DeploymentOrchestrator(
+    db,
+    strategyRegistry,
+    lifecycle,
+    logger,
+    proxyIntegration
+  );
 
   const lineNumberRef = await initializeLineNumberRef(buildLogService, deploymentId);
 
@@ -146,7 +116,7 @@ export async function handleDeployJob(context: IJobContext<DeployJobData>): Prom
 
     logger.error("Deployment failed", { deploymentId, error: errorMessage });
 
-    await orchestrator.handleFailure(deploymentId, null, errorMessage);
+    await orchestrator.handleFailure(deploymentId, errorMessage);
 
     throw error;
   } finally {

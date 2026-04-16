@@ -1,28 +1,47 @@
-/**
- * Deployment strategy interface
- * Allows pluggable deployment strategies (rolling, blue-green, canary, etc.)
- */
+import type {
+  ProjectVolumeConfig,
+  ProjectHealthCheckConfig,
+  ProjectResourceConfig,
+} from "@forge/types";
+
+export interface DeployedContainer {
+  /** Database ID of the container record */
+  id: string;
+  /** Docker container ID (used for proxy integration calls) */
+  containerId: string;
+}
 
 export interface DeploymentContext {
   deploymentId: string;
   projectId: string;
+  projectName: string;
+  projectSlug: string;
   image: string;
   replicas: number;
-  env?: Record<string, string>;
-  ports?: Array<{ container: number; host?: number }>;
-  volumes?: Array<{ source: string; target: string }>;
-  healthCheck?: {
-    path: string;
-    interval: number;
-    timeout: number;
-    retries: number;
-  };
+  env: Record<string, string>;
+  ports: Array<{ containerPort: number; hostPort?: number; protocol?: "tcp" | "udp" }>;
+  volumes: ProjectVolumeConfig[];
+  healthCheck?: ProjectHealthCheckConfig;
+  resources?: ProjectResourceConfig;
+  labels: Record<string, string>;
+
+  networkName: string;
+  domains: string[];
+  targetPort: number;
+
+  activeEnvironment?: "BLUE" | "GREEN";
+
+  canaryPercentage?: number;
+
+  existingContainerIds: string[];
 }
 
 export interface DeploymentResult {
   success: boolean;
-  containerIds: string[];
+  containers: DeployedContainer[];
+  removedContainerIds: string[];
   duration: number;
+  activeEnvironment?: "BLUE" | "GREEN";
   error?: string;
 }
 
@@ -36,23 +55,11 @@ export interface DeploymentProgress {
 export type ProgressCallback = (progress: DeploymentProgress) => void;
 
 export interface IDeploymentStrategy {
-  /**
-   * Strategy name
-   */
-  readonly name: string;
+  readonly strategyName: "ROLLING" | "BLUE_GREEN" | "CANARY" | "RECREATE";
 
   execute(context: DeploymentContext, onProgress?: ProgressCallback): Promise<DeploymentResult>;
 
-  rollback(deploymentId: string, onProgress?: ProgressCallback): Promise<DeploymentResult>;
-
   validate(context: DeploymentContext): { valid: boolean; errors?: string[] };
-
-  getStatus(deploymentId: string): Promise<{
-    phase: string;
-    healthy: number;
-    unhealthy: number;
-    total: number;
-  }>;
 }
 
 export interface IDeploymentStrategyRegistry {

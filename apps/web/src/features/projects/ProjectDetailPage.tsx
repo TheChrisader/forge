@@ -74,8 +74,11 @@ function getDeploymentStatusInfo(status: string): {
   category: "success" | "progress" | "error" | "warning" | "neutral";
 } {
   const normalized = status.toLowerCase().replace(/_/g, "-");
-  if (["running", "succeeded", "healthy"].includes(normalized)) {
+  if (["running", "healthy"].includes(normalized)) {
     return { label: "Live", category: "success" };
+  }
+  if (["succeeded"].includes(normalized)) {
+    return { label: "Inactive", category: "neutral" };
   }
   if (["building", "deploying", "pending", "queued"].includes(normalized)) {
     return { label: "In Progress", category: "progress" };

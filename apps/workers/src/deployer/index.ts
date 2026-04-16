@@ -1,13 +1,3 @@
-/**
- * Deployer worker entry point
- *
- * Runs the deployer worker that processes deployment jobs from the queue.
- * This worker is responsible for:
- * - Creating containers from built images
- * - Starting containers and monitoring health
- * - Updating deployment status based on container health
- */
-
 import "dotenv/config";
 import { LoggerService } from "@forge/logger";
 import type { LogLevel } from "@forge/core";
@@ -46,6 +36,8 @@ async function main(): Promise<void> {
   const worker = new DeployerWorker(queueConfig, {
     concurrency: Number.parseInt(process.env.DEPLOYER_CONCURRENCY ?? "5", 10),
   });
+
+  await worker.initialize();
 
   logger.info("Deployer worker started and ready to process jobs");
 
