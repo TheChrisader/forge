@@ -13,6 +13,7 @@ import { registerEnvironmentVariableRoutes } from "./environment-variables.route
 import { registerDomainRoutes } from "./domains.routes.js";
 import { registerCrlRoutes } from "./crl.routes.js";
 import { registerAuditLogRoutes } from "./audit-logs.routes.js";
+import { registerDashboardRoutes } from "./dashboard.routes.js";
 
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
@@ -29,4 +30,5 @@ export function setupRoutes(server: FastifyInstance): void {
   registerEnvironmentVariableRoutes(server, server.config);
   registerDomainRoutes(server, server.config);
   registerAuditLogRoutes(server);
+  registerDashboardRoutes(server, server.config);
 }

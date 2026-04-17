@@ -121,3 +121,33 @@ export const DeploymentLogsResponseSchema = z.object({
 
 export type DeploymentLogsQuery = z.infer<typeof DeploymentLogsQuerySchema>;
 export type DeploymentLogsResponse = z.infer<typeof DeploymentLogsResponseSchema>;
+
+export const DashboardStatsResponseSchema = z.object({
+  counts: z.object({
+    projects: z.number().int().nonnegative(),
+    deployments: z.number().int().nonnegative(),
+    containers: z.number().int().nonnegative(),
+    services: z.number().int().nonnegative(),
+  }),
+  trends: z.object({
+    projects: z.number().int().nonnegative(),
+    deployments: z.number().int().nonnegative(),
+    containers: z.number().int().nonnegative(),
+  }),
+  system: z.object({
+    cpuCores: z.number().int().nonnegative(),
+    memoryTotalBytes: z.number().int().nonnegative(),
+    containersRunning: z.number().int().nonnegative(),
+    containersTotal: z.number().int().nonnegative(),
+    cpuPercent: z.number().nonnegative(),
+    memoryUsedBytes: z.number().int().nonnegative(),
+    storage: z.object({
+      imagesSizeBytes: z.number().int().nonnegative(),
+      containersSizeBytes: z.number().int().nonnegative(),
+      volumesSizeBytes: z.number().int().nonnegative(),
+      totalSizeBytes: z.number().int().nonnegative(),
+    }),
+  }),
+});
+
+export type DashboardStatsResponse = z.infer<typeof DashboardStatsResponseSchema>;

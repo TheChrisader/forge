@@ -1042,6 +1042,129 @@ export class DockerRuntime implements IContainerRuntime {
     return { deleted, reclaimedBytes, errors };
   }
 
+  async getSystemInfo(): Promise<DockerSystemInfo> {
+    const info = (await this.docker.info()) as DockerSystemInfo;
+    return {
+      ServerVersion: info.ServerVersion,
+      OperatingSystem: info.OperatingSystem,
+      KernelVersion: info.KernelVersion,
+      Architecture: info.Architecture,
+      NCPU: info.NCPU,
+      MemTotal: info.MemTotal,
+      Containers: info.Containers,
+      ContainersRunning: info.ContainersRunning,
+      ContainersPaused: info.ContainersPaused,
+      ContainersStopped: info.ContainersStopped,
+      Images: info.Images,
+      Driver: info.Driver,
+      Name: info.Name,
+      Labels: info.Labels,
+      Warnings: info.Warnings,
+    };
+  }
+
+  async getAggregatedStats(): Promise<{
+    cpuPercent: number;
+    memoryUsedBytes: number;
+    memoryLimitBytes: number;
+  }> {
+    const containers = await this.docker.listContainers({
+      filters: JSON.stringify({ status: ["running"] }),
+    });
+
+    if (containers.length === 0) {
+      const info = (await this.docker.info()) as DockerSystemInfo;
+      return { cpuPercent: 0, memoryUsedBytes: 0, memoryLimitBytes: info.MemTotal };
+    }
+
+    const statsPromises = containers.map(
+      (c) =>
+        new Promise<{ cpuPercent: number; memoryUsedBytes: number; memoryLimitBytes: number }>(
+          (resolve, reject) => {
+            const container = this.docker.getContainer(c.Id);
+            container.stats({ stream: false }, (err, data) => {
+              if (err || !data) {
+                const message =
+                  err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : "No stats returned";
+                reject(new Error(message));
+                return;
+              }
+
+              const cpuDelta =
+                data.cpu_stats.cpu_usage.total_usage - data.precpu_stats.cpu_usage.total_usage;
+              const systemDelta =
+                data.cpu_stats.system_cpu_usage - data.precpu_stats.system_cpu_usage;
+              const cpuPercent =
+                systemDelta > 0 ? (cpuDelta / systemDelta) * data.cpu_stats.online_cpus * 100 : 0;
+
+              resolve({
+                cpuPercent,
+                memoryUsedBytes: data.memory_stats.usage || 0,
+                memoryLimitBytes: data.memory_stats.limit || 1,
+              });
+            });
+          }
+        )
+    );
+
+    const results = await Promise.allSettled(statsPromises);
+    const succeeded = results
+      .filter(
+        (
+          r
+        ): r is PromiseFulfilledResult<{
+          cpuPercent: number;
+          memoryUsedBytes: number;
+          memoryLimitBytes: number;
+        }> => r.status === "fulfilled"
+      )
+      .map((r) => r.value);
+
+    if (succeeded.length === 0) {
+      const info = (await this.docker.info()) as DockerSystemInfo;
+      return { cpuPercent: 0, memoryUsedBytes: 0, memoryLimitBytes: info.MemTotal };
+    }
+
+    const totalCpuPercent = Math.min(
+      succeeded.reduce((sum, s) => sum + s.cpuPercent, 0),
+      100 * (succeeded[0]?.memoryLimitBytes ? 1 : 1)
+    );
+
+    const memoryLimitBytes = succeeded[0]?.memoryLimitBytes ?? 0;
+    const totalMemoryUsed = succeeded.reduce((sum, s) => sum + s.memoryUsedBytes, 0);
+
+    return {
+      cpuPercent: Math.round(totalCpuPercent * 10) / 10,
+      memoryUsedBytes: totalMemoryUsed,
+      memoryLimitBytes,
+    };
+  }
+
+  async getDiskUsage(): Promise<{
+    imagesSizeBytes: number;
+    containersSizeBytes: number;
+    volumesSizeBytes: number;
+    totalSizeBytes: number;
+  }> {
+    const df = (await this.docker.df()) as {
+      LayersSize?: number;
+      Images?: Array<{ Size?: number }>;
+      Containers?: Array<{ SizeRw?: number }>;
+      Volumes?: Array<{ UsageData?: { Size?: number } }>;
+    };
+
+    const imagesSizeBytes = df.LayersSize ?? 0;
+    const containersSizeBytes = df.Containers?.reduce((sum, c) => sum + (c.SizeRw ?? 0), 0) ?? 0;
+    const volumesSizeBytes = df.Volumes?.reduce((sum, v) => sum + (v.UsageData?.Size ?? 0), 0) ?? 0;
+    const totalSizeBytes = imagesSizeBytes + containersSizeBytes + volumesSizeBytes;
+
+    return { imagesSizeBytes, containersSizeBytes, volumesSizeBytes, totalSizeBytes };
+  }
+
   async getImageDiskUsage(tagPrefix?: string): Promise<{
     count: number;
     totalBytes: number;

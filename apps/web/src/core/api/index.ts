@@ -16,3 +16,4 @@ export { auditLogsApi } from "./clients/audit-logs";
 export { metricsApi } from "./clients/metrics";
 export { secretsApi } from "./clients/secrets";
 export { environmentVariablesApi } from "./clients/environment-variables";
+export { dashboardApi } from "./clients/dashboard";

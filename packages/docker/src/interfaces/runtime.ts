@@ -61,6 +61,21 @@ export interface IContainerRuntime {
     count: number;
     totalBytes: number;
   }>;
+
+  getSystemInfo(): Promise<DockerSystemInfo>;
+
+  getAggregatedStats(): Promise<{
+    cpuPercent: number;
+    memoryUsedBytes: number;
+    memoryLimitBytes: number;
+  }>;
+
+  getDiskUsage(): Promise<{
+    imagesSizeBytes: number;
+    containersSizeBytes: number;
+    volumesSizeBytes: number;
+    totalSizeBytes: number;
+  }>;
 }
 
 export interface NetworkAttachment {
