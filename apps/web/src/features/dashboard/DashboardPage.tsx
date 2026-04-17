@@ -28,7 +28,6 @@ import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import type { ServiceStatus, DeploymentStatus } from "@forge/types";
 
-// Mock data for stat cards
 const stats = [
   {
     title: "Projects",
@@ -135,10 +134,10 @@ const quickActions = [
     shortcut: "⌘N",
   },
   {
-    title: "View Logs",
-    description: "Access system logs",
+    title: "View Activity",
+    description: "Access audit log",
     icon: ActivityIcon,
-    href: "/logs",
+    href: "/activity",
     shortcut: "⌘L",
   },
   {
@@ -155,7 +154,6 @@ const icons: Record<string, LucideIcon> = {
   service: ServerIcon,
 };
 
-// Trend icon component
 function TrendIcon({ direction }: { direction: "up" | "down" | "neutral" }): React.ReactElement {
   switch (direction) {
     case "up":
@@ -167,7 +165,6 @@ function TrendIcon({ direction }: { direction: "up" | "down" | "neutral" }): Rea
   }
 }
 
-// Resource color based on usage
 function getResourceColor(value: number): string {
   if (value >= 80) return "bg-destructive";
   if (value >= 60) return "bg-warning-500";
@@ -183,7 +180,6 @@ function getResourceProgressColor(value: number): string {
 export function DashboardPage(): React.ReactElement {
   return (
     <div className="space-y-6">
-      {/* Quick Actions - subtle bar */}
       <div className="flex items-center justify-between gap-4 border-b border-border/50 pb-4">
         <div className="flex items-center gap-2">
           <span className="font-mono text-[9px] text-muted-foreground/60 uppercase tracking-wider">
@@ -210,7 +206,6 @@ export function DashboardPage(): React.ReactElement {
         </div>
       </div>
 
-      {/* Stats Grid with asymmetric layout */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
@@ -259,9 +254,7 @@ export function DashboardPage(): React.ReactElement {
         })}
       </div>
 
-      {/* Two column layout: Resources + Activity */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Resource Utilization - takes 1 column */}
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="font-serif">Resources</CardTitle>
@@ -270,7 +263,6 @@ export function DashboardPage(): React.ReactElement {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            {/* CPU */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -290,7 +282,6 @@ export function DashboardPage(): React.ReactElement {
               </div>
             </div>
 
-            {/* Memory */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -306,7 +297,6 @@ export function DashboardPage(): React.ReactElement {
               </div>
             </div>
 
-            {/* Storage */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -322,7 +312,6 @@ export function DashboardPage(): React.ReactElement {
               </div>
             </div>
 
-            {/* Network */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -340,7 +329,6 @@ export function DashboardPage(): React.ReactElement {
           </CardContent>
         </Card>
 
-        {/* Recent Activity - takes 2 columns, timeline design */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -371,7 +359,6 @@ export function DashboardPage(): React.ReactElement {
                 return (
                   <div key={activity.id} className="group">
                     <div className="flex gap-4 px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer">
-                      {/* Timeline column */}
                       <div className="flex flex-col items-center">
                         <div className="relative">
                           <div
@@ -394,7 +381,6 @@ export function DashboardPage(): React.ReactElement {
                         )}
                       </div>
 
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-center gap-3 min-w-0">

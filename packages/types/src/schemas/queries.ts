@@ -90,6 +90,16 @@ export const ContainerFiltersSchema = z.object({
   name: z.string().optional(),
 });
 
+export const AuditLogQuerySchema = PaginationParamsSchema.extend({
+  action: z.string().optional(),
+  resourceType: z.string().optional(),
+  userId: IdSchema.optional(),
+  projectId: IdSchema.optional(),
+  since: TimestampSchema.optional(),
+  until: TimestampSchema.optional(),
+  search: z.string().optional(),
+});
+
 export const ServiceFiltersSchema = z.object({
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),

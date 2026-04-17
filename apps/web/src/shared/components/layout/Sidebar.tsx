@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Folder, Server, FileText, BarChart3, Settings, Package } from "lucide-react";
+import { Home, Folder, Server, Activity, BarChart3, Settings, Package } from "lucide-react";
 import { JSX } from "react";
 
 const navigation = [
@@ -7,7 +7,7 @@ const navigation = [
   { name: "Projects", href: "/projects", icon: Folder },
   { name: "Services", href: "/services", icon: Server },
   { name: "Images", href: "/images", icon: Package },
-  { name: "Logs", href: "/logs", icon: FileText },
+  { name: "Activity", href: "/activity", icon: Activity },
   { name: "Metrics", href: "/metrics", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];

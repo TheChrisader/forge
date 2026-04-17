@@ -12,6 +12,7 @@ import { registerSecretRoutes } from "./secrets.routes.js";
 import { registerEnvironmentVariableRoutes } from "./environment-variables.routes.js";
 import { registerDomainRoutes } from "./domains.routes.js";
 import { registerCrlRoutes } from "./crl.routes.js";
+import { registerAuditLogRoutes } from "./audit-logs.routes.js";
 
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
@@ -27,4 +28,5 @@ export function setupRoutes(server: FastifyInstance): void {
   registerSecretRoutes(server, server.config);
   registerEnvironmentVariableRoutes(server, server.config);
   registerDomainRoutes(server, server.config);
+  registerAuditLogRoutes(server);
 }

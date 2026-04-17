@@ -4,7 +4,7 @@ import { DashboardPage } from "@/features/dashboard";
 import { ProjectsPage, ProjectDetailPage, ProjectSettingsPage } from "@/features/projects";
 import { ServicesPage } from "@/features/services";
 import { DeploymentsPage, DeploymentLogsPage } from "@/features/deployments";
-import { LogsPage } from "@/features/logging";
+import { ActivityPage } from "@/features/activity";
 import { MetricsPage } from "@/features/metrics";
 import { SettingsPage } from "@/features/settings";
 import { ImagesPage } from "@/features/images";
@@ -118,10 +118,10 @@ const containerLogsRoute = createRoute({
   component: ContainerLogsPage,
 });
 
-const logsRoute = createRoute({
+const activityRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
-  path: "/logs",
-  component: LogsPage,
+  path: "/activity",
+  component: ActivityPage,
 });
 
 const metricsRoute = createRoute({
@@ -155,7 +155,7 @@ const routeTree = rootRoute.addChildren([
     imagesRoute,
     containerDetailRoute,
     containerLogsRoute,
-    logsRoute,
+    activityRoute,
     metricsRoute,
     settingsRoute,
     notFoundRoute,

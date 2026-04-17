@@ -55,6 +55,7 @@ export function useLogout(): ReturnType<typeof useMutation<void, ApiClientError,
       try {
         await authApi.logout();
       } catch {
+        // Just pass through
       } finally {
         apiClient.removeAuthToken();
       }
