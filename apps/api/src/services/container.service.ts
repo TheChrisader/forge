@@ -39,6 +39,50 @@ import { NetworkManager } from "./network-manager";
 import { VolumeManager } from "./volume-manager";
 import type { SSEManagerService } from "./sse-manager.service";
 
+interface DockerInfo {
+  id: string;
+  name: string;
+  image: string;
+  status: DockerContainerStatus;
+  state: {
+    status: DockerContainerStatus;
+    running: boolean;
+    paused: boolean;
+    restarting: boolean;
+    oomKilled: boolean;
+    dead: boolean;
+    pid: number;
+    exitCode?: number;
+    error?: string;
+    startedAt?: Date;
+    finishedAt?: Date;
+  };
+  created: Date;
+  config: {
+    hostname: string;
+    env: string[];
+    labels?: Record<string, string>;
+    cmd?: string[];
+    workingDir?: string;
+  };
+  networkSettings: {
+    ipAddress: string;
+    ports: Record<string, { hostIp: string; hostPort: string }[]>;
+    networks: Record<string, unknown>;
+  };
+  mounts: Array<{
+    type: string;
+    source: string;
+    destination: string;
+    mode: string;
+    rw: boolean;
+  }>;
+  health?: {
+    status: "healthy" | "unhealthy" | "starting" | "none";
+    failingStreak: number;
+  };
+}
+
 /**
  * Maps Docker container status to database ContainerStatus
  */
@@ -286,20 +330,28 @@ export class ContainerService implements IContainerService {
       return null;
     }
 
-    const dockerInfo = await this.runtime.inspect(container.containerId);
-
-    return this.mapToDockerContainer(container, dockerInfo);
+    try {
+      const dockerInfo = await this.runtime.inspect(container.containerId);
+      return this.mapToDockerContainer(container, dockerInfo);
+    } catch {
+      return this.mapToDockerContainer(container, this.createSyntheticDockerInfo(container));
+    }
   }
 
   /**
    * Gets all containers for a project
    */
-  async getByProject(projectId: string): Promise<DockerContainer[]> {
+  async getByProject(
+    projectId: string,
+    options?: { includeTerminated?: boolean }
+  ): Promise<DockerContainer[]> {
+    const where: Record<string, unknown> = { projectId };
+    if (!options?.includeTerminated) {
+      where.deletedAt = null;
+    }
+
     const containers = await this.db.container.findMany({
-      where: {
-        projectId,
-        deletedAt: null,
-      },
+      where,
       include: {
         ports: true,
         volumes: true,
@@ -312,60 +364,23 @@ export class ContainerService implements IContainerService {
       },
     });
 
-    const results: DockerContainer[] = [];
-
-    for (const container of containers) {
-      try {
-        const dockerInfo = await this.runtime.inspect(container.containerId);
-        results.push(this.mapToDockerContainer(container, dockerInfo));
-      } catch {
-        // Container might not exist in Docker anymore
-        results.push(
-          this.mapToDockerContainer(container, {
-            id: container.containerId,
-            name: container.name ?? container.containerId,
-            image: container.image,
-            status: "dead",
-            state: {
-              status: "dead",
-              running: false,
-              paused: false,
-              restarting: false,
-              oomKilled: false,
-              dead: true,
-              pid: 0,
-              exitCode: -1,
-              error: "Container not found in Docker",
-            },
-            created: container.createdAt,
-            config: {
-              hostname: "",
-              env: [],
-              labels: {},
-            },
-            networkSettings: {
-              ipAddress: "",
-              ports: {},
-              networks: {},
-            },
-            mounts: [],
-          })
-        );
-      }
-    }
-
-    return results;
+    return this.inspectContainers(containers);
   }
 
   /**
    * Gets all containers for a deployment
    */
-  async getByDeployment(deploymentId: string): Promise<DockerContainer[]> {
+  async getByDeployment(
+    deploymentId: string,
+    options?: { includeTerminated?: boolean }
+  ): Promise<DockerContainer[]> {
+    const where: Record<string, unknown> = { deploymentId };
+    if (!options?.includeTerminated) {
+      where.deletedAt = null;
+    }
+
     const containers = await this.db.container.findMany({
-      where: {
-        deploymentId,
-        deletedAt: null,
-      },
+      where,
       include: {
         ports: true,
         volumes: true,
@@ -378,49 +393,7 @@ export class ContainerService implements IContainerService {
       },
     });
 
-    const results: DockerContainer[] = [];
-
-    for (const container of containers) {
-      try {
-        const dockerInfo = await this.runtime.inspect(container.containerId);
-        results.push(this.mapToDockerContainer(container, dockerInfo));
-      } catch {
-        // Container might not exist in Docker anymore
-        results.push(
-          this.mapToDockerContainer(container, {
-            id: container.containerId,
-            name: container.name ?? container.containerId,
-            image: container.image,
-            status: "dead",
-            state: {
-              status: "dead",
-              running: false,
-              paused: false,
-              restarting: false,
-              oomKilled: false,
-              dead: true,
-              pid: 0,
-              exitCode: -1,
-              error: "Container not found in Docker",
-            },
-            created: container.createdAt,
-            config: {
-              hostname: "",
-              env: [],
-              labels: {},
-            },
-            networkSettings: {
-              ipAddress: "",
-              ports: {},
-              networks: {},
-            },
-            mounts: [],
-          })
-        );
-      }
-    }
-
-    return results;
+    return this.inspectContainers(containers);
   }
 
   /**
@@ -435,20 +408,25 @@ export class ContainerService implements IContainerService {
       throw new Error(`Container with ID ${id} not found`);
     }
 
-    const logs: ContainerLogEntry[] = [];
-    let lineNumber = 0;
+    try {
+      const logs: ContainerLogEntry[] = [];
+      let lineNumber = 0;
 
-    for await (const entry of this.runtime.logs(container.containerId, options)) {
-      lineNumber++;
-      logs.push({
-        lineNumber,
-        timestamp: entry.timestamp.toISOString(),
-        stream: entry.stream,
-        message: entry.message,
-      });
+      for await (const entry of this.runtime.logs(container.containerId, options)) {
+        lineNumber++;
+        logs.push({
+          lineNumber,
+          timestamp: entry.timestamp.toISOString(),
+          stream: entry.stream,
+          message: entry.message,
+        });
+      }
+
+      return logs;
+    } catch {
+      // Container may no longer exist in Docker
+      return [];
     }
-
-    return logs;
   }
 
   /**
@@ -499,7 +477,7 @@ export class ContainerService implements IContainerService {
   /**
    * Gets stats from a container
    */
-  async getStats(id: string): Promise<ContainerStats> {
+  async getStats(id: string): Promise<ContainerStats | null> {
     const container = await this.db.container.findUnique({
       where: { id },
     });
@@ -508,7 +486,12 @@ export class ContainerService implements IContainerService {
       throw new Error(`Container with ID ${id} not found`);
     }
 
-    return await this.runtime.stats(container.containerId);
+    try {
+      return await this.runtime.stats(container.containerId);
+    } catch {
+      // Container may no longer exist in Docker
+      return null;
+    }
   }
 
   /**
@@ -673,6 +656,80 @@ export class ContainerService implements IContainerService {
   }
 
   /**
+   * Inspects a batch of containers, falling back to synthetic data
+   * for containers that no longer exist in Docker.
+   */
+  private async inspectContainers(
+    containers: (Container & {
+      ports: DbPortMapping[];
+      volumes: DbVolumeMapping[];
+      healthCheckConfig?: DbHealthCheckConfig | null;
+      networkAttachments: NetworkAttachment[];
+      resourceLimit?: DbResourceLimit | null;
+    })[]
+  ): Promise<DockerContainer[]> {
+    const results: DockerContainer[] = [];
+
+    for (const container of containers) {
+      try {
+        const dockerInfo = await this.runtime.inspect(container.containerId);
+        results.push(this.mapToDockerContainer(container, dockerInfo));
+      } catch {
+        results.push(
+          this.mapToDockerContainer(container, this.createSyntheticDockerInfo(container))
+        );
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Creates synthetic Docker info for containers that no longer exist in Docker.
+   * Used when Docker inspection fails — the container may have been removed
+   * or the Docker daemon may be unreachable.
+   */
+  private createSyntheticDockerInfo(
+    container: Container & {
+      ports: DbPortMapping[];
+      volumes: DbVolumeMapping[];
+      healthCheckConfig?: DbHealthCheckConfig | null;
+      networkAttachments: NetworkAttachment[];
+      resourceLimit?: DbResourceLimit | null;
+    }
+  ): DockerInfo {
+    return {
+      id: container.containerId,
+      name: container.name ?? container.containerId,
+      image: container.image,
+      status: "dead" as DockerContainerStatus,
+      state: {
+        status: "dead" as DockerContainerStatus,
+        running: false,
+        paused: false,
+        restarting: false,
+        oomKilled: false,
+        dead: true,
+        pid: 0,
+        exitCode: -1,
+        error: "Container not found in Docker",
+      },
+      created: container.createdAt,
+      config: {
+        hostname: "",
+        env: [],
+        labels: {},
+      },
+      networkSettings: {
+        ipAddress: "",
+        ports: {},
+        networks: {},
+      },
+      mounts: [],
+    };
+  }
+
+  /**
    * Maps database container and Docker info to DockerContainer type
    */
   private mapToDockerContainer(
@@ -683,49 +740,7 @@ export class ContainerService implements IContainerService {
       networkAttachments: NetworkAttachment[];
       resourceLimit?: DbResourceLimit | null;
     },
-    dockerInfo: {
-      id: string;
-      name: string;
-      image: string;
-      status: DockerContainerStatus;
-      state: {
-        status: DockerContainerStatus;
-        running: boolean;
-        paused: boolean;
-        restarting: boolean;
-        oomKilled: boolean;
-        dead: boolean;
-        pid: number;
-        exitCode?: number;
-        error?: string;
-        startedAt?: Date;
-        finishedAt?: Date;
-      };
-      created: Date;
-      config: {
-        hostname: string;
-        env: string[];
-        labels?: Record<string, string>;
-        cmd?: string[];
-        workingDir?: string;
-      };
-      networkSettings: {
-        ipAddress: string;
-        ports: Record<string, { hostIp: string; hostPort: string }[]>;
-        networks: Record<string, unknown>;
-      };
-      mounts: Array<{
-        type: string;
-        source: string;
-        destination: string;
-        mode: string;
-        rw: boolean;
-      }>;
-      health?: {
-        status: "healthy" | "unhealthy" | "starting" | "none";
-        failingStreak: number;
-      };
-    }
+    dockerInfo: DockerInfo
   ): DockerContainer {
     return {
       id: dbContainer.id,

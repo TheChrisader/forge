@@ -86,11 +86,17 @@ export interface IContainerService {
   restart(id: string): Promise<void>;
   remove(id: string, force?: boolean): Promise<void>;
   getById(id: string): Promise<DockerContainer | null>;
-  getByProject(projectId: string): Promise<DockerContainer[]>;
-  getByDeployment(deploymentId: string): Promise<DockerContainer[]>;
+  getByProject(
+    projectId: string,
+    options?: { includeTerminated?: boolean }
+  ): Promise<DockerContainer[]>;
+  getByDeployment(
+    deploymentId: string,
+    options?: { includeTerminated?: boolean }
+  ): Promise<DockerContainer[]>;
   getLogs(id: string, options?: LogOptions): Promise<ContainerLogEntry[]>;
   streamLogs(id: string): Promise<void>;
-  getStats(id: string): Promise<ContainerStats>;
+  getStats(id: string): Promise<ContainerStats | null>;
   exec(id: string, command: string[], options?: ExecOptions): Promise<ExecResult>;
 }
 

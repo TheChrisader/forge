@@ -55,9 +55,24 @@ const projectsRoute = createRoute({
   component: ProjectsPage,
 });
 
+const projectDetailTabValues = [
+  "overview",
+  "services",
+  "deployments",
+  "containers",
+  "domains",
+] as const;
+type ProjectDetailTab = (typeof projectDetailTabValues)[number];
+
 const projectDetailRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: "/projects/$projectId",
+  validateSearch: ({ tab }: Record<string, unknown>): { tab?: ProjectDetailTab } => {
+    if (tab && projectDetailTabValues.includes(tab as ProjectDetailTab)) {
+      return { tab: tab as ProjectDetailTab };
+    }
+    return {};
+  },
   component: ProjectDetailPage,
 });
 

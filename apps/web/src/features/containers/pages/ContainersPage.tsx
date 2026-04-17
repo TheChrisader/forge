@@ -1,52 +1,27 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
+import { useRouter } from "@tanstack/react-router";
 import { useProjectContainers } from "@/core/api/hooks";
-import { ContainerStatusBadge } from "../components/ContainerStatusBadge";
-import { ContainerActions } from "../components/ContainerActions";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/components/ui/empty";
 import { LoaderIcon, BoxIcon } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { ContainerFilterToggle } from "../components/ContainerFilterToggle";
+import { ContainerListItem } from "../components/ContainerListItem";
+import { partitionContainersByStatus, isTerminatedDockerStatus } from "../lib/container-filters";
 
 interface ContainersPageProps {
   projectId: string;
 }
 
-function mapDockerStatusToDbStatus(
-  dockerStatus: string
-):
-  | "RUNNING"
-  | "STOPPED"
-  | "CREATING"
-  | "STARTING"
-  | "STOPPING"
-  | "RESTARTING"
-  | "ERROR"
-  | "TERMINATED" {
-  const statusMap: Record<
-    string,
-    | "RUNNING"
-    | "STOPPED"
-    | "CREATING"
-    | "STARTING"
-    | "STOPPING"
-    | "RESTARTING"
-    | "ERROR"
-    | "TERMINATED"
-  > = {
-    running: "RUNNING",
-    exited: "STOPPED",
-    created: "CREATING",
-    paused: "STOPPED",
-    restarting: "RESTARTING",
-    removing: "STOPPING",
-    dead: "TERMINATED",
-  };
-  return statusMap[dockerStatus] ?? "ERROR";
-}
-
 export function ContainersPage({ projectId }: ContainersPageProps): React.ReactElement {
   const router = useRouter();
-  const { data: containers, isLoading, error } = useProjectContainers(projectId);
+  const [showTerminated, setShowTerminated] = useState(false);
+  const {
+    data: containers,
+    isLoading,
+    error,
+  } = useProjectContainers(projectId, {
+    includeTerminated: true,
+  });
 
   if (isLoading) {
     return (
@@ -69,7 +44,12 @@ export function ContainersPage({ projectId }: ContainersPageProps): React.ReactE
     );
   }
 
-  if (!containers || containers.length === 0) {
+  const { active, terminated } = partitionContainersByStatus(containers ?? []);
+  const displayContainers = showTerminated ? [...active, ...terminated] : active;
+  const activeCount = active.length;
+  const terminatedCount = terminated.length;
+
+  if (displayContainers.length === 0) {
     return (
       <Empty>
         <EmptyHeader>
@@ -89,64 +69,26 @@ export function ContainersPage({ projectId }: ContainersPageProps): React.ReactE
         <div>
           <h3 className="text-lg font-semibold">Containers</h3>
           <p className="text-sm text-muted-foreground">
-            {containers.length} container{containers.length !== 1 ? "s" : ""}
+            {activeCount} running{terminatedCount > 0 ? `, ${terminatedCount} terminated` : ""}
           </p>
         </div>
+        <ContainerFilterToggle
+          activeCount={activeCount}
+          terminatedCount={terminatedCount}
+          showTerminated={showTerminated}
+          onToggle={setShowTerminated}
+        />
       </div>
 
       <div className="grid gap-4">
-        {containers.map((container) => {
-          const dbStatus = mapDockerStatusToDbStatus(container.status);
-
-          return (
-            <Card key={container.id}>
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between p-4">
-                  <div className="flex min-w-0 items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                      <BoxIcon className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          to="/containers/$containerId"
-                          params={{ containerId: container.id }}
-                          className="truncate font-medium hover:underline"
-                        >
-                          {container.name ||
-                            container.id?.slice(0, 12) ||
-                            container.id.slice(0, 12)}
-                        </Link>
-                        <ContainerStatusBadge status={dbStatus} />
-                      </div>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span className="font-mono">{container.image}</span>
-                        <span>•</span>
-                        <span>
-                          {container.created
-                            ? formatDistanceToNow(new Date(container.created), {
-                                addSuffix: true,
-                              })
-                            : "Unknown"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <ContainerActions
-                    containerId={container.id}
-                    status={dbStatus}
-                    onViewDetails={() =>
-                      void router.navigate({
-                        to: "/containers/$containerId",
-                        params: { containerId: container.id },
-                      })
-                    }
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {displayContainers.map((container) => (
+          <ContainerListItem
+            key={container.id}
+            container={container}
+            router={router}
+            dimmed={isTerminatedDockerStatus(container.status)}
+          />
+        ))}
       </div>
     </div>
   );

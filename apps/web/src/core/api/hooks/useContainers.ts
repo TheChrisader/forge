@@ -20,12 +20,13 @@ export const containerKeys = {
  * Hook to get all containers for a project
  */
 export function useProjectContainers(
-  projectId: string
+  projectId: string,
+  options?: { includeTerminated?: boolean }
 ): ReturnType<typeof useQuery<DockerContainer[]>> {
   return useQuery<DockerContainer[]>({
-    queryKey: containerKeys.byProject(projectId),
+    queryKey: [...containerKeys.byProject(projectId), options],
     queryFn: async () => {
-      const response = await containersApi.getByProject(projectId);
+      const response = await containersApi.getByProject(projectId, options);
       return response.data;
     },
     enabled: !!projectId,
@@ -77,9 +78,7 @@ export function useContainer(containerId: string): ReturnType<typeof useQuery<Do
  * @param containerId - The container ID to fetch logs for
  * @returns Logs, loading states, error, and streaming status
  */
-export function useContainerLogs(
-  containerId: string
-): {
+export function useContainerLogs(containerId: string): {
   logs: ContainerLogEntry[];
   isLoading: boolean;
   isStreaming: boolean;
@@ -161,7 +160,7 @@ export function useContainerLogs(
 
       try {
         const eventType = event.event;
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(event.data) as ContainerLogEntry;
 
         switch (eventType) {
           case "connected": {
@@ -169,7 +168,7 @@ export function useContainerLogs(
             break;
           }
           case "log": {
-            const logEntry = data as ContainerLogEntry;
+            const logEntry = data;
             if (logEntry.lineNumber > maxLineRef.current) {
               setLogs((prev) => {
                 const newLogs = [...prev, logEntry];

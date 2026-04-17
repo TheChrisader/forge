@@ -78,7 +78,9 @@ export function DomainsTab({ project }: DomainsTabProps): JSX.Element {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="font-serif text-sm text-white/60 mb-3">Auto-Generated Domain</h3>
+        <h3 className="font-serif text-sm text-white/60 mb-3">
+          Auto-Generated Domain (https enabled for browsers)
+        </h3>
         <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/2 px-3 py-2">
           <GlobeIcon className="h-4 w-4 text-white/40" />
           <span className="font-mono text-sm text-white/70">{autoSubdomain}</span>

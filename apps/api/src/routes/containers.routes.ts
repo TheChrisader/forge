@@ -28,6 +28,10 @@ const ContainerRemoveQuerySchema = z.object({
   force: z.coerce.boolean().default(false),
 });
 
+const ContainerListQuerySchema = z.object({
+  includeTerminated: z.coerce.boolean().default(false),
+});
+
 const ContainerLogsQuerySchema = z.object({
   tail: z.union([z.coerce.number().int().min(1), z.literal("all")]).optional(),
   follow: z.coerce.boolean().default(false),
@@ -62,14 +66,16 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     {
       schema: {
         params: ProjectIdParamsSchema,
+        querystring: ContainerListQuerySchema,
       },
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
       await requirePermission(request, { resource: "containers", action: "read" });
       const { projectId } = request.params as { projectId: string };
+      const { includeTerminated } = request.query as { includeTerminated?: boolean };
 
-      const containers = await containerService.getByProject(projectId);
+      const containers = await containerService.getByProject(projectId, { includeTerminated });
       return reply.send({ data: containers });
     }
   );
@@ -83,14 +89,18 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     {
       schema: {
         params: DeploymentIdParamsSchema,
+        querystring: ContainerListQuerySchema,
       },
     },
     async (request, reply) => {
       requireAuth((request as { userId?: string }).userId);
       await requirePermission(request, { resource: "containers", action: "read" });
       const { deploymentId } = request.params as { deploymentId: string };
+      const { includeTerminated } = request.query as { includeTerminated?: boolean };
 
-      const containers = await containerService.getByDeployment(deploymentId);
+      const containers = await containerService.getByDeployment(deploymentId, {
+        includeTerminated,
+      });
       return reply.send({ data: containers });
     }
   );
@@ -320,7 +330,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
       const { id } = request.params as { id: string };
 
       const stats = await containerService.getStats(id);
-      return reply.send({ data: stats });
+      return reply.send({ data: stats ?? null });
     }
   );
 

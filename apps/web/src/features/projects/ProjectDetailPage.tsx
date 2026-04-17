@@ -1,4 +1,4 @@
-import { useParams, useRouter, Link } from "@tanstack/react-router";
+import { useParams, useRouter, useSearch, Link } from "@tanstack/react-router";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -47,11 +47,15 @@ import { useProjectContainers } from "@/core/api/hooks/useContainers";
 import { DeploymentStatus } from "./components/DeploymentStatus";
 import { DeploymentProgress } from "./components/DeploymentProgress";
 import { DeployConfigModal } from "./components/DeployConfigModal";
-import { ContainerStatusBadge } from "@/features/containers/components/ContainerStatusBadge";
-import { ContainerActions } from "@/features/containers/components/ContainerActions";
+import { ContainerFilterToggle } from "@/features/containers/components/ContainerFilterToggle";
+import { ContainerListItem } from "@/features/containers/components/ContainerListItem";
+import {
+  partitionContainersByStatus,
+  isTerminatedDockerStatus,
+} from "@/features/containers/lib/container-filters";
 import { DomainsTab } from "./components/DomainsTab";
 import { formatDistanceToNow } from "date-fns";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ApiClientError } from "@/core/api/client";
 import type { Deployment, Project, DeploymentStrategy } from "@forge/types";
 
@@ -105,39 +109,6 @@ function formatDeploymentDuration(deployment: {
   return `${diffMins}m ${diffSecs % 60}s`;
 }
 
-function mapDockerStatusToDbStatus(
-  dockerStatus: string
-):
-  | "RUNNING"
-  | "STOPPED"
-  | "CREATING"
-  | "STARTING"
-  | "STOPPING"
-  | "RESTARTING"
-  | "ERROR"
-  | "TERMINATED" {
-  const statusMap: Record<
-    string,
-    | "RUNNING"
-    | "STOPPED"
-    | "CREATING"
-    | "STARTING"
-    | "STOPPING"
-    | "RESTARTING"
-    | "ERROR"
-    | "TERMINATED"
-  > = {
-    running: "RUNNING",
-    exited: "STOPPED",
-    created: "CREATING",
-    paused: "STOPPED",
-    restarting: "RESTARTING",
-    removing: "STOPPING",
-    dead: "TERMINATED",
-  };
-  return statusMap[dockerStatus] ?? "ERROR";
-}
-
 interface ContainersTabContentProps {
   projectId: string;
   router: ReturnType<typeof useRouter>;
@@ -147,7 +118,14 @@ function ContainersTabContent({
   projectId,
   router,
 }: ContainersTabContentProps): React.ReactElement {
-  const { data: containers, isLoading, error } = useProjectContainers(projectId);
+  const [showTerminated, setShowTerminated] = useState(false);
+  const {
+    data: containers,
+    isLoading,
+    error,
+  } = useProjectContainers(projectId, {
+    includeTerminated: true,
+  });
 
   if (isLoading) {
     return (
@@ -168,18 +146,12 @@ function ContainersTabContent({
     );
   }
 
-  const totalCount = containers?.length ?? 0;
-  const runningCount =
-    containers?.filter((c: { status: string }) => c.status === "running").length ?? 0;
-  const stoppedCount = totalCount - runningCount;
+  const { active, terminated } = partitionContainersByStatus(containers ?? []);
+  const displayContainers = showTerminated ? [...active, ...terminated] : active;
 
-  const getStatusBarColor = (status: string): string => {
-    const normalized = status.toLowerCase();
-    if (normalized === "running" || normalized === "healthy") return "bg-primary";
-    if (normalized === "exited" || normalized === "stopped") return "bg-muted-foreground";
-    if (normalized === "restarting") return "bg-secondary";
-    return "bg-destructive";
-  };
+  const totalCount = containers?.length ?? 0;
+  const activeCount = active.length;
+  const terminatedCount = terminated.length;
 
   return (
     <div className="space-y-5">
@@ -189,26 +161,34 @@ function ContainersTabContent({
             <h2 className="font-serif text-base font-medium">Containers</h2>
             <p className="font-mono text-[10px] text-muted-foreground/70 uppercase tracking-wider mt-0.5">
               {totalCount === 0
-                ? "No containers running"
-                : `${totalCount} container${totalCount !== 1 ? "s" : ""}`}
+                ? "No containers"
+                : `${activeCount} running${terminatedCount > 0 ? `, ${terminatedCount} terminated` : ""}`}
             </p>
           </div>
-          {totalCount > 0 && (
+          {activeCount > 0 && (
             <div className="flex items-center gap-3 text-xs">
               <div className="flex items-center gap-1.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                <span className="text-muted-foreground/70">{runningCount} running</span>
+                <span className="text-muted-foreground/70">{activeCount} active</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-                <span className="text-muted-foreground/70">{stoppedCount} stopped</span>
-              </div>
+              {terminatedCount > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                  <span className="text-muted-foreground/70">{terminatedCount} terminated</span>
+                </div>
+              )}
             </div>
           )}
         </div>
+        <ContainerFilterToggle
+          activeCount={activeCount}
+          terminatedCount={terminatedCount}
+          showTerminated={showTerminated}
+          onToggle={setShowTerminated}
+        />
       </div>
 
-      {totalCount === 0 ? (
+      {displayContainers.length === 0 ? (
         <div className="border border-dashed rounded-lg py-14 text-center border-border/50">
           <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted/50 mx-auto mb-3">
             <BoxIcon className="h-5 w-5 text-muted-foreground/50" />
@@ -220,75 +200,14 @@ function ContainersTabContent({
         </div>
       ) : (
         <div className="space-y-2.5">
-          {containers?.map((container) => {
-            const dbStatus = mapDockerStatusToDbStatus(container.status);
-            const isRunning = container.status === "running";
-            const timeAgo = container.created
-              ? formatDistanceToNow(new Date(container.created), { addSuffix: true })
-              : "Unknown";
-
-            return (
-              <Card
-                key={container.id}
-                className={`group hover:border-border transition-colors overflow-hidden border-l-4 border-l-${getStatusBarColor(container.status).replace("bg-", "")}`}
-                onClick={() =>
-                  void router.navigate({
-                    to: "/containers/$containerId",
-                    params: { containerId: container.id },
-                  })
-                }
-              >
-                <CardContent className="p-0">
-                  <div className="flex items-stretch">
-                    <div
-                      className={`w-1 ${getStatusBarColor(container.status)} ${
-                        isRunning ? "animate-pulse" : ""
-                      }`}
-                    />
-
-                    <div className="flex-1 p-3">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center shrink-0">
-                            <BoxIcon className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <span className="font-mono text-xs font-medium truncate">
-                                {container.name || container.id?.slice(0, 12)}
-                              </span>
-                              <ContainerStatusBadge status={dbStatus} />
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                              <span className="font-mono">{container.image}</span>
-                              <span className="text-border/50">•</span>
-                              <span>{timeAgo}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div
-                          className="flex items-center gap-1.5 shrink-0"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <ContainerActions
-                            containerId={container.id}
-                            status={dbStatus}
-                            onViewDetails={() =>
-                              void router.navigate({
-                                to: "/containers/$containerId",
-                                params: { containerId: container.id },
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {displayContainers.map((container) => (
+            <ContainerListItem
+              key={container.id}
+              container={container}
+              router={router}
+              dimmed={isTerminatedDockerStatus(container.status)}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -577,7 +496,19 @@ function DeploymentsTabContent({
 export function ProjectDetailPage(): React.ReactElement {
   const { projectId } = useParams({ from: "/authenticated/projects/$projectId" });
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("overview");
+  const { tab: activeTab = "overview" } = useSearch({ from: "/authenticated/projects/$projectId" });
+
+  const setActiveTab = (tab: string): void => {
+    void router.navigate({
+      to: `/projects/${projectId}`,
+      search: {
+        tab:
+          tab === "overview"
+            ? undefined
+            : (tab as "services" | "deployments" | "containers" | "domains"),
+      },
+    });
+  };
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
 

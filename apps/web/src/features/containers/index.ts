@@ -7,3 +7,5 @@ export { ContainerLogsPage } from "./pages/ContainerLogsPage";
 export { ContainerStatusBadge } from "./components/ContainerStatusBadge";
 export { ContainerActions } from "./components/ContainerActions";
 export { ContainerStatsCard } from "./components/ContainerStatsCard";
+export { ContainerFilterToggle } from "./components/ContainerFilterToggle";
+export { ContainerListItem } from "./components/ContainerListItem";

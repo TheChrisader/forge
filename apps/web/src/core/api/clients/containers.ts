@@ -22,15 +22,29 @@ export const containersApi = {
   /**
    * Gets all containers for a project
    */
-  getByProject: async (projectId: string): Promise<{ data: DockerContainer[] }> => {
-    return apiClient.get(`/api/projects/${projectId}/containers`);
+  getByProject: async (
+    projectId: string,
+    options?: { includeTerminated?: boolean }
+  ): Promise<{ data: DockerContainer[] }> => {
+    const params: Record<string, string> = {};
+    if (options?.includeTerminated) {
+      params.includeTerminated = "true";
+    }
+    return apiClient.get(`/api/projects/${projectId}/containers`, { params });
   },
 
   /**
    * Gets all containers for a deployment
    */
-  getByDeployment: async (deploymentId: string): Promise<{ data: DockerContainer[] }> => {
-    return apiClient.get(`/api/deployments/${deploymentId}/containers`);
+  getByDeployment: async (
+    deploymentId: string,
+    options?: { includeTerminated?: boolean }
+  ): Promise<{ data: DockerContainer[] }> => {
+    const params: Record<string, string> = {};
+    if (options?.includeTerminated) {
+      params.includeTerminated = "true";
+    }
+    return apiClient.get(`/api/deployments/${deploymentId}/containers`, { params });
   },
 
   /**

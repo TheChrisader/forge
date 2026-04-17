@@ -1,6 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useParams, Link } from "@tanstack/react-router";
-import { useContainer, useContainerStats } from "@/core/api/hooks";
+import { useQuery } from "@tanstack/react-query";
+import { containersApi } from "@/core/api/clients/containers";
+import { containerKeys } from "@/core/api/hooks/useContainers";
 import { ContainerStatusBadge } from "../components/ContainerStatusBadge";
 import { ContainerActions } from "../components/ContainerActions";
 import { ContainerStatsCard } from "../components/ContainerStatsCard";
@@ -23,21 +25,86 @@ import {
 } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { mapDockerStatusToDbStatus, isTerminatedDockerStatus } from "../lib/container-filters";
+import type { DockerContainer, ContainerStats } from "@forge/types";
+
+/**
+ * Polling backoff configuration for terminated containers.
+ * After Docker can no longer find a container, we progressively
+ * slow down polling until giving up entirely.
+ */
+const BACKOFF_STEPS = [
+  { afterMisses: 0, intervalMs: 5000 },
+  { afterMisses: 3, intervalMs: 15_000 },
+  { afterMisses: 6, intervalMs: 30_000 },
+] as const;
+
+const MAX_MISSES = 9;
+
+function getBackoffInterval(consecutiveMisses: number): number | false {
+  if (consecutiveMisses >= MAX_MISSES) return false;
+
+  let intervalMs = BACKOFF_STEPS[0].intervalMs as number;
+  for (const step of BACKOFF_STEPS) {
+    if (consecutiveMisses >= step.afterMisses) {
+      intervalMs = step.intervalMs;
+    } else {
+      break;
+    }
+  }
+  return intervalMs;
+}
+
+function isContainerTerminated(container: DockerContainer): boolean {
+  return isTerminatedDockerStatus(container.status);
+}
 
 export function ContainerDetailPage(): React.ReactElement {
   const { containerId } = useParams({
     from: "/authenticated/containers/$containerId",
   });
 
+  const missCountRef = useRef(0);
+
   const {
     data: container,
     isLoading: containerLoading,
     error: containerError,
-  } = useContainer(containerId);
+  } = useQuery<DockerContainer>({
+    queryKey: containerKeys.detail(containerId),
+    queryFn: async () => {
+      const response = await containersApi.getById(containerId);
+      return response.data;
+    },
+    enabled: !!containerId,
+    refetchInterval: () => {
+      if (missCountRef.current >= MAX_MISSES) return false;
+      return getBackoffInterval(missCountRef.current);
+    },
+  });
+
+  // Track misses and reset on successful live data
+  if (container) {
+    if (isContainerTerminated(container)) {
+      missCountRef.current += 1;
+    } else {
+      missCountRef.current = 0;
+    }
+  }
 
   const projectId = container?.labels?.["forge.projectId"];
+  const isTerminated = container ? isContainerTerminated(container) : false;
+  const status = container ? mapDockerStatusToDbStatus(container.status) : ("ERROR" as const);
 
-  const { data: stats, isLoading: statsLoading } = useContainerStats(containerId);
+  const { data: stats, isLoading: statsLoading } = useQuery<ContainerStats | null>({
+    queryKey: containerKeys.stats(containerId),
+    queryFn: async () => {
+      const response = await containersApi.getStats(containerId);
+      return response.data;
+    },
+    enabled: !!containerId && !isTerminated,
+    refetchInterval: isTerminated ? false : 5000,
+  });
 
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalKey, setTerminalKey] = useState(0);
@@ -72,13 +139,6 @@ export function ContainerDetailPage(): React.ReactElement {
     );
   }
 
-  const status =
-    container.status === "running"
-      ? ("RUNNING" as const)
-      : container.status === "exited"
-        ? ("STOPPED" as const)
-        : ("ERROR" as const);
-
   const isRunning = container.status === "running";
 
   return (
@@ -100,30 +160,36 @@ export function ContainerDetailPage(): React.ReactElement {
           </div>
           <ContainerStatusBadge status={status} />
         </div>
-        <div className="flex items-center gap-2">
-          <Link to="/containers/$containerId/logs" params={{ containerId }}>
-            <Button variant="outline" size="sm" className="group transition-all hover:shadow-md">
-              <FileText className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
-              <span className="font-sans text-sm">View Logs</span>
-            </Button>
-          </Link>
-          {isRunning && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="group transition-all hover:shadow-md"
-              onClick={handleOpenTerminal}
-            >
-              <TerminalIcon className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
-              <span className="font-sans text-sm">Terminal</span>
-            </Button>
-          )}
-          <ContainerActions containerId={container.id} status={status} />
-        </div>
+        {!isTerminated && (
+          <div className="flex items-center gap-2">
+            <Link to="/containers/$containerId/logs" params={{ containerId }}>
+              <Button variant="outline" size="sm" className="group transition-all hover:shadow-md">
+                <FileText className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
+                <span className="font-sans text-sm">View Logs</span>
+              </Button>
+            </Link>
+            {isRunning && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="group transition-all hover:shadow-md"
+                onClick={handleOpenTerminal}
+              >
+                <TerminalIcon className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
+                <span className="font-sans text-sm">Terminal</span>
+              </Button>
+            )}
+            <ContainerActions containerId={container.id} status={status} />
+          </div>
+        )}
       </div>
 
       <div className="space-y-6">
-        <ContainerStatsCard stats={stats} isLoading={statsLoading} />
+        <ContainerStatsCard
+          stats={stats}
+          isLoading={statsLoading}
+          containerTerminated={isTerminated}
+        />
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="group transition-all hover:shadow-lg">

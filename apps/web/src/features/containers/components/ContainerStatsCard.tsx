@@ -6,11 +6,13 @@ import { formatBytes } from "@/shared/lib/utils";
 interface ContainerStatsCardProps {
   stats: ContainerStats | null | undefined;
   isLoading?: boolean;
+  containerTerminated?: boolean;
 }
 
 export function ContainerStatsCard({
   stats,
   isLoading = false,
+  containerTerminated = false,
 }: ContainerStatsCardProps): React.ReactElement {
   if (isLoading) {
     return (
@@ -31,6 +33,10 @@ export function ContainerStatsCard({
   }
 
   if (!stats) {
+    const emptyMessage = containerTerminated
+      ? "Stats unavailable \u2014 container has been removed"
+      : "No stats available";
+
     return (
       <Card>
         <CardHeader>
@@ -41,7 +47,7 @@ export function ContainerStatsCard({
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8 text-muted-foreground">
-            No stats available
+            {emptyMessage}
           </div>
         </CardContent>
       </Card>
