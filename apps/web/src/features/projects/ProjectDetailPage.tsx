@@ -53,7 +53,7 @@ import { DomainsTab } from "./components/DomainsTab";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useMemo } from "react";
 import { ApiClientError } from "@/core/api/client";
-import type { Deployment, Project } from "@forge/types";
+import type { Deployment, Project, DeploymentStrategy } from "@forge/types";
 
 function formatTimestamp(timestamp: Date | string | null | undefined): string {
   if (!timestamp) return "Never";
@@ -76,9 +76,6 @@ function getDeploymentStatusInfo(status: string): {
   const normalized = status.toLowerCase().replace(/_/g, "-");
   if (["running", "healthy"].includes(normalized)) {
     return { label: "Live", category: "success" };
-  }
-  if (["succeeded"].includes(normalized)) {
-    return { label: "Inactive", category: "neutral" };
   }
   if (["building", "deploying", "pending", "queued"].includes(normalized)) {
     return { label: "In Progress", category: "progress" };
@@ -303,6 +300,7 @@ interface DeploymentsTabContentProps {
   deployments: Deployment[];
   projectId: string;
   router: ReturnType<typeof useRouter>;
+  defaultStrategy?: DeploymentStrategy;
 }
 
 function DeploymentsTabContent({
@@ -310,6 +308,7 @@ function DeploymentsTabContent({
   deployments,
   projectId,
   router,
+  defaultStrategy,
 }: DeploymentsTabContentProps): React.ReactElement {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const createDeployment = useCreateDeployment();
@@ -326,7 +325,10 @@ function DeploymentsTabContent({
   const handleQuickDeploy = async (): Promise<void> => {
     setErrorMessage(null);
     try {
-      await createDeployment.mutateAsync({ projectId: project.id });
+      await createDeployment.mutateAsync({
+        projectId: project.id,
+        strategy: defaultStrategy,
+      });
     } catch (err) {
       const error = err as ApiClientError;
       if (error.code === "CONFLICT") {
@@ -388,6 +390,7 @@ function DeploymentsTabContent({
             <DeployConfigModal
               projectId={project.id}
               defaultBranch={defaultBranch}
+              defaultStrategy={defaultStrategy}
               onSuccess={() => setErrorMessage(null)}
             >
               <Button
@@ -604,7 +607,9 @@ export function ProjectDetailPage(): React.ReactElement {
 
   const config = (project.config as Record<string, unknown> | undefined) || {};
   const buildConfig = (config.build as Record<string, unknown> | undefined) || {};
+  const deployConfig = (config.deploy as Record<string, unknown> | undefined) || {};
   const framework = buildConfig.framework as string | undefined;
+  const defaultStrategy = deployConfig.strategy as DeploymentStrategy | undefined;
   const repository = project.sourceUrl || "No repository configured";
   const createdAt = formatTimestamp(project.createdAt);
   const updatedAt = formatTimestamp(project.updatedAt);
@@ -1067,6 +1072,7 @@ export function ProjectDetailPage(): React.ReactElement {
               deployments={deployments}
               projectId={projectId}
               router={router}
+              defaultStrategy={defaultStrategy}
             />
           )}
         </TabsContent>

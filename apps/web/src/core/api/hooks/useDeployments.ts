@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { deploymentsApi } from "../clients/deployments";
-import type { Deployment, DeploymentWithRelations } from "@forge/types";
+import type { Deployment, DeploymentWithRelations, DeploymentStrategy } from "@forge/types";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { SseClient } from "../streaming/sse-client";
 import type { SSEConnectionState } from "../streaming/types";
@@ -87,6 +87,7 @@ export function useCreateDeployment(): ReturnType<
       gitBranch?: string;
       gitCommit?: string;
       buildArgs?: Record<string, string>;
+      strategy?: DeploymentStrategy;
     }
   >
 > {
@@ -98,16 +99,19 @@ export function useCreateDeployment(): ReturnType<
       gitBranch,
       gitCommit,
       buildArgs,
+      strategy,
     }: {
       projectId: string;
       gitBranch?: string;
       gitCommit?: string;
       buildArgs?: Record<string, string>;
+      strategy?: DeploymentStrategy;
     }) => {
       const response = await deploymentsApi.create(projectId, {
         gitBranch,
         gitCommit,
         buildArgs,
+        strategy,
       });
       return response.data;
     },

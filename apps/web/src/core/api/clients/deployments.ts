@@ -4,12 +4,14 @@ import type {
   DeploymentLogsResponse,
   DeploymentLogsQuery,
   DeploymentWithRelations,
+  DeploymentStrategy,
 } from "@forge/types";
 
 export interface CreateDeploymentRequest {
   gitBranch?: string;
   gitCommit?: string;
   buildArgs?: Record<string, string>;
+  strategy?: DeploymentStrategy;
 }
 
 export interface DeploymentListParams {

@@ -1,4 +1,9 @@
 import { z } from "zod";
+import { DeploymentStrategySchema } from "./common";
+
+export const ProjectDeployConfigSchema = z.object({
+  strategy: DeploymentStrategySchema.optional(),
+});
 
 /**
  * Build-time configuration schema
@@ -212,6 +217,7 @@ export const ProjectLifecycleConfigSchema = z.object({
 
 interface IProjectConfig {
   build?: ProjectBuildConfig;
+  deploy?: ProjectDeployConfig;
   runtime?: ProjectRuntimeConfig;
   container?: ProjectContainerConfig;
   networking?: ProjectNetworkingConfig;
@@ -229,6 +235,7 @@ export interface IPartialProjectConfig extends Partial<Omit<IProjectConfig, "env
 const PartialProjectConfigSchema: z.ZodType<IPartialProjectConfig> = z.lazy(() =>
   z.object({
     build: ProjectBuildConfigSchema.optional(),
+    deploy: ProjectDeployConfigSchema.optional(),
     runtime: ProjectRuntimeConfigSchema.optional(),
     container: ProjectContainerConfigSchema.optional(),
     networking: ProjectNetworkingConfigSchema.optional(),
@@ -246,6 +253,7 @@ const PartialProjectConfigSchema: z.ZodType<IPartialProjectConfig> = z.lazy(() =
  */
 export const ProjectConfigSchema = z.object({
   build: ProjectBuildConfigSchema.optional(),
+  deploy: ProjectDeployConfigSchema.optional(),
   runtime: ProjectRuntimeConfigSchema.optional(),
   container: ProjectContainerConfigSchema.optional(),
   networking: ProjectNetworkingConfigSchema.optional(),
@@ -262,6 +270,7 @@ export const ProjectConfigSchema = z.object({
 export const UpdateProjectConfigSchema = PartialProjectConfigSchema;
 
 export type ProjectBuildConfig = z.infer<typeof ProjectBuildConfigSchema>;
+export type ProjectDeployConfig = z.infer<typeof ProjectDeployConfigSchema>;
 export type ProjectRuntimeConfig = z.infer<typeof ProjectRuntimeConfigSchema>;
 export type ProjectContainerConfig = z.infer<typeof ProjectContainerConfigSchema>;
 export type ProjectPortConfig = z.infer<typeof ProjectPortConfigSchema>;

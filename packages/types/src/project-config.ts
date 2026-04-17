@@ -1,14 +1,6 @@
-/**
- * Project Configuration Types
- *
- * These types define the configuration structure stored in Project.config (JSON field in database).
- * This is the user-facing configuration for deploying projects on the Forge platform.
- *
- * Types are generated from Zod schemas in ./schemas/project-config.ts
- */
-
 export type {
   ProjectBuildConfig,
+  ProjectDeployConfig,
   ProjectRuntimeConfig,
   ProjectContainerConfig,
   ProjectPortConfig,
@@ -23,6 +15,7 @@ export type {
 
 export {
   ProjectBuildConfigSchema,
+  ProjectDeployConfigSchema,
   ProjectRuntimeConfigSchema,
   ProjectContainerConfigSchema,
   ProjectPortConfigSchema,

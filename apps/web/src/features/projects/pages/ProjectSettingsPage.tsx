@@ -15,6 +15,7 @@ import {
   Settings2Icon,
   GitBranchIcon,
   HammerIcon,
+  RocketIcon,
   CpuIcon,
   ContainerIcon,
   ActivityIcon,
@@ -31,6 +32,7 @@ import { EnvVarsSettings } from "../components/settings/EnvVarsSettings";
 import { ContainerSettings } from "../components/settings/ContainerSettings";
 import { ResourcesSettings } from "../components/settings/ResourcesSettings";
 import { HealthSettings } from "../components/settings/HealthSettings";
+import { DeploySettings } from "../components/settings/DeploySettings";
 import { cn } from "@/shared/lib/utils";
 
 interface TabConfig {
@@ -44,6 +46,7 @@ const tabsConfig: TabConfig[] = [
   { value: "general", label: "General", icon: Settings2Icon, accent: "bg-red-500" },
   { value: "source", label: "Source", icon: GitBranchIcon, accent: "bg-amber-500" },
   { value: "build", label: "Build", icon: HammerIcon, accent: "bg-blue-500" },
+  { value: "deploy", label: "Deploy", icon: RocketIcon, accent: "bg-green-500" },
   { value: "runtime", label: "Runtime", icon: CpuIcon, accent: "bg-emerald-500" },
   { value: "container", label: "Container", icon: ContainerIcon, accent: "bg-purple-500" },
   { value: "resources", label: "Resources", icon: ZapIcon, accent: "bg-cyan-500" },
@@ -257,6 +260,29 @@ export function ProjectSettingsPage(): React.ReactElement | null {
               </div>
             </TabsContent>
 
+            {/* Deploy Tab */}
+            <TabsContent value="deploy" className="mt-8 pb-12">
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        tabsConfig[3].accent,
+                        "shadow-[0_0_8px_currentColor]"
+                      )}
+                    />
+                    <h2 className="text-lg font-semibold font-serif tracking-tight">
+                      Deployment Strategy
+                    </h2>
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground/50">[DEPLOY]</span>
+                </div>
+                <Separator className="bg-border/40" />
+                <DeploySettings project={project} />
+              </section>
+            </TabsContent>
+
             {/* Runtime Tab */}
             <TabsContent value="runtime" className="mt-8 pb-12">
               <div className="space-y-8">
@@ -266,7 +292,7 @@ export function ProjectSettingsPage(): React.ReactElement | null {
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full",
-                          tabsConfig[3].accent,
+                          tabsConfig[4].accent,
                           "shadow-[0_0_8px_currentColor]"
                         )}
                       />
@@ -288,7 +314,7 @@ export function ProjectSettingsPage(): React.ReactElement | null {
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full",
-                          tabsConfig[3].accent,
+                          tabsConfig[4].accent,
                           "shadow-[0_0_8px_currentColor] opacity-60"
                         )}
                       />
@@ -312,7 +338,7 @@ export function ProjectSettingsPage(): React.ReactElement | null {
                     <span
                       className={cn(
                         "h-1.5 w-1.5 rounded-full",
-                        tabsConfig[4].accent,
+                        tabsConfig[5].accent,
                         "shadow-[0_0_8px_currentColor]"
                       )}
                     />
@@ -335,7 +361,7 @@ export function ProjectSettingsPage(): React.ReactElement | null {
                     <span
                       className={cn(
                         "h-1.5 w-1.5 rounded-full",
-                        tabsConfig[5].accent,
+                        tabsConfig[6].accent,
                         "shadow-[0_0_8px_currentColor]"
                       )}
                     />
@@ -358,7 +384,7 @@ export function ProjectSettingsPage(): React.ReactElement | null {
                     <span
                       className={cn(
                         "h-1.5 w-1.5 rounded-full",
-                        tabsConfig[6].accent,
+                        tabsConfig[7].accent,
                         "shadow-[0_0_8px_currentColor]"
                       )}
                     />

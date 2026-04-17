@@ -15,16 +15,25 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 import { LoaderIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useCreateDeployment } from "@/core/api/hooks/useDeployments";
+import {
+  DEPLOYMENT_STRATEGIES,
+  DEPLOYMENT_STRATEGY_VALUES,
+  DISABLED_STRATEGIES,
+} from "@/features/deployments/constants";
+import type { DeploymentStrategy } from "@forge/types";
 
 interface DeployConfigModalProps {
   projectId: string;
   defaultBranch?: string;
+  defaultStrategy?: DeploymentStrategy;
   onSuccess?: () => void;
 }
 
 const deployConfigSchema = z.object({
+  strategy: z.enum(DEPLOYMENT_STRATEGY_VALUES).optional(),
   gitBranch: z.string().min(1, "Branch is required").max(255, "Branch name too long"),
   gitCommit: z
     .string()
@@ -41,6 +50,7 @@ type DeployConfigFormData = z.infer<typeof deployConfigSchema>;
 export function DeployConfigModal({
   projectId,
   defaultBranch = "main",
+  defaultStrategy,
   onSuccess,
   children,
 }: DeployConfigModalProps & { children?: React.ReactNode }): React.ReactElement {
@@ -54,14 +64,19 @@ export function DeployConfigModal({
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<DeployConfigFormData>({
     resolver: zodResolver(deployConfigSchema),
     defaultValues: {
+      strategy: defaultStrategy ?? "ROLLING",
       gitBranch: defaultBranch,
     },
   });
+
+  const watchStrategy = watch("strategy");
 
   const onSubmit = async (data: DeployConfigFormData): Promise<void> => {
     try {
@@ -74,6 +89,7 @@ export function DeployConfigModal({
 
       await createDeployment.mutateAsync({
         projectId,
+        strategy: data.strategy ?? defaultStrategy ?? "ROLLING",
         gitBranch: data.gitBranch || defaultBranch,
         gitCommit: data.gitCommit || undefined,
         buildArgs: Object.keys(buildArgs).length > 0 ? buildArgs : undefined,
@@ -138,16 +154,50 @@ export function DeployConfigModal({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {children && <DialogTrigger asChild>{children}</DialogTrigger>}
-      <DialogContent className="sm:max-w-md">
-        <form onSubmit={void handleSubmit(onSubmit)}>
-          <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col">
+        <form onSubmit={void handleSubmit(onSubmit)} className="flex flex-col min-h-0">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Deploy with Options</DialogTitle>
             <DialogDescription>
-              Configure git branch, commit, and build arguments for this deployment
+              Configure strategy, git branch, commit, and build arguments for this deployment
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 overflow-y-auto flex-1 min-h-0">
+            <div className="grid gap-2">
+              <Label>Deployment Strategy</Label>
+              <RadioGroup
+                value={watchStrategy}
+                onValueChange={(val) => setValue("strategy", val as DeploymentStrategy)}
+                className="gap-2"
+              >
+                {DEPLOYMENT_STRATEGIES.map((s) => {
+                  const isDisabled = (DISABLED_STRATEGIES as readonly string[]).includes(s.value);
+                  return (
+                    <Label
+                      key={s.value}
+                      htmlFor={`strategy-${s.value}`}
+                      className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer
+                                 transition-colors
+                                 data-[state=checked]:border-primary data-[state=checked]:bg-primary/5
+                                 ${isDisabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-muted/50"}`}
+                    >
+                      <RadioGroupItem
+                        value={s.value}
+                        id={`strategy-${s.value}`}
+                        className="mt-0.5"
+                        disabled={isDisabled}
+                      />
+                      <div>
+                        <span className="text-sm font-medium">{s.label}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">{s.description}</p>
+                      </div>
+                    </Label>
+                  );
+                })}
+              </RadioGroup>
+            </div>
+
             <div className="grid gap-2">
               <Label htmlFor="gitBranch">
                 Git Branch <span className="text-destructive">*</span>
@@ -233,7 +283,7 @@ export function DeployConfigModal({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 pt-2">
             <Button
               type="button"
               variant="outline"

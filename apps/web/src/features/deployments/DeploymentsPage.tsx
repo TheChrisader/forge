@@ -91,7 +91,7 @@ function getDeploymentStatusInfo(status: string): {
   badgeClass: string;
 } {
   const normalized = status.toLowerCase().replace(/_/g, "-");
-  if (["running", "succeeded", "healthy"].includes(normalized)) {
+  if (["running", "healthy"].includes(normalized)) {
     return {
       label: "Live",
       category: "success",

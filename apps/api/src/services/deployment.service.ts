@@ -160,6 +160,7 @@ export class DeploymentService implements IDeploymentService {
       gitBranch?: string;
       gitCommit?: string;
       buildArgs?: Record<string, string>;
+      strategy?: DeploymentStrategy;
     }
   ): Promise<Deployment> {
     const lockKey = uuidToLockKey(projectId);
@@ -191,11 +192,18 @@ export class DeploymentService implements IDeploymentService {
         throw new ConflictError("Project has an active deployment");
       }
 
+      // Resolve strategy: request option → project config default → ROLLING
+      const projectConfig = ProjectConfigSchema.safeParse(project.config);
+      const projectDefaultStrategy = projectConfig.success
+        ? projectConfig.data.deploy?.strategy
+        : undefined;
+      const resolvedStrategy = options?.strategy ?? projectDefaultStrategy ?? "ROLLING";
+
       const deployment = await tx.deployment.create({
         data: {
           projectId,
           status: "PENDING",
-          strategy: "ROLLING",
+          strategy: resolvedStrategy,
         },
       });
 

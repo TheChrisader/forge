@@ -24,6 +24,7 @@ import {
   DeploymentStatus,
   DeploymentStrategy,
   ProjectIdParamsSchema,
+  DeploymentStrategySchema,
 } from "@forge/types";
 
 const DeploymentIdParamsSchema = z.object({
@@ -37,6 +38,7 @@ const CreateDeploymentBodySchema = z.object({
     .regex(/^[a-f0-9]{7,40}$/i)
     .optional(),
   buildArgs: z.record(z.string(), z.string()).optional(),
+  strategy: DeploymentStrategySchema.optional(),
 });
 
 export function registerDeploymentRoutes(_server: FastifyInstance, _config: Config): void {
@@ -123,6 +125,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
         gitBranch: body.gitBranch,
         gitCommit: body.gitCommit,
         buildArgs: body.buildArgs,
+        strategy: body.strategy,
       });
 
       return reply.status(202).send({
