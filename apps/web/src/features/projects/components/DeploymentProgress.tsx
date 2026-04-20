@@ -72,10 +72,10 @@ export function DeploymentProgress({
     : "Unknown time";
 
   return (
-    <Card className="border-primary/50">
-      <CardHeader className="pb-3">
+    <Card className="border-primary/50 gap-2 py-4">
+      <CardHeader className="gap-0">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Deployment in Progress</CardTitle>
+          <CardTitle className="text-lg font-serif">Deployment in Progress</CardTitle>
           <Badge variant={progress.variant === "destructive" ? "destructive" : "default"}>
             {progress.label}
           </Badge>
@@ -85,8 +85,8 @@ export function DeploymentProgress({
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Progress</span>
-            <span className="font-medium">{progress.value}%</span>
+            <span className="text-muted-foreground font-serif">Progress</span>
+            <span className="font-medium font-serif">{progress.value}%</span>
           </div>
           <Progress
             value={progress.value}
@@ -97,12 +97,12 @@ export function DeploymentProgress({
         <div className="flex items-center justify-between text-sm">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="font-semibold">{deployment.id.slice(0, 8)}</span>
+              <span className="font-semibold text-sm font-serif">{deployment.id.slice(0, 8)}</span>
               <Badge variant="outline" className="text-xs">
                 Deployment
               </Badge>
             </div>
-            <p className="text-muted-foreground">Started {timeAgo}</p>
+            <p className="text-muted-foreground text-xs">Started {timeAgo}</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export function DeploymentProgress({
         )}
 
         {isActive && (
-          <div className="rounded-md bg-muted p-3">
+          <div className="rounded-md bg-muted p-3 font-serif">
             <p className="text-sm text-muted-foreground">
               {deployment.status === "BUILDING" &&
                 "Your application is being built. This may take a few minutes..."}

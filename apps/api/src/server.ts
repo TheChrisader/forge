@@ -30,6 +30,8 @@ import { SecretModule } from "./modules/secret.module.js";
 import { EnvironmentVariableModule } from "./modules/environment-variable.module.js";
 import { TerminalModule } from "./modules/terminal.module.js";
 import { ProxyModule } from "./modules/proxy.module.js";
+import { ServiceManagerModule } from "./modules/service.module.js";
+import { ServiceSSEModule } from "./modules/service-sse.module.js";
 import { PermissionsService } from "@forge/auth";
 import { attachPermissionsToRequest } from "./middleware/permissions.js";
 import { TerminalService } from "./services/terminal.service.js";
@@ -68,6 +70,8 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   registry.registerModule("environmentVariables", new EnvironmentVariableModule());
   registry.registerModule("terminal", new TerminalModule());
   registry.registerModule("proxy", new ProxyModule());
+  registry.registerModule("services", new ServiceManagerModule());
+  registry.registerModule("serviceSSE", new ServiceSSEModule());
 
   await registry.initialize();
 

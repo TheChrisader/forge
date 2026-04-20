@@ -2,7 +2,7 @@ import { createRouter, createRoute, createRootRoute, Outlet } from "@tanstack/re
 import { RootLayout } from "@/shared/components/layout";
 import { DashboardPage } from "@/features/dashboard";
 import { ProjectsPage, ProjectDetailPage, ProjectSettingsPage } from "@/features/projects";
-import { ServicesPage } from "@/features/services";
+import { ServicesPage, ServiceDetailPage } from "@/features/services";
 import { DeploymentsPage, DeploymentLogsPage } from "@/features/deployments";
 import { ActivityPage } from "@/features/activity";
 import { MetricsPage } from "@/features/metrics";
@@ -100,6 +100,12 @@ const servicesRoute = createRoute({
   component: ServicesPage,
 });
 
+const serviceDetailRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "/services/$serviceId",
+  component: ServiceDetailPage,
+});
+
 const imagesRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: "/images",
@@ -152,6 +158,7 @@ const routeTree = rootRoute.addChildren([
     projectDeploymentsRoute,
     projectSettingsRoute,
     servicesRoute,
+    serviceDetailRoute,
     imagesRoute,
     containerDetailRoute,
     containerLogsRoute,

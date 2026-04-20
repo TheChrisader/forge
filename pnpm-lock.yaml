@@ -147,6 +147,9 @@ importers:
       '@forge/security':
         specifier: workspace:*
         version: link:../../packages/security
+      '@forge/service-catalog':
+        specifier: workspace:*
+        version: link:../../packages/service-catalog
       '@forge/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -402,6 +405,12 @@ importers:
       '@forge/queue':
         specifier: workspace:*
         version: link:../../packages/queue
+      '@forge/security':
+        specifier: workspace:*
+        version: link:../../packages/security
+      '@forge/service-catalog':
+        specifier: workspace:*
+        version: link:../../packages/service-catalog
       '@forge/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -765,6 +774,22 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+
+  packages/service-catalog:
+    dependencies:
+      '@forge/database':
+        specifier: workspace:*
+        version: link:../database
+    devDependencies:
+      '@types/node':
+        specifier: ^25.2.0
+        version: 25.2.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@25.2.0)(@vitest/ui@4.0.18(vitest@4.0.18))(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)
 
   packages/storage:
     devDependencies:

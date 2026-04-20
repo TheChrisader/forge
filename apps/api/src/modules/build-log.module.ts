@@ -4,9 +4,6 @@ import { BuildLogService } from "@forge/core";
 import { QueueService } from "@forge/queue";
 import { SSEManagerService } from "../services/sse-manager.service.js";
 
-/**
- * Deployment log progress event structure from the builder worker
- */
 interface DeploymentLogProgress {
   type: "deployment.log";
   deploymentId: string;
@@ -21,15 +18,6 @@ interface DeploymentLogProgress {
   };
 }
 
-/**
- * BuildLogModule - Registers the BuildLogService and sets up SSE streaming
- *
- * The BuildLogService manages durable storage and querying of build logs
- * using TimescaleDB's hypertable for efficient time-series storage.
- *
- * This module also subscribes to BullMQ build queue events and broadcasts
- * deployment logs via SSE to connected clients.
- */
 export class BuildLogModule implements ServiceModule {
   private sseManager?: SSEManagerService;
 
@@ -45,7 +33,6 @@ export class BuildLogModule implements ServiceModule {
     const buildQueue = queueService.getQueue("build");
     const deployQueue = queueService.getQueue("deploy");
 
-    // Listen to build queue progress events
     queueService.onProgress("build", (...args: unknown[]) => {
       // BullMQ v5 passes { jobId: string, data: JobProgress } as first arg
       const eventArgs = args[0] as { jobId: string; data: unknown } | undefined;
@@ -67,7 +54,6 @@ export class BuildLogModule implements ServiceModule {
       }
     });
 
-    // Listen to deploy queue progress events
     queueService.onProgress("deploy", (...args: unknown[]) => {
       // BullMQ v5 passes { jobId: string, data: JobProgress } as first arg
       const eventArgs = args[0] as { jobId: string; data: unknown } | undefined;
@@ -95,7 +81,6 @@ export class BuildLogModule implements ServiceModule {
 
       void (async (): Promise<void> => {
         try {
-          // Use the queue adapter's getJob method (abstraction layer)
           const job = await buildQueue.getJob(eventArgs.jobId);
 
           if (job?.data && typeof job.data === "object" && "deploymentId" in job.data) {
@@ -118,7 +103,6 @@ export class BuildLogModule implements ServiceModule {
 
       void (async (): Promise<void> => {
         try {
-          // Use the queue adapter's getJob method (abstraction layer)
           const job = await buildQueue.getJob(eventArgs.jobId);
 
           if (job?.data && typeof job.data === "object" && "deploymentId" in job.data) {
@@ -137,14 +121,12 @@ export class BuildLogModule implements ServiceModule {
       })();
     });
 
-    // Deploy queue completed handler
     queueService.onCompleted("deploy", (...args: unknown[]) => {
       const eventArgs = args[0] as { jobId: string; returnvalue: string } | undefined;
       if (!eventArgs) return;
 
       void (async (): Promise<void> => {
         try {
-          // Use the queue adapter's getJob method (abstraction layer)
           const job = await deployQueue.getJob(eventArgs.jobId);
 
           if (job?.data && typeof job.data === "object" && "deploymentId" in job.data) {
@@ -161,14 +143,12 @@ export class BuildLogModule implements ServiceModule {
       })();
     });
 
-    // Deploy queue failed handler
     queueService.onFailed("deploy", (...args: unknown[]) => {
       const eventArgs = args[0] as { jobId: string; failedReason: string } | undefined;
       if (!eventArgs) return;
 
       void (async (): Promise<void> => {
         try {
-          // Use the queue adapter's getJob method (abstraction layer)
           const job = await deployQueue.getJob(eventArgs.jobId);
 
           if (job?.data && typeof job.data === "object" && "deploymentId" in job.data) {

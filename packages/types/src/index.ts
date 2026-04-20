@@ -7,6 +7,7 @@ export * from "./queries";
 export * from "./events";
 export * from "./schemas/index";
 export * from "./utils";
+export * from "./types";
 export * from "./project-config";
 
 export type { CacheConfig, CacheStats } from "@forge/docker";

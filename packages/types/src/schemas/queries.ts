@@ -108,4 +108,9 @@ export const ServiceFiltersSchema = z.object({
   projectId: IdSchema.optional(),
   type: z.array(ServiceTypeSchema).optional(),
   status: z.array(z.string()).optional(),
+  search: z.string().max(255).optional(),
+});
+
+export const ServiceConnectionQuerySchema = z.object({
+  reveal: z.enum(["true", "false"]).optional().default("false"),
 });

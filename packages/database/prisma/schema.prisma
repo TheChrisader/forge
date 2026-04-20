@@ -584,6 +584,7 @@ model Project {
   webhooks            Webhook[]
   buildCaches         BuildCache[]
   services            Service[]
+  linkedServices      ServiceProjectAccess[]
   secrets             Secret[]
   jobs                Job[]
   images              Image[]
@@ -972,6 +973,15 @@ model Service {
   connectionPassword String? @map("connection_password") @db.Text
   connectionDatabase String? @map("connection_database") @db.VarChar(255)
 
+  version          String? @map("version") @db.VarChar(50)
+  internalHostname String? @map("internal_hostname") @db.VarChar(255)
+  volumeName       String? @map("volume_name") @db.VarChar(255)
+  containerId      String? @map("container_id") @db.VarChar(100)
+
+  isShared              Boolean  @default(false) @map("is_shared")
+  autoBackupSchedule    String?  @map("auto_backup_schedule") @db.VarChar(100)
+  autoBackupRetention   Int?     @map("auto_backup_retention")
+
   resourcesAllocated Json? @map("resources_allocated") @db.JsonB
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
@@ -979,8 +989,9 @@ model Service {
   createdBy String?   @map("created_by") @db.Uuid
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz
 
-  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  backups ServiceBackup[]
+  project       Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  backups       ServiceBackup[]
+  projectAccess ServiceProjectAccess[]
 
   @@map("services")
   @@unique([projectId, name])
@@ -1012,6 +1023,21 @@ model ServiceBackup {
   @@map("service_backups")
   @@index([serviceId, createdAt])
   @@index([status])
+}
+
+model ServiceProjectAccess {
+  id        String   @id @default(uuid()) @db.Uuid
+  serviceId String   @map("service_id") @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  linkedAt  DateTime @default(now()) @map("linked_at") @db.Timestamptz
+  linkedBy  String?  @map("linked_by") @db.Uuid
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, projectId])
+  @@index([projectId])
+  @@map("service_project_access")
 }
 
 // ============================================================================

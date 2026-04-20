@@ -1,5 +1,5 @@
 import Docker, { ImageRemoveInfo, PruneImagesInfo } from "dockerode";
-import { Writable } from "node:stream";
+import { PassThrough, Writable } from "node:stream";
 import { parseDockerImage } from "../utils/image-parser";
 import { DockerIgnoreFilter, createDefaultIgnore } from "../utils/dockerignore";
 import type {
@@ -13,6 +13,7 @@ import type {
   RemoveOptions,
   ExecOptions,
   ExecResult,
+  ExecStreamResult,
   LogOptions,
   LogEntry,
   ContainerStats,
@@ -286,6 +287,9 @@ export class DockerRuntime implements IContainerRuntime {
           : undefined,
         ReadonlyRootfs: config.readOnly,
         Memory: config.resources?.memory ? this.parseMemory(config.resources.memory) : undefined,
+        MemoryReservation: config.resources?.memoryReservation
+          ? this.parseMemory(config.resources.memoryReservation)
+          : undefined,
         NanoCpus: config.resources?.cpus ? config.resources.cpus * 1e9 : undefined,
         CpuShares: config.resources?.cpuShares,
         PortBindings: this.buildPortBindings(config.ports),
@@ -331,6 +335,11 @@ export class DockerRuntime implements IContainerRuntime {
       force: options?.force,
       v: options?.volumes,
     });
+  }
+
+  async rename(id: string, newName: string): Promise<void> {
+    const container = this.docker.getContainer(id);
+    await container.rename({ name: newName });
   }
 
   async inspect(id: string): Promise<ContainerInfo> {
@@ -434,6 +443,53 @@ export class DockerRuntime implements IContainerRuntime {
 
       stream.on("error", reject);
     });
+  }
+
+  async execStream(
+    id: string,
+    command: string[],
+    options?: ExecOptions
+  ): Promise<ExecStreamResult> {
+    const container = this.docker.getContainer(id);
+
+    const exec = await container.exec({
+      Cmd: command,
+      AttachStdout: options?.attachStdout ?? true,
+      AttachStderr: options?.attachStderr ?? true,
+      AttachStdin: false,
+      Tty: false,
+      Env: options?.env,
+      WorkingDir: options?.workingDir,
+      User: options?.user,
+    });
+
+    const stream = await exec.start({ Tty: false, stdin: false });
+
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    this.docker.modem.demuxStream(stream, stdout, stderr);
+
+    let exitResolve: (value: { exitCode: number }) => void;
+    let exitReject: (reason: unknown) => void;
+    const wait = new Promise<{ exitCode: number }>((resolve, reject) => {
+      exitResolve = resolve;
+      exitReject = reject;
+    });
+
+    stream.on("end", () => {
+      exec
+        .inspect()
+        .then((inspectData) => {
+          exitResolve({ exitCode: inspectData.ExitCode ?? 0 });
+        })
+        .catch(exitReject);
+    });
+
+    stream.on("error", (err: Error) => {
+      exitReject(err);
+    });
+
+    return { stdout, stderr, wait };
   }
 
   async interactiveExec(

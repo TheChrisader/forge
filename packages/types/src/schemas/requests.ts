@@ -16,7 +16,6 @@ import {
   GitProviderSchema,
   WebhookEventSchema,
   TeamRoleSchema,
-  ServiceTypeSchema,
   BackupTypeSchema,
   RegistryTypeSchema,
   AlertOperatorSchema,
@@ -490,8 +489,22 @@ export const CreateServiceRequestSchema = z
   .object({
     projectId: IdSchema,
     name: NonEmptyStringSchema.max(255),
-    type: ServiceTypeSchema,
+    engine: NonEmptyStringSchema.max(100),
+    version: z.string().max(50).optional(),
     config: ConfigSchema.optional(),
+    credentials: z
+      .object({
+        username: z.string().max(255).optional(),
+        password: z.string().max(500).optional(),
+        database: z.string().max(255).optional(),
+      })
+      .optional(),
+    resources: z
+      .object({
+        memoryMB: z.number().int().min(64).max(4096).optional(),
+        cpuShares: z.number().int().min(1).max(2048).optional(),
+      })
+      .optional(),
   })
   .strict();
 

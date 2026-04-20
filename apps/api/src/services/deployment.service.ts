@@ -250,7 +250,7 @@ export class DeploymentService implements IDeploymentService {
         jobData.imageUrl = project?.sourceUrl ?? "";
       }
 
-      await this.queueService.addJob("build", "build-deployment", jobData);
+      await this.queueService.addJob("build", `build-deployment-${jobData.deploymentId}`, jobData);
     } catch {
       // Best-effort: update deployment to FAILED if enqueue fails
       // We don't want the deployment to be stuck in PENDING forever

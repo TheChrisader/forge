@@ -15,6 +15,7 @@ import {
   CardContent,
 } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/shared/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/components/ui/tabs";
 import { Badge } from "@/shared/components/ui/badge";
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/components/ui/empty";
@@ -39,14 +40,28 @@ import {
   ZapIcon,
   ClockIcon,
   BoxIcon,
+  PlayIcon,
+  SquareIcon,
+  RotateCcwIcon,
+  PlusIcon,
+  InfoIcon,
 } from "lucide-react";
 import { useProject } from "@/core/api/hooks/useProjects";
 import { useProjectDeployments, useCreateDeployment } from "@/core/api/hooks/useDeployments";
 import { useProjectWithGitIntegration } from "@/core/api/hooks/useProjects";
 import { useProjectContainers } from "@/core/api/hooks/useContainers";
+import {
+  useServices,
+  useStartService,
+  useStopService,
+  useRestartService,
+} from "@/core/api/hooks/useServices";
 import { DeploymentStatus } from "./components/DeploymentStatus";
 import { DeploymentProgress } from "./components/DeploymentProgress";
 import { DeployConfigModal } from "./components/DeployConfigModal";
+import { ServiceTypeIcon } from "@/features/services/components/ServiceTypeIcon";
+import { ServiceStatusBadge } from "@/features/services/components/ServiceStatusBadge";
+import { CreateServiceModal } from "@/features/services/components/CreateServiceModal";
 import { ContainerFilterToggle } from "@/features/containers/components/ContainerFilterToggle";
 import { ContainerListItem } from "@/features/containers/components/ContainerListItem";
 import {
@@ -54,10 +69,11 @@ import {
   isTerminatedDockerStatus,
 } from "@/features/containers/lib/container-filters";
 import { DomainsTab } from "./components/DomainsTab";
+import { router } from "@/core/router";
 import { formatDistanceToNow } from "date-fns";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { ApiClientError } from "@/core/api/client";
-import type { Deployment, Project, DeploymentStrategy } from "@forge/types";
+import type { Deployment, Project, DeploymentStrategy, Service } from "@forge/types";
 
 function formatTimestamp(timestamp: Date | string | null | undefined): string {
   if (!timestamp) return "Never";
@@ -107,6 +123,177 @@ function formatDeploymentDuration(deployment: {
   if (diffSecs < 60) return `${diffSecs}s`;
   const diffMins = Math.floor(diffSecs / 60);
   return `${diffMins}m ${diffSecs % 60}s`;
+}
+
+function ProjectServicesTabContent({ projectId }: { projectId: string }): React.ReactElement {
+  const [createOpen, setCreateOpen] = useState(false);
+  const { isLoading, error, refetch } = useServices({ projectId, limit: 50 });
+  const startMutation = useStartService();
+  const stopMutation = useStopService();
+  const restartMutation = useRestartService();
+
+  const { services } = usePageServices(projectId);
+
+  const handleStart = useCallback(
+    (id: string) => {
+      void startMutation.mutate(id);
+    },
+    [startMutation]
+  );
+  const handleStop = useCallback(
+    (id: string) => {
+      void stopMutation.mutate(id);
+    },
+    [stopMutation]
+  );
+  const handleRestart = useCallback(
+    (id: string) => {
+      void restartMutation.mutate(id);
+    },
+    [restartMutation]
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="flex items-center gap-2 text-muted-foreground/70">
+          <LoaderIcon className="h-4 w-4 animate-spin text-primary" />
+          <span className="text-xs">Loading services...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-16">
+        <p className="font-sans text-sm text-muted-foreground">Failed to load services</p>
+        <Button variant="outline" size="sm" onClick={() => void refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <h3 className="font-serif text-base font-medium">Services</h3>
+          <Badge variant="secondary" className="font-mono text-[10px]">
+            {services.length}
+          </Badge>
+        </div>
+        <Button variant="outline" size="sm" className="group" onClick={() => setCreateOpen(true)}>
+          <PlusIcon className="h-4 w-4 mr-1.5 group-hover:scale-110 transition-transform" />
+          Add Service
+        </Button>
+      </div>
+
+      {services.length === 0 ? (
+        <Card className="border-dashed border-border/50">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <BoxIcon className="h-8 w-8 text-muted-foreground/40 mb-3" />
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>No services yet</EmptyTitle>
+                <EmptyDescription>Add your first service to this project</EmptyDescription>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <PlusIcon className="h-4 w-4 mr-1.5" />
+                  Add Service
+                </Button>
+              </EmptyHeader>
+            </Empty>
+          </CardContent>
+        </Card>
+      ) : (
+        <ItemGroup>
+          {services.map((service) => (
+            <Item
+              key={service.id}
+              className="cursor-pointer group"
+              onClick={() =>
+                void router.navigate({
+                  to: "/services/$serviceId",
+                  params: { serviceId: service.id },
+                })
+              }
+            >
+              <ItemMedia>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                  <ServiceTypeIcon type={service.type} className="h-4 w-4 text-primary" />
+                </div>
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>{service.name}</ItemTitle>
+                <ItemDescription>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="font-mono text-[10px] uppercase">
+                      {service.engine ?? "—"}
+                    </Badge>
+                    {service.version && (
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        v{service.version}
+                      </span>
+                    )}
+                  </div>
+                </ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <ServiceStatusBadge status={service.status} showLabel={false} />
+                  {(service.status === "RUNNING" || service.status === "HEALTHY") && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => handleRestart(service.id)}
+                        disabled={restartMutation.isPending}
+                        title="Restart"
+                      >
+                        <RotateCcwIcon className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => handleStop(service.id)}
+                        disabled={stopMutation.isPending}
+                        title="Stop"
+                      >
+                        <SquareIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                  {service.status === "STOPPED" && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => handleStart(service.id)}
+                      disabled={startMutation.isPending}
+                      title="Start"
+                    >
+                      <PlayIcon className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </ItemActions>
+            </Item>
+          ))}
+        </ItemGroup>
+      )}
+
+      <CreateServiceModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        defaultProjectId={projectId}
+      />
+    </>
+  );
 }
 
 interface ContainersTabContentProps {
@@ -357,11 +544,7 @@ function DeploymentsTabContent({
       </div>
 
       {activeDeployment && (
-        <Card className="border-primary/20">
-          <CardContent className="p-3.5">
-            <DeploymentProgress deployment={activeDeployment} projectId={project.id} />
-          </CardContent>
-        </Card>
+        <DeploymentProgress deployment={activeDeployment} projectId={project.id} />
       )}
 
       {deployments.length === 0 ? (
@@ -493,6 +676,11 @@ function DeploymentsTabContent({
   );
 }
 
+function usePageServices(projectId: string): { services: Service[]; isLoading: boolean } {
+  const { data, isLoading } = useServices({ projectId, limit: 50 });
+  return { services: data?.data ?? [], isLoading };
+}
+
 export function ProjectDetailPage(): React.ReactElement {
   const { projectId } = useParams({ from: "/authenticated/projects/$projectId" });
   const router = useRouter();
@@ -514,6 +702,15 @@ export function ProjectDetailPage(): React.ReactElement {
 
   const { data: deployments = [], isLoading: deploymentsLoading } =
     useProjectDeployments(projectId);
+
+  const { services } = usePageServices(projectId);
+
+  const staleServiceCount = useMemo(() => {
+    const latestDeployment = deployments[0];
+    if (!latestDeployment?.createdAt) return 0;
+    const deployTime = new Date(latestDeployment.createdAt).getTime();
+    return services.filter((s) => new Date(s.createdAt).getTime() > deployTime).length;
+  }, [deployments, services]);
 
   if (projectLoading) {
     return (
@@ -659,6 +856,29 @@ export function ProjectDetailPage(): React.ReactElement {
           </div>
         </div>
       </div>
+
+      {staleServiceCount > 0 && (
+        <Alert className="bg-muted/50 border-border/50">
+          <InfoIcon className="h-4 w-4 text-muted-foreground" />
+          <AlertTitle className="text-xs font-medium">
+            {staleServiceCount === 1
+              ? "New service added since last deployment"
+              : `${staleServiceCount} new services added since last deployment`}
+          </AlertTitle>
+          <AlertDescription className="text-xs text-muted-foreground">
+            Redeploy the project to make the services available to containers.
+            <Button
+              variant="link"
+              size="sm"
+              className="ml-1 h-auto p-0 text-xs"
+              onClick={() => setActiveTab("deployments")}
+            >
+              Redeploy
+              <ArrowRightIcon className="h-3 w-3 ml-0.5" />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
@@ -977,14 +1197,7 @@ export function ProjectDetailPage(): React.ReactElement {
         </TabsContent>
 
         <TabsContent value="services">
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle>No services configured</EmptyTitle>
-              <EmptyDescription>
-                Services will be created when you deploy your project
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <ProjectServicesTabContent projectId={projectId} />
         </TabsContent>
 
         <TabsContent value="deployments" className="space-y-6">
@@ -1013,7 +1226,7 @@ export function ProjectDetailPage(): React.ReactElement {
         </TabsContent>
 
         <TabsContent value="domains" className="space-y-6">
-          <DomainsTab project={project} />
+          <DomainsTab project={project} hasDeployed={deployments.length > 0} />
         </TabsContent>
       </Tabs>
     </div>

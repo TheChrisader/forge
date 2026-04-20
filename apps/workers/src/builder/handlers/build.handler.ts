@@ -246,7 +246,7 @@ async function handlePreBuiltImage(
     image: imageUrl,
   };
 
-  await queueService.addJob("deploy", "deploy-container", deployJobData);
+  await queueService.addJob("deploy", `deploy-container-${deploymentId}`, deployJobData);
   await queueService.close();
 
   logger.info("Pre-built image ready for deployment, deploy job enqueued", {
@@ -546,7 +546,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       image: imageTag,
     };
 
-    await queueService.addJob("deploy", "deploy-container", deployJobData);
+    await queueService.addJob("deploy", `deploy-container-${deploymentId}`, deployJobData);
     await queueService.close();
 
     logger.info("Build completed, deploy job enqueued", { deploymentId, imageTag });

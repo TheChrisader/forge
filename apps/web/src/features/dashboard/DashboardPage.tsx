@@ -393,7 +393,7 @@ export function DashboardPage(): React.ReactElement {
 
                   return (
                     <div key={item.id} className="group">
-                      <div className="flex gap-4 px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer">
+                      <div className="flex gap-4 px-6 py-2 hover:bg-muted/30 transition-colors cursor-pointer">
                         <div className="flex flex-col items-center">
                           <div className="relative">
                             <div
@@ -407,7 +407,7 @@ export function DashboardPage(): React.ReactElement {
                             />
                           </div>
                           {index < activityItems.length - 1 && (
-                            <div className="w-0.5 flex-1 mt-2 min-h-12 bg-border" />
+                            <div className="w-0.5 flex-1 mt-2 min-h-6 bg-border" />
                           )}
                         </div>
 
@@ -434,14 +434,18 @@ export function DashboardPage(): React.ReactElement {
                                 />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="font-sans text-sm font-medium">{item.description}</p>
+                                <p className="font-sans text-sm font-medium truncate">
+                                  {item.description}
+                                </p>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   <span className="font-mono text-xs text-muted-foreground">
                                     {item.project}
                                   </span>
                                   {item.userEmail && (
                                     <>
-                                      <span className="text-muted-foreground/40">&middot;</span>
+                                      <span className="text-muted-foreground/40 leading-none">
+                                        &middot;
+                                      </span>
                                       <span className="font-mono text-[10px] text-muted-foreground/60">
                                         {item.userEmail}
                                       </span>
@@ -453,11 +457,11 @@ export function DashboardPage(): React.ReactElement {
                             <div className="flex flex-col items-end gap-2 shrink-0">
                               <Badge
                                 variant="outline"
-                                className={`font-mono text-[9px] ${
+                                className={`font-mono text-[9px] text-start ${
                                   isCreate ? "text-success-500 border-success-500/20" : ""
                                 }`}
                               >
-                                {item.resourceType}
+                                <span className="max-w-20 truncate">{item.resourceType}</span>
                               </Badge>
                               <span className="font-mono text-[9px] text-muted-foreground uppercase">
                                 {item.timestamp}

@@ -37,12 +37,18 @@ export async function handleDeployJob(
   const lifecycle = new ContainerLifecycle(db, runtime, logger, proxyIntegration);
   const strategyRegistry = createDefaultStrategyRegistry(lifecycle, logger);
 
+  const encryptionKey = process.env.SECRETS_ENCRYPTION_KEY;
+  if (!encryptionKey) {
+    throw new Error("ENCRYPTION_KEY environment variable is required for deploy handler");
+  }
+
   const orchestrator = new DeploymentOrchestrator(
     db,
     strategyRegistry,
     lifecycle,
     logger,
-    proxyIntegration
+    proxyIntegration,
+    encryptionKey
   );
 
   const lineNumberRef = await initializeLineNumberRef(buildLogService, deploymentId);

@@ -1,14 +1,19 @@
+import { PassThrough } from "node:stream";
+
 export interface IContainerRuntime {
   create(config: ContainerConfig): Promise<Container>;
   start(id: string): Promise<void>;
   stop(id: string, options?: StopOptions): Promise<void>;
   restart(id: string): Promise<void>;
   remove(id: string, options?: RemoveOptions): Promise<void>;
+  rename(id: string, newName: string): Promise<void>;
 
   inspect(id: string): Promise<ContainerInfo>;
   list(filters?: ContainerFilters): Promise<Container[]>;
 
   exec(id: string, command: string[], options?: ExecOptions): Promise<ExecResult>;
+
+  execStream(id: string, command: string[], options?: ExecOptions): Promise<ExecStreamResult>;
 
   interactiveExec(
     containerId: string,
@@ -127,6 +132,7 @@ export interface VolumeMount {
 
 export interface ResourceLimits {
   memory?: string;
+  memoryReservation?: string;
   memorySwap?: string;
   cpus?: number;
   cpuShares?: number;
@@ -250,6 +256,12 @@ export interface ExecResult {
   exitCode: number;
   output: string;
   error?: string;
+}
+
+export interface ExecStreamResult {
+  stdout: PassThrough;
+  stderr: PassThrough;
+  wait: Promise<{ exitCode: number }>;
 }
 
 export interface LogOptions {

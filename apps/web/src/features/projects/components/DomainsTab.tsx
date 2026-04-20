@@ -8,6 +8,7 @@ import {
   XCircleIcon,
   ShieldCheckIcon,
   ClockIcon,
+  RocketIcon,
 } from "lucide-react";
 import {
   useDomains,
@@ -16,12 +17,14 @@ import {
   useVerifyDomain,
 } from "@/core/api/hooks/useDomains";
 import type { Project } from "@forge/types";
+import { router } from "@/core/router";
 
 interface DomainsTabProps {
   project: Project;
+  hasDeployed: boolean;
 }
 
-export function DomainsTab({ project }: DomainsTabProps): JSX.Element {
+export function DomainsTab({ project, hasDeployed }: DomainsTabProps): JSX.Element {
   const { data: domains = [], isLoading } = useDomains(project.id);
   const addMutation = useAddDomain();
   const removeMutation = useRemoveDomain();
@@ -74,6 +77,36 @@ export function DomainsTab({ project }: DomainsTabProps): JSX.Element {
   };
 
   const autoSubdomain = `${project.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}.forge.localhost`;
+
+  if (!hasDeployed) {
+    return (
+      <div className="border border-dashed rounded-lg py-14 text-center border-border/50">
+        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted/50 mx-auto mb-3">
+          <RocketIcon className="h-5 w-5 text-muted-foreground/50" />
+        </div>
+        <p className="font-serif text-sm text-muted-foreground">
+          Deploy first to configure domains
+        </p>
+        <p className="text-xs text-muted-foreground/70 mt-1 mb-4">
+          Domains require an active deployment to generate TLS certificates and route traffic.
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 text-xs h-8"
+          onClick={() =>
+            void router.navigate({
+              to: `/projects/${project.id}`,
+              search: { tab: "deployments" },
+            })
+          }
+        >
+          <RocketIcon className="h-3.5 w-3.5" />
+          Go to Deployments
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

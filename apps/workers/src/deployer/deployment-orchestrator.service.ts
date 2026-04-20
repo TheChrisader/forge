@@ -13,6 +13,8 @@ import type {
   ProgressCallback,
 } from "@forge/deploy";
 import type { IContainerLifecycle } from "@forge/deploy";
+import { resolveServiceEnvVars } from "@forge/service-catalog";
+import { decrypt } from "@forge/security";
 
 export interface DeployProgressCallback {
   (event: {
@@ -47,7 +49,8 @@ export class DeploymentOrchestrator {
     private readonly strategyRegistry: IDeploymentStrategyRegistry,
     private readonly lifecycle: IContainerLifecycle,
     private readonly logger: ILogger,
-    private readonly proxyIntegration: IProxyIntegration
+    private readonly proxyIntegration: IProxyIntegration,
+    private readonly encryptionKey: string
   ) {}
 
   async deploy(deploymentId: string, image: string, options?: DeployOptions): Promise<void> {
@@ -271,15 +274,66 @@ export class DeploymentOrchestrator {
       select: { domain: true },
     });
 
+    // Resolve service connection env vars for all running services attached to this project
+    const serviceSelect = {
+      id: true,
+      name: true,
+      engine: true,
+      status: true,
+      connectionHost: true,
+      connectionPort: true,
+      connectionUsername: true,
+      connectionPassword: true,
+      connectionDatabase: true,
+    };
+
+    const projectServices = await this.db.service.findMany({
+      where: {
+        projectId: project.id,
+        deletedAt: null,
+        status: { in: ["RUNNING", "HEALTHY"] },
+      },
+      select: serviceSelect,
+    });
+
+    const linkedServices = await this.db.serviceProjectAccess.findMany({
+      where: { projectId: project.id },
+      include: { service: { select: serviceSelect } },
+    });
+
+    const allServiceRecords = [
+      ...projectServices.map((s) => ({
+        ...s,
+        connectionPassword: s.connectionPassword
+          ? decrypt(s.connectionPassword, this.encryptionKey)
+          : "",
+      })),
+      ...linkedServices.map((ls) => ({
+        ...ls.service,
+        connectionPassword: ls.service.connectionPassword
+          ? decrypt(ls.service.connectionPassword, this.encryptionKey)
+          : "",
+      })),
+    ];
+
+    const { envVars: serviceEnvVars, warnings } = resolveServiceEnvVars(allServiceRecords);
+
+    if (warnings.length > 0) {
+      this.logger.warn("Service env var warnings", { deploymentId: deployment.id, warnings });
+    }
+
     return {
       deploymentId: deployment.id,
       projectId: project.id,
       projectName: project.name,
       projectSlug,
       image,
-      replicas: 1, // TODO: get from project config or deployment metadata
-      env: config.runtime?.env || {},
-      ports: [], // TODO: derived from config same as current buildContainerConfig, or get from nixpacks
+      replicas: 1,
+      env: {
+        ...config.runtime?.env,
+        ...serviceEnvVars,
+      },
+      ports: [],
       volumes: config.volumes || [],
       healthCheck: config.healthCheck,
       resources: config.resources,

@@ -656,6 +656,10 @@ export const ServiceSchema = z.object({
   connectionUsername: z.string().max(255).nullable(),
   connectionPassword: z.string().nullable(),
   connectionDatabase: z.string().max(255).nullable(),
+  version: z.string().max(50).nullable(),
+  internalHostname: z.string().max(255).nullable(),
+  volumeName: z.string().max(255).nullable(),
+  containerId: z.string().max(100).nullable(),
   resourcesAllocated: JsonSchema.nullable(),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
@@ -729,6 +733,45 @@ export const UpdateServiceBackupSchema = z.object({
   completedAt: TimestampSchema.nullable().optional(),
   metadata: JsonSchema.nullable().optional(),
   error: z.string().nullable().optional(),
+});
+
+// Engine catalog response schemas
+export const EngineVersionSchema = z.object({
+  version: z.string(),
+  imageTag: z.string(),
+  minMemoryMB: z.number().optional(),
+  deprecated: z.boolean().optional(),
+});
+
+export const ConfigParameterSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  type: z.enum(["integer", "string", "boolean"]),
+  defaultValue: z.string(),
+  envMapping: z.string(),
+  description: z.string(),
+});
+
+export const EngineDetailSchema = z.object({
+  type: ServiceTypeSchema,
+  engine: z.string(),
+  displayName: z.string(),
+  description: z.string(),
+  icon: z.string(),
+  supportedVersions: z.array(EngineVersionSchema),
+  defaultVersion: z.string(),
+  defaultPort: z.number(),
+  configParameters: z.array(ConfigParameterSchema),
+});
+
+export const ServiceConnectionSchema = z.object({
+  host: z.string().nullable(),
+  port: z.number().nullable(),
+  url: z.string().nullable(),
+  username: z.string().nullable(),
+  password: z.string().nullable(),
+  database: z.string().nullable(),
+  envVars: z.record(z.string(), z.string()).optional(),
 });
 
 export const SecretSchema = z.object({
@@ -1524,6 +1567,11 @@ export const ContainerWithRelationsSchema = ContainerSchema.extend({
 export const ServiceWithRelationsSchema = ServiceSchema.extend({
   project: z.lazy(() => ProjectSchema).optional(),
   backups: z.array(z.lazy(() => ServiceBackupSchema)).optional(),
+  _count: z
+    .object({
+      backups: z.number(),
+    })
+    .optional(),
 });
 
 export const ImageWithRelationsSchema = ImageSchema.extend({

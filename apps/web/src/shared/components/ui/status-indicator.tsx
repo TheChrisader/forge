@@ -9,6 +9,7 @@ import type {
   JobStatus,
   DockerContainerStatus,
   LogLevel,
+  BackupStatus,
 } from "@forge/types";
 
 /**
@@ -45,6 +46,11 @@ const getStatusCategory = (status: string): StatusCategory => {
     starting: "progress",
     restarting: "progress",
     removing: "progress",
+    upgrading: "progress",
+    "backing-up": "progress",
+    restoring: "progress",
+    stopping: "progress",
+    "in-progress": "progress",
 
     // Warning/degraded states
     "rolled-back": "warning",
@@ -99,6 +105,12 @@ const getStatusLabel = (status: string): string => {
     healthy: "Healthy",
     unhealthy: "Unhealthy",
     starting: "Starting",
+    upgrading: "Upgrading",
+    stopping: "Stopping",
+    "backing-up": "Backing Up",
+    restoring: "Restoring",
+    "in-progress": "In Progress",
+    completed: "Completed",
     none: "Unknown",
 
     // Job statuses
@@ -205,7 +217,8 @@ export interface StatusIndicatorProps
     | HealthStatus
     | JobStatus
     | DockerContainerStatus
-    | LogLevel;
+    | LogLevel
+    | BackupStatus;
 
   /**
    * Whether to display the text label alongside the indicator dot.
