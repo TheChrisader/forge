@@ -23,7 +23,7 @@ import {
   ImageValidationError,
   deepMerge,
 } from "@forge/core";
-import { QueueService, type QueueConfig } from "@forge/queue";
+import { getQueueService, type QueueConfig } from "@forge/queue";
 import type { LogLevel as CoreLogLevel } from "@forge/core";
 import { LoggerService } from "@forge/logger";
 import * as fs from "node:fs/promises";
@@ -239,7 +239,7 @@ async function handlePreBuiltImage(
     },
   });
 
-  const queueService = new QueueService(getQueueConfig());
+  const queueService = getQueueService(getQueueConfig());
   const deployJobData: DeployJobData = {
     deploymentId,
     projectId,
@@ -247,7 +247,6 @@ async function handlePreBuiltImage(
   };
 
   await queueService.addJob("deploy", `deploy-container-${deploymentId}`, deployJobData);
-  await queueService.close();
 
   logger.info("Pre-built image ready for deployment, deploy job enqueued", {
     deploymentId,
@@ -539,7 +538,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       },
     });
 
-    const queueService = new QueueService(getQueueConfig());
+    const queueService = getQueueService(getQueueConfig());
     const deployJobData: DeployJobData = {
       deploymentId,
       projectId,
@@ -547,7 +546,6 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     };
 
     await queueService.addJob("deploy", `deploy-container-${deploymentId}`, deployJobData);
-    await queueService.close();
 
     logger.info("Build completed, deploy job enqueued", { deploymentId, imageTag });
   } catch (error) {

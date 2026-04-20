@@ -1,12 +1,7 @@
-/**
- * Build worker
- * Processes build jobs from the queue
- */
-
 import type { ILogger } from "@forge/core";
 import { LoggerService } from "@forge/logger";
 import type { LogLevel } from "@forge/core";
-import { QueueService, type QueueConfig } from "@forge/queue";
+import { QueueService, closeQueueService, type QueueConfig } from "@forge/queue";
 import { handleBuildJob } from "./handlers/build.handler.js";
 
 export interface BuildWorkerOptions {
@@ -56,6 +51,7 @@ export class BuildWorker {
   async close(): Promise<void> {
     this.logger.info("Shutting down build worker...");
     await this.queueService.close();
+    await closeQueueService();
     this.logger.info("Build worker shut down");
   }
 }
