@@ -123,40 +123,42 @@ export class DeploymentOrchestrator {
       removedCount: result.removedContainerIds.length,
     });
 
-    await this.db.deployment.update({
-      where: { id: deploymentId },
-      data: {
-        status: "RUNNING" as DeploymentStatus,
-        deployCompletedAt: new Date(),
-        ...(result.activeEnvironment && {
-          activeEnvironment: result.activeEnvironment,
-        }),
-      },
-    });
+    await this.db.$transaction(async (tx) => {
+      await tx.deployment.update({
+        where: { id: deploymentId },
+        data: {
+          status: "RUNNING" as DeploymentStatus,
+          deployCompletedAt: new Date(),
+          ...(result.activeEnvironment && {
+            activeEnvironment: result.activeEnvironment,
+          }),
+        },
+      });
 
-    await this.db.deployment.updateMany({
-      where: {
-        projectId: project.id,
-        id: { not: deploymentId },
-        status: "RUNNING",
-      },
-      data: {
-        status: "SUCCEEDED",
-        deployCompletedAt: new Date(),
-      },
-    });
+      await tx.deployment.updateMany({
+        where: {
+          projectId: project.id,
+          id: { not: deploymentId },
+          status: "RUNNING",
+        },
+        data: {
+          status: "SUCCEEDED",
+          deployCompletedAt: new Date(),
+        },
+      });
 
-    await this.db.project.update({
-      where: { id: project.id },
-      data: { status: "ACTIVE" },
-    });
+      await tx.project.update({
+        where: { id: project.id },
+        data: { status: "ACTIVE" },
+      });
 
-    for (const c of result.containers) {
-      await this.db.container.update({
-        where: { id: c.id },
+      await tx.container.updateMany({
+        where: {
+          id: { in: result.containers.map((c) => c.id) },
+        },
         data: { status: "HEALTHY", healthStatus: "HEALTHY" },
       });
-    }
+    });
 
     const projectSlug = project.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
     const networkName = generateNetworkName(project.id, project.name);
@@ -196,8 +198,7 @@ export class DeploymentOrchestrator {
   async handleFailure(deploymentId: string, error: string): Promise<void> {
     this.logger.error("Handling deployment failure", { deploymentId, error });
 
-    //    (safety net. the strategy should have cleaned up its own containers,
-    //    but if it threw before finishing, some may remain)
+    // Docker cleanup first (best-effort) — handles containers the strategy left behind
     const deployment = await this.db.deployment.findUnique({
       where: { id: deploymentId },
       include: {
@@ -216,7 +217,7 @@ export class DeploymentOrchestrator {
             deployment.project.name
           );
         } catch (err) {
-          this.logger.error("Failed to cleanup container — resource leak", {
+          this.logger.error("Failed to cleanup container — reconciler will handle", {
             containerId: container.containerId,
             err: err instanceof Error ? err.message : String(err),
           });
@@ -224,18 +225,21 @@ export class DeploymentOrchestrator {
       }
     }
 
-    await this.db.deployment.update({
-      where: { id: deploymentId },
-      data: {
-        status: "FAILED",
-        deployCompletedAt: new Date(),
-        error,
-      },
-    });
+    // Atomic DB update: deployment status + all container statuses in one transaction
+    await this.db.$transaction(async (tx) => {
+      await tx.deployment.update({
+        where: { id: deploymentId },
+        data: {
+          status: "FAILED",
+          deployCompletedAt: new Date(),
+          error,
+        },
+      });
 
-    await this.db.container.updateMany({
-      where: { deploymentId, status: { notIn: ["TERMINATED", "STOPPED"] } },
-      data: { status: "TERMINATED", healthStatus: "UNHEALTHY" },
+      await tx.container.updateMany({
+        where: { deploymentId, status: { notIn: ["TERMINATED", "STOPPED"] } },
+        data: { status: "TERMINATED", healthStatus: "UNHEALTHY" },
+      });
     });
   }
 
@@ -264,7 +268,7 @@ export class DeploymentOrchestrator {
     const existingContainers = await this.db.container.findMany({
       where: {
         projectId: project.id,
-        status: { notIn: ["TERMINATED", "STOPPED"] },
+        status: { in: ["RUNNING", "HEALTHY"] },
       },
       select: { containerId: true },
     });

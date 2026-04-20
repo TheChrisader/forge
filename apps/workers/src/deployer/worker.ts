@@ -7,7 +7,9 @@ import type { DeployJobData } from "@forge/types";
 import type { IJobContext } from "@forge/queue";
 import { ReverseProxyFactory, NoOpProxyIntegration } from "@forge/proxy";
 import type { IProxyIntegration } from "@forge/proxy";
+import { getDatabaseClient } from "@forge/database";
 import { handleDeployJob } from "./handlers/deploy.handler.js";
+import { DeploymentReconciler } from "./deployment-reconciler.js";
 
 export interface DeployerWorkerOptions {
   concurrency?: number;
@@ -22,12 +24,15 @@ export class DeployerWorker {
   private logger: ILogger;
   private runtime: DockerRuntime;
   private proxyIntegration!: IProxyIntegration;
+  private reconciler: DeploymentReconciler | null = null;
   private workerName = "deployer-worker";
+  private readonly config: QueueConfig;
 
   constructor(
     config: QueueConfig,
     private readonly options?: DeployerWorkerOptions
   ) {
+    this.config = config;
     this.logger = new LoggerService({
       level: (process.env.LOG_LEVEL as LogLevel) ?? "info",
       format: process.env.NODE_ENV === "development" ? "pretty" : "json",
@@ -47,7 +52,7 @@ export class DeployerWorker {
     const worker = this.queueService.registerWorker(
       "deploy",
       (context: IJobContext<DeployJobData>) =>
-        handleDeployJob(context, this.proxyIntegration, this.runtime),
+        handleDeployJob(context, this.proxyIntegration, this.runtime, this.config),
       {
         concurrency: this.options?.concurrency ?? 5,
         limiter: this.options?.limiter ?? {
@@ -66,6 +71,9 @@ export class DeployerWorker {
     });
 
     this.logger.info("Deployer worker initialized and ready");
+
+    this.reconciler = new DeploymentReconciler(getDatabaseClient(), this.runtime, this.logger);
+    this.reconciler.start();
   }
 
   private async initializeProxyIntegration(): Promise<IProxyIntegration> {
@@ -114,6 +122,7 @@ export class DeployerWorker {
 
   async close(): Promise<void> {
     this.logger.info("Shutting down deployer worker...");
+    this.reconciler?.stop();
     await this.queueService.close();
     this.logger.info("Deployer worker shut down");
   }

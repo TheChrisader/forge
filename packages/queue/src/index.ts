@@ -35,6 +35,8 @@ export { QueueError, QueueConnectionError, QueueJobError } from "./errors";
 
 export { QueueModule, disposeQueueModule, type QueueModuleConfig } from "./module";
 
+export { RedisDeployLock } from "./redis-lock";
+
 /**
  * @deprecated Use QueueConfig from './domain/types' instead
  */

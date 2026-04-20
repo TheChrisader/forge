@@ -13,6 +13,7 @@ import type {
   LogLevel,
   BuildLogSource,
   DeployJobData,
+  JobOptions,
 } from "@forge/types";
 import { ProjectSourceType } from "@forge/types";
 import type { IJobContext } from "@forge/queue";
@@ -46,6 +47,18 @@ const logger = new LoggerService({
   enabled: true,
   name: "build-handler",
 });
+
+function getDeployJobOptions(): JobOptions {
+  return {
+    attempts: Number.parseInt(process.env.DEPLOY_JOB_MAX_ATTEMPTS ?? "2", 10),
+    backoff: {
+      type: "exponential",
+      delay: Number.parseInt(process.env.DEPLOY_JOB_BACKOFF_MS ?? "5000", 10),
+    },
+    removeOnComplete: 100,
+    removeOnFail: 50,
+  };
+}
 
 function getQueueConfig(): QueueConfig {
   return {
@@ -246,7 +259,12 @@ async function handlePreBuiltImage(
     image: imageUrl,
   };
 
-  await queueService.addJob("deploy", `deploy-container-${deploymentId}`, deployJobData);
+  await queueService.addJob(
+    "deploy",
+    `deploy-container-${deploymentId}`,
+    deployJobData,
+    getDeployJobOptions()
+  );
 
   logger.info("Pre-built image ready for deployment, deploy job enqueued", {
     deploymentId,
@@ -545,7 +563,12 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       image: imageTag,
     };
 
-    await queueService.addJob("deploy", `deploy-container-${deploymentId}`, deployJobData);
+    await queueService.addJob(
+      "deploy",
+      `deploy-container-${deploymentId}`,
+      deployJobData,
+      getDeployJobOptions()
+    );
 
     logger.info("Build completed, deploy job enqueued", { deploymentId, imageTag });
   } catch (error) {

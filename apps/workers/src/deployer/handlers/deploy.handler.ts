@@ -1,7 +1,7 @@
 import { getDatabaseClient } from "@forge/database";
 import { DockerRuntime } from "@forge/docker";
 import type { DeployJobData } from "@forge/types";
-import type { IJobContext } from "@forge/queue";
+import type { IJobContext, QueueConfig } from "@forge/queue";
 import { LoggerService } from "@forge/logger";
 import type { LogLevel } from "@forge/types";
 import { BuildLogService } from "@forge/core";
@@ -9,6 +9,7 @@ import type { BuildLogSource } from "@forge/types";
 import type { IProxyIntegration } from "@forge/proxy";
 import { ContainerLifecycle } from "@forge/deploy";
 import { createDefaultStrategyRegistry } from "@forge/deploy";
+import { RedisDeployLock } from "@forge/queue";
 import { PriorityLogBuffer, parseBufferSize, parseErrorSlotReserve } from "./log-buffer.js";
 import { FlushManager, createFlushManagerOptions } from "./flush-manager.js";
 import type { DeployProgressCallback } from "../deployment-orchestrator.service.js";
@@ -22,15 +23,88 @@ const logger = new LoggerService({
   name: "deploy-handler",
 });
 
+const LOCK_TTL_MS = Number.parseInt(process.env.DEPLOY_LOCK_TTL_MS ?? "300000", 10);
+
 export async function handleDeployJob(
   context: IJobContext<DeployJobData>,
   proxyIntegration: IProxyIntegration,
-  runtime: DockerRuntime
+  runtime: DockerRuntime,
+  queueConfig: QueueConfig
 ): Promise<void> {
   const { deploymentId, projectId, image } = context.job.data;
 
   logger.info("Processing deploy job", { deploymentId, projectId, image });
 
+  // Acquire distributed lock for this deployment to prevent concurrent processing
+  const lock = createDeployLock(queueConfig);
+  let lockToken: string | null = null;
+  let projectLockToken: string | null = null;
+
+  try {
+    lockToken = await lock.acquire(deploymentId, LOCK_TTL_MS);
+    if (!lockToken) {
+      logger.warn("Deploy lock already held — skipping duplicate job", {
+        deploymentId,
+        attemptsMade: context.job.attemptsMade,
+      });
+      return;
+    }
+
+    projectLockToken = await lock.acquireProjectLock(projectId, LOCK_TTL_MS);
+    if (!projectLockToken) {
+      logger.warn("Project deploy lock already held — skipping concurrent project deploy", {
+        deploymentId,
+        projectId,
+      });
+      await lock.release(deploymentId, lockToken);
+      return;
+    }
+
+    logger.info("Deploy locks acquired", { deploymentId, projectId });
+
+    // Pre-flight cleanup on retry: remove leftover containers from previous attempts
+    if (context.job.attemptsMade > 0) {
+      await cleanupLeftoverContainers(deploymentId, runtime);
+    }
+
+    await executeDeploy(
+      context,
+      deploymentId,
+      projectId,
+      image,
+      proxyIntegration,
+      runtime,
+      lock,
+      lockToken,
+      projectLockToken
+    );
+  } catch (error) {
+    if (!lockToken) {
+      // Lock acquisition itself failed unexpectedly (not "already held")
+      throw error;
+    }
+    throw error;
+  } finally {
+    if (projectLockToken) {
+      await lock.releaseProjectLock(projectId, projectLockToken);
+    }
+    if (lockToken) {
+      await lock.release(deploymentId, lockToken);
+    }
+  }
+}
+
+async function executeDeploy(
+  context: IJobContext<DeployJobData>,
+  deploymentId: string,
+  projectId: string,
+  image: string,
+  proxyIntegration: IProxyIntegration,
+  runtime: DockerRuntime,
+  lock: RedisDeployLock,
+  lockToken: string,
+  projectLockToken: string
+): Promise<void> {
   const db = getDatabaseClient();
   const buildLogService = new BuildLogService(db);
 
@@ -99,6 +173,17 @@ export async function handleDeployJob(
     );
   };
 
+  // Extend lock TTL before long-running strategy execution
+  try {
+    await lock.extend(deploymentId, lockToken, LOCK_TTL_MS);
+    await lock.extendProjectLock(projectId, projectLockToken, LOCK_TTL_MS);
+  } catch (extendError) {
+    logger.warn("Failed to extend deploy lock TTL", {
+      deploymentId,
+      error: extendError instanceof Error ? extendError.message : String(extendError),
+    });
+  }
+
   try {
     await orchestrator.deploy(deploymentId, image, {
       progressCallback,
@@ -142,4 +227,60 @@ export async function handleDeployJob(
       consecutiveFailures: finalResult.consecutiveFailures,
     });
   }
+}
+
+function createDeployLock(queueConfig: QueueConfig): RedisDeployLock {
+  if (queueConfig.connection.type !== "redis" || !queueConfig.connection.redis) {
+    throw new Error("Deploy lock requires Redis connection configuration");
+  }
+
+  return new RedisDeployLock(queueConfig.connection.redis);
+}
+
+async function cleanupLeftoverContainers(
+  deploymentId: string,
+  runtime: DockerRuntime
+): Promise<void> {
+  const db = getDatabaseClient();
+
+  const leftovers = await db.container.findMany({
+    where: {
+      deploymentId,
+      status: { in: ["CREATING", "STARTING", "RUNNING", "HEALTHY", "UNHEALTHY", "ERROR"] },
+    },
+    select: { containerId: true },
+  });
+
+  if (leftovers.length === 0) return;
+
+  logger.info("Pre-flight cleanup: removing leftover containers from previous attempt", {
+    deploymentId,
+    containerCount: leftovers.length,
+  });
+
+  for (const container of leftovers) {
+    try {
+      await runtime.stop(container.containerId, { timeout: 10_000 });
+    } catch {
+      // Container may already be stopped
+    }
+    try {
+      await runtime.remove(container.containerId, { force: true });
+    } catch {
+      // Container may already be removed
+    }
+  }
+
+  await db.container.updateMany({
+    where: {
+      deploymentId,
+      status: { in: ["CREATING", "STARTING", "RUNNING", "HEALTHY", "UNHEALTHY", "ERROR"] },
+    },
+    data: { status: "TERMINATED", healthStatus: "UNHEALTHY" },
+  });
+
+  logger.info("Pre-flight cleanup complete", {
+    deploymentId,
+    cleanedCount: leftovers.length,
+  });
 }

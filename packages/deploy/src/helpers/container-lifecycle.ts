@@ -55,6 +55,12 @@ export interface IContainerLifecycle {
 
   ensureNetwork(projectId: string, projectName: string): Promise<string>;
 
+  forceTerminateByDeployment(
+    deploymentId: string,
+    projectId: string,
+    deploymentName: string
+  ): Promise<void>;
+
   ensureVolumes(volumes: ProjectVolumeConfig[], projectId: string): Promise<Map<string, string>>;
 }
 
@@ -160,19 +166,29 @@ export class ContainerLifecycle implements IContainerLifecycle {
   }
 
   async stopAndRemove(containerId: string): Promise<void> {
+    // Skip DB update if already terminated
+    const existing = await this.db.container.findMany({
+      where: { containerId, status: "TERMINATED" },
+      select: { id: true },
+    });
+    if (existing.length > 0) {
+      return;
+    }
+
     try {
       await this.runtime.stop(containerId, { timeout: 10_000 });
+    } catch {
+      // Container may already be stopped — continue to remove
+    }
+
+    try {
       await this.runtime.remove(containerId, { force: true });
-    } catch (err) {
-      this.logger.error("Failed to stop/remove container: resource leak", {
-        containerId,
-        err: err instanceof Error ? err.message : String(err),
-      });
-      throw err;
+    } catch {
+      // Container may already be removed — treat as success
     }
 
     await this.db.container.updateMany({
-      where: { containerId },
+      where: { containerId, status: { not: "TERMINATED" } },
       data: { status: "TERMINATED", healthStatus: "UNHEALTHY" },
     });
   }
@@ -183,6 +199,15 @@ export class ContainerLifecycle implements IContainerLifecycle {
     deploymentId: string,
     projectName: string
   ): Promise<void> {
+    // Skip DB update if already terminated
+    const existing = await this.db.container.findMany({
+      where: { containerId, status: "TERMINATED" },
+      select: { id: true },
+    });
+    if (existing.length > 0) {
+      return;
+    }
+
     const networkName = generateNetworkName(projectId, projectName);
 
     try {
@@ -203,19 +228,54 @@ export class ContainerLifecycle implements IContainerLifecycle {
 
     try {
       await this.runtime.stop(containerId, { timeout: 10_000 });
+    } catch {
+      // Container may already be stopped — continue to remove
+    }
+
+    try {
       await this.runtime.remove(containerId, { force: true });
-    } catch (err) {
-      this.logger.error("Failed to stop/remove container: resource leak", {
-        containerId,
-        err: err instanceof Error ? err.message : String(err),
-      });
-      throw err;
+    } catch {
+      // Container may already be removed — treat as success
     }
 
     await this.db.container.updateMany({
-      where: { containerId },
+      where: { containerId, status: { not: "TERMINATED" } },
       data: { status: "TERMINATED", healthStatus: "UNHEALTHY" },
     });
+  }
+
+  async forceTerminateByDeployment(
+    deploymentId: string,
+    projectId: string,
+    deploymentName: string
+  ): Promise<void> {
+    const containers = await this.db.container.findMany({
+      where: {
+        deploymentId,
+        status: { notIn: ["TERMINATED", "STOPPED"] },
+      },
+      select: { id: true, containerId: true },
+    });
+
+    if (containers.length === 0) return;
+
+    this.logger.info("Force-terminating containers for deployment", {
+      deploymentId,
+      containerCount: containers.length,
+    });
+
+    for (const container of containers) {
+      try {
+        await this.stopAndRemoveWithContext(
+          container.containerId,
+          projectId,
+          deploymentId,
+          deploymentName
+        );
+      } catch {
+        // Already handled inside stopAndRemoveWithContext — continue to next
+      }
+    }
   }
 
   async ensureNetwork(projectId: string, projectName: string): Promise<string> {
