@@ -35,6 +35,10 @@ import { ServiceSSEModule } from "./modules/service-sse.module.js";
 import { PermissionsService } from "@forge/auth";
 import { attachPermissionsToRequest } from "./middleware/permissions.js";
 import { TerminalService } from "./services/terminal.service.js";
+import { MetricsCollector, PrometheusRegistry, PrometheusDbProvider } from "@forge/observability";
+import { LoggerService } from "@forge/logger";
+import { MetricsSseBridge } from "./services/metrics-sse-bridge.js";
+import { SSEManagerService } from "./services/sse-manager.service.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -44,6 +48,9 @@ declare module "fastify" {
     db: PrismaClient;
     redis: Redis;
     permissionsService: PermissionsService;
+    metricsCollector: MetricsCollector;
+    prometheusRegistry: PrometheusRegistry;
+    prometheusDbProvider: PrometheusDbProvider;
   }
 }
 
@@ -111,6 +118,30 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   server.decorate("db", db);
   server.decorate("redis", redis);
 
+  const metricsLogger = new LoggerService({
+    level: config.nodeEnv === "production" ? "INFO" : "DEBUG",
+    format: config.nodeEnv === "development" ? "pretty" : "json",
+    enabled: true,
+    name: "api-metrics",
+  });
+  const metricsCollector = new MetricsCollector(db, metricsLogger);
+  server.decorate("metricsCollector", metricsCollector);
+
+  const prometheusRegistry = new PrometheusRegistry();
+  server.decorate("prometheusRegistry", prometheusRegistry);
+
+  const prometheusDbProvider = new PrometheusDbProvider(db, metricsLogger);
+  server.decorate("prometheusDbProvider", prometheusDbProvider);
+
+  if (config.sse?.enabled) {
+    const sseManager = container.resolveSync<SSEManagerService>(SERVICE_KEY_STRINGS.SSE_MANAGER);
+    const bridge = new MetricsSseBridge(sseManager, metricsLogger);
+    bridge.attach(metricsCollector);
+    server.log.info("Metrics SSE bridge attached");
+  }
+
+  metricsCollector.start();
+
   await server.register(fastifySSE, {
     heartbeatInterval: 30000, // 30 second keep-alive
   });
@@ -147,6 +178,8 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
 
   server.addHook("onClose", async () => {
     logger.info("Server shutting down, disposing services...");
+
+    await metricsCollector.stop();
 
     try {
       const terminalService = await container.resolve<TerminalService>(

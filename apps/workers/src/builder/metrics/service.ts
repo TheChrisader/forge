@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@forge/database";
 import type { DeploymentStatus } from "@forge/types";
+import type { MetricsCollector } from "@forge/observability";
 
 export interface BuildMetricsRecord {
   deploymentId: string;
@@ -20,7 +21,10 @@ export interface BuildStatistics {
 }
 
 export class BuildMetricsService {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly metricsCollector?: MetricsCollector
+  ) {}
 
   async recordBuildStart(deploymentId: string): Promise<void> {
     await this.db.deployment.update({
@@ -43,10 +47,49 @@ export class BuildMetricsService {
         status: record.status,
         buildCompletedAt: record.completedAt ?? new Date(),
         error: record.errorMessage,
-        // Store image reference if available
         ...(record.imageSize ? { buildImage: `forge:${record.deploymentId}` } : {}),
       },
     });
+
+    if (!this.metricsCollector) return;
+
+    const completedAt = record.completedAt ?? new Date();
+    const durationSeconds = (completedAt.getTime() - record.startedAt.getTime()) / 1000;
+
+    this.metricsCollector.record({
+      sourceType: "BUILD",
+      sourceId: record.deploymentId,
+      sourceName: "Build",
+      metric: "build_total",
+      value: 1,
+      unit: "count",
+      projectId: record.projectId,
+      deploymentId: record.deploymentId,
+    });
+
+    this.metricsCollector.record({
+      sourceType: "BUILD",
+      sourceId: record.deploymentId,
+      sourceName: "Build",
+      metric: "build_duration_seconds",
+      value: durationSeconds,
+      unit: "seconds",
+      projectId: record.projectId,
+      deploymentId: record.deploymentId,
+    });
+
+    if (record.status === "FAILED") {
+      this.metricsCollector.record({
+        sourceType: "BUILD",
+        sourceId: record.deploymentId,
+        sourceName: "Build",
+        metric: "build_errors_total",
+        value: 1,
+        unit: "count",
+        projectId: record.projectId,
+        deploymentId: record.deploymentId,
+      });
+    }
   }
 
   async getProjectStatistics(projectId: string): Promise<BuildStatistics> {

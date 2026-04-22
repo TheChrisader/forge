@@ -35,6 +35,7 @@
     "@forge/docker": "workspace:*",
     "@forge/git": "workspace:*",
     "@forge/logger": "workspace:*",
+    "@forge/observability": "workspace:*",
     "@forge/proxy": "workspace:*",
     "@forge/queue": "workspace:*",
     "@forge/security": "workspace:*",

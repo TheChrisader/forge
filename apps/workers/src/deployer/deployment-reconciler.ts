@@ -1,6 +1,8 @@
 import type { ILogger } from "@forge/core";
 import type { PrismaClient } from "@forge/database";
+import type { ContainerStatus, HealthStatus } from "@forge/database";
 import { DockerRuntime } from "@forge/docker";
+import type { ContainerInfo } from "@forge/docker";
 
 const RECONCILE_INTERVAL_MS = Number.parseInt(
   process.env.DEPLOY_RECONCILE_INTERVAL_MS ?? "60000",
@@ -14,14 +16,22 @@ const ORPHAN_GRACE_PERIOD_MS = Number.parseInt(
 
 const TERMINAL_DEPLOYMENT_STATUSES = ["FAILED", "SUCCEEDED", "CANCELLED", "TIMED_OUT"] as const;
 
-const ACTIVE_CONTAINER_STATUSES = [
+const ACTIVE_CONTAINER_STATUSES: ContainerStatus[] = [
   "CREATING",
   "STARTING",
   "RUNNING",
   "HEALTHY",
   "UNHEALTHY",
   "ERROR",
-] as const;
+];
+
+const RECONCILE_CONTAINER_STATUSES: ContainerStatus[] = [
+  "CREATING",
+  "STARTING",
+  "RUNNING",
+  "HEALTHY",
+  "UNHEALTHY",
+];
 
 export class DeploymentReconciler {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -34,7 +44,7 @@ export class DeploymentReconciler {
     private readonly intervalMs = RECONCILE_INTERVAL_MS
   ) {}
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.timer) {
       this.logger.warn("Deployment reconciler already running");
       return;
@@ -46,6 +56,7 @@ export class DeploymentReconciler {
       orphanGracePeriodMs: ORPHAN_GRACE_PERIOD_MS,
     });
 
+    await this.runStartupReconciliation();
     void this.reconcile();
 
     this.timer = setInterval(() => {
@@ -62,6 +73,26 @@ export class DeploymentReconciler {
     this.logger.info("Deployment reconciler stopped");
   }
 
+  // ─── Startup Reconciliation ──────────────────────────────────────
+
+  private async runStartupReconciliation(): Promise<void> {
+    this.logger.info("Running startup reconciliation...");
+
+    try {
+      await this.runtime.list();
+    } catch (err) {
+      this.logger.warn("Docker is not available during startup reconciliation", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
+
+    await this.reconcileContainerHealth();
+    this.logger.info("Startup reconciliation complete");
+  }
+
+  // ─── Reconciliation Cycle ────────────────────────────────────────
+
   private async reconcile(): Promise<void> {
     if (this.running) {
       this.logger.debug("Reconciler cycle skipped — previous cycle still running");
@@ -74,6 +105,7 @@ export class DeploymentReconciler {
       await this.reconcileStuckDeployments();
       await this.reconcileOrphanedContainers();
       await this.reconcilePhantomDbContainers();
+      await this.reconcileContainerHealth();
     } catch (error) {
       this.logger.error("Reconciler cycle failed", {
         error: error instanceof Error ? error.message : String(error),
@@ -82,6 +114,8 @@ export class DeploymentReconciler {
       this.running = false;
     }
   }
+
+  // ─── Stuck Deployments ───────────────────────────────────────────
 
   private async reconcileStuckDeployments(): Promise<void> {
     const threshold = new Date(Date.now() - STUCK_THRESHOLD_MS);
@@ -157,6 +191,8 @@ export class DeploymentReconciler {
     }
   }
 
+  // ─── Orphaned Containers ─────────────────────────────────────────
+
   private async reconcileOrphanedContainers(): Promise<void> {
     const graceCutoff = new Date(Date.now() - ORPHAN_GRACE_PERIOD_MS);
 
@@ -226,10 +262,12 @@ export class DeploymentReconciler {
     }
   }
 
+  // ─── Phantom DB Containers ───────────────────────────────────────
+
   private async reconcilePhantomDbContainers(): Promise<void> {
     const phantomContainers = await this.db.container.findMany({
       where: {
-        status: { in: [...ACTIVE_CONTAINER_STATUSES] },
+        status: { in: ACTIVE_CONTAINER_STATUSES },
         deployment: {
           status: { in: [...TERMINAL_DEPLOYMENT_STATUSES] },
         },
@@ -270,5 +308,244 @@ export class DeploymentReconciler {
         data: { status: "TERMINATED", healthStatus: "UNHEALTHY" },
       });
     }
+  }
+
+  // ─── Container Health Reconciliation ─────────────────────────────
+
+  private async reconcileContainerHealth(): Promise<void> {
+    const containers = await this.db.container.findMany({
+      where: {
+        status: { in: RECONCILE_CONTAINER_STATUSES },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        containerId: true,
+        deploymentId: true,
+        projectId: true,
+        name: true,
+        status: true,
+        healthStatus: true,
+      },
+    });
+
+    for (const container of containers) {
+      try {
+        await this.reconcileContainer(container);
+      } catch (err) {
+        this.logger.error("Container health reconciliation failed", {
+          containerId: container.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+
+  private async reconcileContainer(container: {
+    id: string;
+    containerId: string;
+    deploymentId: string;
+    projectId: string;
+    name: string | null;
+    status: ContainerStatus;
+    healthStatus: HealthStatus | null;
+  }): Promise<void> {
+    let containerInfo: ContainerInfo | null = null;
+
+    try {
+      containerInfo = await this.runtime.inspect(container.containerId);
+    } catch {
+      // Container not found in Docker
+    }
+
+    if (containerInfo) {
+      const newStatus = mapDockerStateToStatus(containerInfo);
+      const newHealthStatus = mapDockerHealthToHealthStatus(containerInfo);
+
+      if (containerInfo.state.running) {
+        switch (container.status) {
+          case "CREATING":
+          case "STARTING": {
+            this.logger.info("reconciliation: container in transient state but is running", {
+              containerId: container.id,
+              previousStatus: container.status,
+              newStatus,
+            });
+            await this.db.container.update({
+              where: { id: container.id },
+              data: { status: newStatus, healthStatus: newHealthStatus },
+            });
+            break;
+          }
+
+          default: {
+            if (newStatus !== container.status || newHealthStatus !== container.healthStatus) {
+              this.logger.info("reconciliation: container status drift detected", {
+                containerId: container.id,
+                from: container.status,
+                to: newStatus,
+                healthFrom: container.healthStatus,
+                healthTo: newHealthStatus,
+              });
+              await this.db.container.update({
+                where: { id: container.id },
+                data: { status: newStatus, healthStatus: newHealthStatus },
+              });
+            }
+            break;
+          }
+        }
+      } else {
+        // Container exists but is stopped
+        switch (container.status) {
+          case "RUNNING":
+          case "HEALTHY": {
+            this.logger.info("reconciliation: running container is stopped, attempting restart", {
+              containerId: container.id,
+            });
+            try {
+              await this.runtime.start(containerInfo.id);
+              await this.db.container.update({
+                where: { id: container.id },
+                data: { status: "STARTING", healthStatus: "STARTING" },
+              });
+            } catch (err) {
+              this.logger.error("reconciliation: failed to restart container", {
+                containerId: container.id,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+            break;
+          }
+
+          case "CREATING":
+          case "STARTING": {
+            this.logger.info("reconciliation: container in transient state, trying to start", {
+              containerId: container.id,
+            });
+            try {
+              await this.runtime.start(containerInfo.id);
+            } catch (err) {
+              this.logger.error("reconciliation: failed to start container", {
+                containerId: container.id,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+            break;
+          }
+
+          default:
+            break;
+        }
+      }
+    } else {
+      // Container does not exist in Docker
+      switch (container.status) {
+        case "CREATING":
+        case "STARTING": {
+          this.logger.debug(
+            "reconciliation: container not yet created, provisioning may be in progress",
+            {
+              containerId: container.id,
+              status: container.status,
+            }
+          );
+          break;
+        }
+
+        case "RUNNING":
+        case "HEALTHY":
+        case "UNHEALTHY": {
+          this.logger.info("reconciliation: container lost, marking as ERROR", {
+            containerId: container.id,
+            status: container.status,
+          });
+          await this.db.container.update({
+            where: { id: container.id },
+            data: { status: "ERROR", healthStatus: "UNHEALTHY", stoppedAt: new Date() },
+          });
+          await this.checkDeploymentHealth(container.deploymentId);
+          break;
+        }
+
+        default:
+          break;
+      }
+    }
+  }
+
+  // ─── Deployment Health Cascade ───────────────────────────────────
+
+  private async checkDeploymentHealth(deploymentId: string): Promise<void> {
+    const deployment = await this.db.deployment.findUnique({
+      where: { id: deploymentId },
+      select: { id: true, status: true },
+    });
+
+    if (!deployment || deployment.status !== "RUNNING") {
+      return;
+    }
+
+    const activeContainers = await this.db.container.count({
+      where: {
+        deploymentId,
+        status: { in: ["CREATING", "STARTING", "RUNNING", "HEALTHY"] },
+        deletedAt: null,
+      },
+    });
+
+    if (activeContainers === 0) {
+      this.logger.info("reconciliation: deployment has no active containers, marking as FAILED", {
+        deploymentId,
+      });
+
+      await this.db.deployment.update({
+        where: { id: deploymentId },
+        data: {
+          status: "FAILED",
+          error: "All deployment containers failed or stopped",
+        },
+      });
+    }
+  }
+}
+
+// ─── Status Mappers ─────────────────────────────────────────────────
+
+function mapDockerStateToStatus(containerInfo: ContainerInfo): ContainerStatus {
+  if (!containerInfo.state.running) {
+    return "STOPPED";
+  }
+
+  const healthStatus = containerInfo.health?.status;
+
+  switch (healthStatus) {
+    case "healthy":
+      return "HEALTHY";
+    case "unhealthy":
+      return "UNHEALTHY";
+    case "starting":
+      return "STARTING";
+    case "none":
+    default:
+      return "RUNNING";
+  }
+}
+
+function mapDockerHealthToHealthStatus(containerInfo: ContainerInfo): HealthStatus {
+  if (!containerInfo.state.running) {
+    return "UNHEALTHY";
+  }
+
+  switch (containerInfo.health?.status) {
+    case "healthy":
+      return "HEALTHY";
+    case "unhealthy":
+      return "UNHEALTHY";
+    case "starting":
+      return "STARTING";
+    case "none":
+    default:
+      return "HEALTHY";
   }
 }

@@ -5,6 +5,8 @@ import { NonNullFields, type LogLevel } from "@forge/types";
 import { DockerRuntime } from "@forge/docker";
 import type { ContainerInfo } from "@forge/docker";
 import type { ServiceStatus } from "@forge/database";
+import type { MetricsCollector } from "@forge/observability";
+import { collectDockerStats } from "@forge/observability";
 import { OrphanDetector } from "./service-provisioner/orphan-detector.js";
 
 const logger = new LoggerService({
@@ -17,6 +19,7 @@ const logger = new LoggerService({
 interface ServiceHealthMonitorOptions {
   pollIntervalMs?: number;
   metricsEnabled?: boolean;
+  metricsCollector?: MetricsCollector;
 }
 
 export class ServiceHealthMonitor {
@@ -26,6 +29,7 @@ export class ServiceHealthMonitor {
   private running = false;
   private readonly pollIntervalMs: number;
   private readonly metricsEnabled: boolean;
+  private readonly metricsCollector?: MetricsCollector;
   private dockerAvailable = true;
   private consecutiveDockerFailures = 0;
   private readonly maxDockerFailuresBeforeUnavailable = 3;
@@ -35,8 +39,9 @@ export class ServiceHealthMonitor {
   constructor(options?: ServiceHealthMonitorOptions) {
     this.db = getDatabaseClient();
     this.runtime = new DockerRuntime();
-    this.pollIntervalMs = options?.pollIntervalMs ?? 30_000;
+    this.pollIntervalMs = options?.pollIntervalMs ?? 15_000;
     this.metricsEnabled = options?.metricsEnabled ?? true;
+    this.metricsCollector = options?.metricsCollector;
   }
 
   async start(): Promise<void> {
@@ -47,6 +52,10 @@ export class ServiceHealthMonitor {
       pollIntervalMs: this.pollIntervalMs,
       metricsEnabled: this.metricsEnabled,
     });
+
+    if (this.metricsCollector) {
+      this.metricsCollector.start();
+    }
 
     // Run startup reconciliation before health checks
     await this.runStartupReconciliation();
@@ -71,6 +80,10 @@ export class ServiceHealthMonitor {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
+    }
+
+    if (this.metricsCollector) {
+      await this.metricsCollector.stop();
     }
 
     logger.info("Service health monitor stopped");
@@ -532,80 +545,91 @@ export class ServiceHealthMonitor {
       try {
         const stats = await this.runtime.stats(service.containerId);
 
-        await this.db.metric.createMany({
-          data: [
-            {
-              sourceType: "SERVICE",
-              sourceId: service.id,
-              sourceName: service.name,
-              metric: "service.cpu.percent",
-              value: stats.cpu.usage,
-              unit: "percent",
-              projectId: service.projectId,
-              serviceId: service.id,
-            },
-            {
-              sourceType: "SERVICE",
-              sourceId: service.id,
-              sourceName: service.name,
-              metric: "service.memory.usage_bytes",
-              value: stats.memory.usage,
-              unit: "bytes",
-              projectId: service.projectId,
-              serviceId: service.id,
-            },
-            {
-              sourceType: "SERVICE",
-              sourceId: service.id,
-              sourceName: service.name,
-              metric: "service.memory.percent",
-              value: stats.memory.percentage,
-              unit: "percent",
-              projectId: service.projectId,
-              serviceId: service.id,
-            },
-            {
-              sourceType: "SERVICE",
-              sourceId: service.id,
-              sourceName: service.name,
-              metric: "service.network.rx_bytes",
-              value: stats.network.rxBytes,
-              unit: "bytes",
-              projectId: service.projectId,
-              serviceId: service.id,
-            },
-            {
-              sourceType: "SERVICE",
-              sourceId: service.id,
-              sourceName: service.name,
-              metric: "service.network.tx_bytes",
-              value: stats.network.txBytes,
-              unit: "bytes",
-              projectId: service.projectId,
-              serviceId: service.id,
-            },
-            {
-              sourceType: "SERVICE",
-              sourceId: service.id,
-              sourceName: service.name,
-              metric: "service.block.read_bytes",
-              value: stats.blockIO.readBytes,
-              unit: "bytes",
-              projectId: service.projectId,
-              serviceId: service.id,
-            },
-            {
-              sourceType: "SERVICE",
-              sourceId: service.id,
-              sourceName: service.name,
-              metric: "service.block.write_bytes",
-              value: stats.blockIO.writeBytes,
-              unit: "bytes",
-              projectId: service.projectId,
-              serviceId: service.id,
-            },
-          ],
-        });
+        if (this.metricsCollector) {
+          const records = collectDockerStats({
+            containerId: service.containerId,
+            serviceId: service.id,
+            serviceName: service.name,
+            projectId: service.projectId,
+            stats,
+          });
+          this.metricsCollector.recordMany(records);
+        } else {
+          await this.db.metric.createMany({
+            data: [
+              {
+                sourceType: "SERVICE",
+                sourceId: service.id,
+                sourceName: service.name,
+                metric: "cpu_usage_percent",
+                value: stats.cpu.usage,
+                unit: "percent",
+                projectId: service.projectId,
+                serviceId: service.id,
+              },
+              {
+                sourceType: "SERVICE",
+                sourceId: service.id,
+                sourceName: service.name,
+                metric: "memory_usage_bytes",
+                value: stats.memory.usage,
+                unit: "bytes",
+                projectId: service.projectId,
+                serviceId: service.id,
+              },
+              {
+                sourceType: "SERVICE",
+                sourceId: service.id,
+                sourceName: service.name,
+                metric: "memory_usage_percent",
+                value: stats.memory.percentage,
+                unit: "percent",
+                projectId: service.projectId,
+                serviceId: service.id,
+              },
+              {
+                sourceType: "SERVICE",
+                sourceId: service.id,
+                sourceName: service.name,
+                metric: "network_rx_bytes",
+                value: stats.network.rxBytes,
+                unit: "bytes",
+                projectId: service.projectId,
+                serviceId: service.id,
+              },
+              {
+                sourceType: "SERVICE",
+                sourceId: service.id,
+                sourceName: service.name,
+                metric: "network_tx_bytes",
+                value: stats.network.txBytes,
+                unit: "bytes",
+                projectId: service.projectId,
+                serviceId: service.id,
+              },
+              {
+                sourceType: "SERVICE",
+                sourceId: service.id,
+                sourceName: service.name,
+                metric: "block_read_bytes",
+                value: stats.blockIO.readBytes,
+                unit: "bytes",
+                projectId: service.projectId,
+                serviceId: service.id,
+              },
+              {
+                sourceType: "SERVICE",
+                sourceId: service.id,
+                sourceName: service.name,
+                metric: "block_write_bytes",
+                value: stats.blockIO.writeBytes,
+                unit: "bytes",
+                projectId: service.projectId,
+                serviceId: service.id,
+              },
+            ],
+          });
+        }
       } catch (err) {
         const isConnectionError = this.isDockerConnectionError(err);
         if (isConnectionError) {
@@ -647,13 +671,13 @@ export class ServiceHealthMonitor {
     }
   }
 
-  private async recordMetric(
+  private recordMetric(
     service: { id: string; name: string; projectId: string },
     metric: string,
     value: number
-  ): Promise<void> {
-    await this.db.metric.create({
-      data: {
+  ): void {
+    if (this.metricsCollector) {
+      this.metricsCollector.record({
         sourceType: "SERVICE",
         sourceId: service.id,
         sourceName: service.name,
@@ -661,8 +685,20 @@ export class ServiceHealthMonitor {
         value,
         projectId: service.projectId,
         serviceId: service.id,
-      },
-    });
+      });
+    } else {
+      void this.db.metric.create({
+        data: {
+          sourceType: "SERVICE",
+          sourceId: service.id,
+          sourceName: service.name,
+          metric,
+          value,
+          projectId: service.projectId,
+          serviceId: service.id,
+        },
+      });
+    }
   }
 
   private async checkAndFireAlert(

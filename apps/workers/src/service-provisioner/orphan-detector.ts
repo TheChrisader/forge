@@ -4,7 +4,7 @@ import { LoggerService } from "@forge/logger";
 import type { LogLevel } from "@forge/types";
 
 const logger = new LoggerService({
-  level: (process.env.LOG_LEVEL as LogLevel) ?? "info",
+  level: (process.env.LOG_LEVEL as LogLevel) ?? "INFO",
   format: process.env.NODE_ENV === "development" ? "pretty" : "json",
   enabled: true,
   name: "orphan-detector",

@@ -8,6 +8,7 @@
   "references": [
     { "path": "../../packages/core" },
     { "path": "../../packages/database" },
+    { "path": "../../packages/observability" },
     { "path": "../../packages/types" },
     { "path": "../../packages/queue" },
     { "path": "../../packages/cache" }

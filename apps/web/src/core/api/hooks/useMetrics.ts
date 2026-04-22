@@ -1,26 +1,74 @@
-import { useQuery } from "@tanstack/react-query";
-import { metricsApi } from "../clients/metrics";
-import type { MetricQueryParams } from "@forge/types";
+import { type UseQueryResult, useQuery } from "@tanstack/react-query";
+import {
+  metricsApi,
+  type MetricsQueryParams,
+  type LatestQueryParams,
+  type SourcesQueryParams,
+  type TimeSeriesResult,
+  type LatestMetricValue,
+  type MetricSource,
+  type PlatformSummary,
+} from "../clients/metrics";
 
-export const metricKeys = {
-  all: ["metrics"] as const,
-  query: (params: MetricQueryParams) => [...metricKeys.all, "query", params] as const,
-  source: (id: string, params: object) => [...metricKeys.all, "source", id, params] as const,
+export type {
+  MetricsQueryParams,
+  LatestQueryParams,
+  SourcesQueryParams,
+  TimeSeriesResult,
+  LatestMetricValue,
+  MetricSource,
+  PlatformSummary,
 };
 
-export function useMetrics(params: MetricQueryParams) {
-  return useQuery({
-    queryKey: metricKeys.query(params),
+const METRICS_REFRESH_INTERVAL = 10_000;
+
+export function useMetricsQuery(
+  params: MetricsQueryParams
+): UseQueryResult<TimeSeriesResult[], Error> {
+  return useQuery<TimeSeriesResult[], Error>({
+    queryKey: ["metrics", "query", params],
     queryFn: () => metricsApi.query(params),
-    refetchInterval: 10000,
+    refetchInterval: METRICS_REFRESH_INTERVAL,
+    enabled: !!params.from && !!params.to,
   });
 }
 
-export function useSourceMetrics(sourceId: string, params: Omit<MetricQueryParams, "source">) {
-  return useQuery({
-    queryKey: metricKeys.source(sourceId, params),
-    queryFn: () => metricsApi.getForSource(sourceId, params),
-    enabled: !!sourceId,
-    refetchInterval: 10000,
+export function useMetricsLatest(
+  params?: LatestQueryParams
+): UseQueryResult<LatestMetricValue[], Error> {
+  return useQuery<LatestMetricValue[], Error>({
+    queryKey: ["metrics", "latest", params],
+    queryFn: () => metricsApi.getLatest(params),
+    refetchInterval: METRICS_REFRESH_INTERVAL,
+  });
+}
+
+export function useMetricsSources(
+  params?: SourcesQueryParams
+): UseQueryResult<MetricSource[], Error> {
+  return useQuery<MetricSource[], Error>({
+    queryKey: ["metrics", "sources", params],
+    queryFn: () => metricsApi.getSources(params),
+  });
+}
+
+export function useSourceMetrics(
+  sourceType: string,
+  sourceId: string,
+  params: { from: string; to: string; interval?: string }
+): UseQueryResult<TimeSeriesResult[], Error> {
+  return useQuery<TimeSeriesResult[], Error>({
+    queryKey: ["metrics", "source", sourceType, sourceId, params],
+    queryFn: () => metricsApi.getSourceMetrics(sourceType, sourceId, params),
+    refetchInterval: METRICS_REFRESH_INTERVAL,
+    enabled: !!sourceType && !!sourceId && !!params.from && !!params.to,
+  });
+}
+
+export function usePlatformSummary(): UseQueryResult<PlatformSummary, Error> {
+  return useQuery<PlatformSummary, Error>({
+    queryKey: ["metrics", "summary"],
+    queryFn: () => metricsApi.getSummary(),
+    refetchInterval: METRICS_REFRESH_INTERVAL,
   });
 }

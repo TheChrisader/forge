@@ -12,6 +12,7 @@ import { ContainerDetailPage, ContainerLogsPage } from "@/features/containers";
 import { NotFoundPage } from "@/shared/components/NotFoundPage";
 import { AuthProvider, ProtectedRoute } from "@/core/auth";
 import { LoginPage } from "@/features/auth";
+import { SourceMetricsPage } from "@/features/metrics/source/SourceMetricsPage";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -136,6 +137,12 @@ const metricsRoute = createRoute({
   component: MetricsPage,
 });
 
+const metricsSourceRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "/metrics/source/$sourceType/$sourceId",
+  component: SourceMetricsPage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: "/settings",
@@ -164,6 +171,7 @@ const routeTree = rootRoute.addChildren([
     containerLogsRoute,
     activityRoute,
     metricsRoute,
+    metricsSourceRoute,
     settingsRoute,
     notFoundRoute,
   ]),

@@ -73,7 +73,7 @@ export class DeployerWorker {
     this.logger.info("Deployer worker initialized and ready");
 
     this.reconciler = new DeploymentReconciler(getDatabaseClient(), this.runtime, this.logger);
-    this.reconciler.start();
+    await this.reconciler.start();
   }
 
   private async initializeProxyIntegration(): Promise<IProxyIntegration> {

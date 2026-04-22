@@ -6,6 +6,7 @@ import rateLimit from "@fastify/rate-limit";
 import jwt from "@fastify/jwt";
 import { ValidationError, isForgeError, RateLimitError, InternalError } from "@forge/core";
 import { verifyApiKey } from "./auth.js";
+import { registerMetricsMiddleware } from "./metrics.js";
 
 export async function setupMiddleware(server: FastifyInstance, config: Config): Promise<void> {
   if (config.server.cors.enabled) {
@@ -114,6 +115,16 @@ export async function setupMiddleware(server: FastifyInstance, config: Config): 
       }
     });
   });
+
+  const metricsCollector = (server as { metricsCollector?: unknown }).metricsCollector;
+  const prometheusRegistry = (server as { prometheusRegistry?: unknown }).prometheusRegistry;
+  if (metricsCollector) {
+    registerMetricsMiddleware(
+      server,
+      metricsCollector as Parameters<typeof registerMetricsMiddleware>[1],
+      prometheusRegistry as Parameters<typeof registerMetricsMiddleware>[2]
+    );
+  }
 
   server.setErrorHandler(async (error, request, reply) => {
     const err = error as { validation?: unknown[]; statusCode?: number };

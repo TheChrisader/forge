@@ -15,6 +15,7 @@ import { registerCrlRoutes } from "./crl.routes.js";
 import { registerAuditLogRoutes } from "./audit-logs.routes.js";
 import { registerDashboardRoutes } from "./dashboard.routes.js";
 import { registerServiceRoutes } from "./services.routes.js";
+import { registerMetricsRoutes } from "./metrics.routes.js";
 
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
@@ -33,4 +34,5 @@ export function setupRoutes(server: FastifyInstance): void {
   registerAuditLogRoutes(server);
   registerDashboardRoutes(server, server.config);
   registerServiceRoutes(server, server.config);
+  registerMetricsRoutes(server, server.config);
 }

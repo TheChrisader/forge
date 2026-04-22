@@ -31,6 +31,7 @@
     "@forge/core": "workspace:*",
     "@forge/database": "workspace:*",
     "@forge/logger": "workspace:*",
+    "@forge/observability": "workspace:*",
     "@forge/proxy": "workspace:*",
     "@forge/queue": "workspace:*",
     "@forge/security": "workspace:*",
