@@ -37,8 +37,6 @@ export function InfrastructurePanel({
 
   const memoryQuery = useMetricsQuery(memoryParams);
 
-  console.log(cpuQuery.data, memoryQuery.data);
-
   const cpuTransformed = useMemo(() => {
     if (!cpuQuery.data?.length) return { data: [], series: [] as ChartSeries[] };
     return transformTimeSeriesResponse(cpuQuery.data);

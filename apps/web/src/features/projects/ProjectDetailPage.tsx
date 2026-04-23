@@ -18,7 +18,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/shared/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/components/ui/tabs";
 import { Badge } from "@/shared/components/ui/badge";
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/components/ui/empty";
+import { EmptyTitle, EmptyDescription } from "@/shared/components/ui/empty";
 import {
   ItemGroup,
   Item,
@@ -48,7 +48,7 @@ import {
 } from "lucide-react";
 import { useProject } from "@/core/api/hooks/useProjects";
 import { useProjectDeployments, useCreateDeployment } from "@/core/api/hooks/useDeployments";
-import { useProjectWithGitIntegration } from "@/core/api/hooks/useProjects";
+import { useProjectWithGitIntegration, useStopProject } from "@/core/api/hooks/useProjects";
 import { useProjectContainers } from "@/core/api/hooks/useContainers";
 import {
   useServices,
@@ -125,7 +125,13 @@ function formatDeploymentDuration(deployment: {
   return `${diffMins}m ${diffSecs % 60}s`;
 }
 
-function ProjectServicesTabContent({ projectId }: { projectId: string }): React.ReactElement {
+function ProjectServicesTabContent({
+  projectId,
+  hasDeployed,
+}: {
+  projectId: string;
+  hasDeployed: boolean;
+}): React.ReactElement {
   const [createOpen, setCreateOpen] = useState(false);
   const { isLoading, error, refetch } = useServices({ projectId, limit: 50 });
   const startMutation = useStartService();
@@ -152,6 +158,34 @@ function ProjectServicesTabContent({ projectId }: { projectId: string }): React.
     },
     [restartMutation]
   );
+
+  if (!hasDeployed) {
+    return (
+      <div className="border border-dashed rounded-lg py-14 text-center border-border/50">
+        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted/50 mx-auto mb-3">
+          <RocketIcon className="h-5 w-5 text-muted-foreground/50" />
+        </div>
+        <p className="font-serif text-sm text-muted-foreground">Deploy first to add services</p>
+        <p className="text-xs text-muted-foreground/70 mt-1 mb-4">
+          Services require an active deployment to be provisioned and accessible.
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 text-xs h-8"
+          onClick={() =>
+            void router.navigate({
+              to: `/projects/${projectId}`,
+              search: { tab: "deployments" },
+            })
+          }
+        >
+          <RocketIcon className="h-3.5 w-3.5" />
+          Go to Deployments
+        </Button>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -191,26 +225,24 @@ function ProjectServicesTabContent({ projectId }: { projectId: string }): React.
       </div>
 
       {services.length === 0 ? (
-        <Card className="border-dashed border-border/50">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <BoxIcon className="h-8 w-8 text-muted-foreground/40 mb-3" />
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>No services yet</EmptyTitle>
-                <EmptyDescription>Add your first service to this project</EmptyDescription>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() => setCreateOpen(true)}
-                >
-                  <PlusIcon className="h-4 w-4 mr-1.5" />
-                  Add Service
-                </Button>
-              </EmptyHeader>
-            </Empty>
-          </CardContent>
-        </Card>
+        <div className="border border-dashed rounded-lg py-14 text-center border-border/50">
+          <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted/50 mx-auto mb-3">
+            <BoxIcon className="h-5 w-5 text-muted-foreground/50" />
+          </div>
+          <EmptyTitle className="text-sm font-serif">No services yet</EmptyTitle>
+          <EmptyDescription className="mt-1 text-xs text-muted-foreground/70">
+            Add your first service to this project
+          </EmptyDescription>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4 gap-1.5 text-xs h-8"
+            onClick={() => setCreateOpen(true)}
+          >
+            <PlusIcon className="h-3.5 w-3.5" />
+            Add Service
+          </Button>
+        </div>
       ) : (
         <ItemGroup>
           {services.map((service) => (
@@ -699,9 +731,11 @@ export function ProjectDetailPage(): React.ReactElement {
   };
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
+  const stopProject = useStopProject();
 
   const { data: deployments = [], isLoading: deploymentsLoading } =
     useProjectDeployments(projectId);
+  const hasActiveDeployment = deployments.length > 0 && deployments[0].status === "RUNNING";
 
   const { services } = usePageServices(projectId);
 
@@ -845,6 +879,22 @@ export function ProjectDetailPage(): React.ReactElement {
               <RocketIcon className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Deploy</span>
             </Button>
+            {project.status === "ACTIVE" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-8 text-xs text-destructive hover:text-destructive"
+                disabled={stopProject.isPending}
+                onClick={() => void stopProject.mutate(project.id)}
+              >
+                {stopProject.isPending ? (
+                  <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <SquareIcon className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Stop</span>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon-sm"
@@ -857,7 +907,7 @@ export function ProjectDetailPage(): React.ReactElement {
         </div>
       </div>
 
-      {staleServiceCount > 0 && (
+      {hasActiveDeployment && staleServiceCount > 0 && (
         <Alert className="bg-muted/50 border-border/50">
           <InfoIcon className="h-4 w-4 text-muted-foreground" />
           <AlertTitle className="text-xs font-medium">
@@ -1197,7 +1247,7 @@ export function ProjectDetailPage(): React.ReactElement {
         </TabsContent>
 
         <TabsContent value="services">
-          <ProjectServicesTabContent projectId={projectId} />
+          <ProjectServicesTabContent projectId={projectId} hasDeployed={hasActiveDeployment} />
         </TabsContent>
 
         <TabsContent value="deployments" className="space-y-6">
@@ -1226,7 +1276,7 @@ export function ProjectDetailPage(): React.ReactElement {
         </TabsContent>
 
         <TabsContent value="domains" className="space-y-6">
-          <DomainsTab project={project} hasDeployed={deployments.length > 0} />
+          <DomainsTab project={project} hasDeployed={hasActiveDeployment} />
         </TabsContent>
       </Tabs>
     </div>

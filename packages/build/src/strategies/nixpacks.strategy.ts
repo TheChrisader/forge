@@ -113,9 +113,11 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
       workingDir: "/app",
     };
 
+    let container: { id: string } | undefined;
+
     try {
       // Create and start the nixpacks container
-      const container = await runtime.create(containerConfig);
+      container = await runtime.create(containerConfig);
       await runtime.start(container.id);
 
       void onProgress?.({
@@ -143,11 +145,6 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
         });
       }
 
-      await runtime.remove(container.id, {
-        force: true,
-        volumes: true,
-      });
-
       const images = await runtime.listImages({ reference: [imageTag] });
       if (images.length === 0) {
         throw new BuildValidationError("Build completed but image not found", { strategy: "nixpacks" });
@@ -170,6 +167,14 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
         timestamp: new Date(),
       });
       throw err;
+    } finally {
+      if (container) {
+        try {
+          await runtime.remove(container.id, { force: true, volumes: true });
+        } catch {
+          // Container may already be removed or removing — don't mask the original error
+        }
+      }
     }
   }
 
@@ -191,6 +196,10 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
   private buildNixpacksCommand(context: BuildContext, config?: BuildConfig): string[] {
     const imageTag = generateImageName(context.projectName, context.deploymentId);
     let command = `nixpacks build .`;
+
+    if (config?.installCommand) command += ` --install-cmd "${config.installCommand}"`;
+    if (config?.buildCommand) command += ` --build-cmd "${config.buildCommand}"`;
+    if (config?.startCommand) command += ` --start-cmd "${config.startCommand}"`;
 
     if (config?.nixpacksArgs && config.nixpacksArgs.length > 0) {
       command += ` ${config.nixpacksArgs.join(" ")}`;

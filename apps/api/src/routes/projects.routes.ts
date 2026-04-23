@@ -237,6 +237,28 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
   );
 
   /**
+   * POST /api/projects/:projectId/stop
+   * Stops all running resources for a project
+   */
+  server.post(
+    "/api/projects/:projectId/stop",
+    {
+      schema: {
+        params: ProjectIdParamsSchema,
+      },
+    },
+    async (request, reply) => {
+      requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "projects", action: "update" });
+      const params = request.params;
+
+      await projectService.stop(params.projectId);
+
+      return reply.status(200).send({ data: { stopped: true } });
+    }
+  );
+
+  /**
    * DELETE /api/projects/:id
    * Deletes a project
    */

@@ -142,7 +142,7 @@ export class DeploymentOrchestrator {
           status: "RUNNING",
         },
         data: {
-          status: "SUCCEEDED",
+          status: "STOPPED",
           deployCompletedAt: new Date(),
         },
       });
@@ -152,11 +152,18 @@ export class DeploymentOrchestrator {
         data: { status: "ACTIVE" },
       });
 
+      const hasHealthCheck = !!(project.config as Record<string, unknown> | undefined)?.healthCheck;
+      const containerStatus = hasHealthCheck ? "HEALTHY" : "RUNNING";
+      const healthStatus = hasHealthCheck ? ("HEALTHY" as const) : undefined;
+
       await tx.container.updateMany({
         where: {
           id: { in: result.containers.map((c) => c.id) },
         },
-        data: { status: "HEALTHY", healthStatus: "HEALTHY" },
+        data: {
+          status: containerStatus,
+          ...(healthStatus && { healthStatus }),
+        },
       });
     });
 

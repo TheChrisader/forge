@@ -21,6 +21,7 @@ const STATUS_CONFIG: Record<
   FAILED: { label: "Failed", category: "error" },
   CANCELLED: { label: "Cancelled", category: "neutral" },
   TIMED_OUT: { label: "Timed Out", category: "error" },
+  STOPPED: { label: "Stopped", category: "neutral" },
 };
 
 export function DeploymentStatus({

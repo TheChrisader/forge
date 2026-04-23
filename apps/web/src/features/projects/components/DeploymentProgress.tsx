@@ -27,8 +27,11 @@ function getDeploymentProgress(status: DeploymentStatus): {
       return { value: 40, label: "Building" };
     case "DEPLOYING":
       return { value: 70, label: "Deploying" };
+    case "RUNNING":
     case "SUCCEEDED":
       return { value: 100, label: "Live" };
+    case "STOPPED":
+      return { value: 100, label: "Stopped" };
     case "FAILED":
     case "CANCELLED":
       return {

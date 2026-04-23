@@ -13,7 +13,6 @@ interface PlatformOverviewProps {
 
 export function PlatformOverview({ streamValues }: PlatformOverviewProps): React.ReactElement {
   const { data, isLoading } = usePlatformSummary();
-  console.log(data);
 
   const sparklineParams = useMemo(
     () => ({

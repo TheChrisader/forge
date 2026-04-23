@@ -431,19 +431,7 @@ export class ContainerLifecycle implements IContainerLifecycle {
 
   private getHealthCheckConfig(project: ProjectData): ProjectHealthCheckConfig | undefined {
     const config = project.config || {};
-
-    if (config.healthCheck) {
-      return config.healthCheck;
-    }
-
-    const port = config.runtime?.port || 3000;
-    return {
-      test: ["CMD", "curl", "-f", `http://localhost:${port}/health`],
-      interval: "10s",
-      timeout: "5s",
-      retries: 3,
-      startPeriod: "30s",
-    };
+    return config.healthCheck;
   }
 
   private getTargetPort(project: ProjectData): number {

@@ -135,6 +135,20 @@ export function useDeleteProject(): ReturnType<typeof useMutation<void, unknown,
   });
 }
 
+export function useStopProject(): ReturnType<typeof useMutation<void, unknown, string>> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await projectsApi.stop(id);
+    },
+    onSuccess: (_, id) => {
+      void queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+}
+
 /**
  * DEPRECATED: This endpoint is a stub and not functional
  * Use useCreateDeployment from useDeployments instead

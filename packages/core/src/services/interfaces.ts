@@ -39,6 +39,7 @@ export interface IProjectService {
   deploy(id: string, data?: DeployProjectRequest): Promise<Deployment>;
   rollback(id: string, deploymentId?: string): Promise<Deployment>;
   scale(id: string, replicas: number): Promise<void>;
+  stop(id: string): Promise<void>;
 }
 
 export interface IDeploymentService {

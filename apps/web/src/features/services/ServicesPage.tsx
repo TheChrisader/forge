@@ -19,13 +19,7 @@ import {
 } from "@/shared/components/ui/table";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
-import {
-  Empty,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-  EmptyContent,
-} from "@/shared/components/ui/empty";
+import { EmptyTitle, EmptyDescription } from "@/shared/components/ui/empty";
 import {
   Pagination,
   PaginationContent,
@@ -61,6 +55,7 @@ import {
   Trash2Icon,
   LoaderIcon,
   AlertCircleIcon,
+  BoxIcon,
 } from "lucide-react";
 import { router } from "@/core/router";
 import {
@@ -260,7 +255,7 @@ export function ServicesPage(): React.ReactElement {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="bg-transparent">
         <CardContent className="p-0">
           {isError ? (
             <div className="flex flex-col items-center justify-center gap-4 py-16">
@@ -298,21 +293,23 @@ export function ServicesPage(): React.ReactElement {
               </TableBody>
             </Table>
           ) : services.length === 0 ? (
-            <div className="py-16">
-              <Empty>
-                <EmptyHeader>
-                  <EmptyTitle>No services yet</EmptyTitle>
-                  <EmptyDescription>
-                    Create your first service to get started with databases, caches, and more.
-                  </EmptyDescription>
-                  <EmptyContent>
-                    <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      Create Service
-                    </Button>
-                  </EmptyContent>
-                </EmptyHeader>
-              </Empty>
+            <div className="border border-dashed rounded-lg py-14 text-center border-border/50">
+              <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted/50 mx-auto mb-3">
+                <BoxIcon className="h-5 w-5 text-muted-foreground/50" />
+              </div>
+              <EmptyTitle className="text-sm font-serif">No services yet</EmptyTitle>
+              <EmptyDescription className="mt-1 text-xs text-muted-foreground/70">
+                Create your first service to get started with databases, caches, and more.
+              </EmptyDescription>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4 gap-1.5 text-xs h-8"
+                onClick={() => setCreateOpen(true)}
+              >
+                <PlusIcon className="h-3.5 w-3.5" />
+                Create Service
+              </Button>
             </div>
           ) : (
             <Table>

@@ -81,7 +81,7 @@ export function TimeSeriesChart({
   const seriesElements = series.map((s, index) => {
     const color = s.color || getColorForSeries(index);
     const baseProps = {
-      key: s.dataKey,
+      // key: s.dataKey,
       type: curveType,
       dataKey: s.dataKey,
       name: s.name || s.dataKey,
@@ -94,10 +94,16 @@ export function TimeSeriesChart({
 
     if (type === "area") {
       return (
-        <Area {...baseProps} fill={color} fillOpacity={0.2} stackId={stacked ? "1" : undefined} />
+        <Area
+          {...baseProps}
+          key={s.dataKey}
+          fill={color}
+          fillOpacity={0.2}
+          stackId={stacked ? "1" : undefined}
+        />
       );
     }
-    return <Line {...baseProps} />;
+    return <Line {...baseProps} key={s.dataKey} />;
   });
 
   const gridElement = showGrid ? (

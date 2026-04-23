@@ -9,6 +9,8 @@ import {
   ShieldCheckIcon,
   ClockIcon,
   RocketIcon,
+  CopyIcon,
+  CheckIcon,
 } from "lucide-react";
 import {
   useDomains,
@@ -32,6 +34,7 @@ export function DomainsTab({ project, hasDeployed }: DomainsTabProps): JSX.Eleme
 
   const [newDomain, setNewDomain] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [dnsInstructions, setDnsInstructions] = useState<{
     name: string;
     value: string;
@@ -78,6 +81,16 @@ export function DomainsTab({ project, hasDeployed }: DomainsTabProps): JSX.Eleme
 
   const autoSubdomain = `${project.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}.forge.localhost`;
 
+  const handleCopy = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(`https://${autoSubdomain}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API not available
+    }
+  };
+
   if (!hasDeployed) {
     return (
       <div className="border border-dashed rounded-lg py-14 text-center border-border/50">
@@ -117,7 +130,19 @@ export function DomainsTab({ project, hasDeployed }: DomainsTabProps): JSX.Eleme
         <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/2 px-3 py-2">
           <GlobeIcon className="h-4 w-4 text-white/40" />
           <span className="font-mono text-sm text-white/70">{autoSubdomain}</span>
-          <span className="ml-auto text-xs font-mono text-green-400 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => void handleCopy()}
+            className="ml-auto p-1 rounded text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+            title="Copy URL"
+          >
+            {copied ? (
+              <CheckIcon className="h-3.5 w-3.5 text-green-400" />
+            ) : (
+              <CopyIcon className="h-3.5 w-3.5" />
+            )}
+          </button>
+          <span className="text-xs font-mono text-green-400 flex items-center gap-1">
             <CheckCircleIcon className="h-3 w-3" />
             Active
           </span>

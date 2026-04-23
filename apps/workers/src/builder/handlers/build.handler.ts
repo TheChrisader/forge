@@ -4,6 +4,7 @@ import {
   getBuildStrategyRegistry,
   registerDefaultStrategies,
   type BuildContext,
+  type BuildConfig,
   type BuildProgressCallback,
   generateImageName,
 } from "@forge/build";
@@ -15,7 +16,7 @@ import type {
   DeployJobData,
   JobOptions,
 } from "@forge/types";
-import { ProjectSourceType } from "@forge/types";
+import { ProjectConfigSchema, ProjectSourceType, toPrismaJson } from "@forge/types";
 import type { IJobContext } from "@forge/queue";
 import {
   BuildLogService,
@@ -104,17 +105,6 @@ function mapProgressTypeToLogLevel(type: string): LogLevel {
       return "INFO" as LogLevel;
   }
 }
-
-/**
- * Create a git progress callback that routes events through the build handler's
- * progress infrastructure (BullMQ, console, and database buffer)
- *
- * @param context - BullMQ job context
- * @param deploymentId - Deployment ID for log entries
- * @param logBuffer - Priority log buffer for database batching
- * @param lineNumberRef - Reference to line number counter
- * @returns GitProgressCallback function
- */
 function createGitProgressCallback(
   context: IJobContext<BuildJobData>,
   deploymentId: string,
@@ -283,7 +273,6 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
 
   const db = getDatabaseClient();
 
-  // Fetch project to get the name and config for image generation and merging
   const project = await db.project.findUnique({
     where: { id: projectId },
     select: { id: true, name: true, config: true },
@@ -305,7 +294,6 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
 
   const repoPath = `${buildDir}/${deploymentId}`;
 
-  // Configure log buffer with size limits from environment
   const bufferMaxSize = parseBufferSize(process.env.BUILD_LOG_BUFFER_SIZE, 1000);
   const errorSlotReserve = parseErrorSlotReserve(process.env.BUILD_LOG_ERROR_SLOT_RESERVE, 0.1);
 
@@ -314,7 +302,6 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     errorSlotReserve,
   });
 
-  // Initialize line number ref (starts at 0 for new deployments)
   const lineNumberRef = await initializeLineNumberRef(buildLogService, deploymentId);
 
   logger.info("Build handler initialized", {
@@ -322,13 +309,10 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     startingLineNumber: lineNumberRef.value,
   });
 
-  // Configure flush manager with retry and circuit breaker
   const flushManagerOptions = createFlushManagerOptions();
   const flushManager = new FlushManager(buildLogService, logger, flushManagerOptions);
 
-  // Schedule automatic flushing
   flushManager.scheduleFlush(logBuffer, deploymentId, () => {
-    // Log buffer stats after each flush attempt
     const stats = logBuffer.getStats();
     if (stats.droppedCount > 0) {
       logger.warn("Build logs have been dropped due to buffer pressure", {
@@ -341,7 +325,6 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     }
   });
 
-  // Log buffer configuration for debugging
   logger.info("Build log buffer configured", {
     deploymentId,
     maxSize: bufferMaxSize,
@@ -469,8 +452,19 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
 
     const detectedConfig = detectionResult.config ?? strategy.getDefaultConfig();
 
-    // Build the partial config update from detected framework settings
-    const configUpdate: Partial<typeof project.config> = {
+    const projectConfigParseResult = ProjectConfigSchema.safeParse(project.config);
+
+    if (!projectConfigParseResult.success) {
+      throw new ForgeError(
+        "INVALID_PROJECT_CONFIG",
+        400,
+        `Invalid project config: ${projectConfigParseResult.error.message}`
+      );
+    }
+
+    const projectConfig = projectConfigParseResult.data;
+
+    const configUpdate: Partial<typeof projectConfig> = {
       build: {
         buildCommand: detectedConfig.buildCommand,
         installCommand: detectedConfig.installCommand,
@@ -482,17 +476,28 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
       },
     };
 
-    // Deep merge detected config with existing project config to preserve user settings
-    const mergedConfig = deepMerge(project.config ?? {}, configUpdate);
+    const mergedConfig = deepMerge(projectConfig ?? {}, configUpdate);
 
     await db.project.update({
       where: { id: projectId },
       data: {
         type: strategy.name,
-        config: mergedConfig,
+        config: toPrismaJson(mergedConfig),
       },
     });
     logger.info("Project updated with framework info", { deploymentId, projectId });
+
+    const buildConfig: BuildConfig = {
+      ...detectedConfig,
+      installCommand: mergedConfig.build?.installCommand ?? detectedConfig.installCommand,
+      buildCommand: mergedConfig.build?.buildCommand ?? detectedConfig.buildCommand,
+      startCommand: mergedConfig.runtime?.startCommand ?? detectedConfig.startCommand,
+      nodeVersion: mergedConfig.runtime?.nodeVersion ?? detectedConfig.nodeVersion,
+      pythonVersion: mergedConfig.runtime?.pythonVersion ?? detectedConfig.pythonVersion,
+      goVersion: mergedConfig.runtime?.goVersion ?? detectedConfig.goVersion,
+      port: mergedConfig.runtime?.port ?? detectedConfig.port,
+      envVars: mergedConfig.runtime?.env,
+    };
 
     await sharedEmitProgress(
       context,
@@ -526,7 +531,7 @@ export async function handleBuildJob(context: IJobContext<BuildJobData>): Promis
     };
 
     const result = await withTimeout(
-      strategy.build(buildContext, detectedConfig, progressCallback),
+      strategy.build(buildContext, buildConfig, progressCallback),
       TIMEOUTS.DOCKER_BUILD,
       "Docker build"
     );

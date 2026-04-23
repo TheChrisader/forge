@@ -6,6 +6,7 @@ import {
   isValidGitUrl,
   isValidImageUrl,
   isValidLocalPath,
+  NotFoundError,
 } from "@forge/core";
 import {
   type Project,
@@ -240,5 +241,49 @@ export class ProjectService implements IProjectService {
   // eslint-disable-next-line @typescript-eslint/require-await
   async scale(): Promise<never> {
     throw new Error("Scale not implemented");
+  }
+
+  /**
+   * Stops all running resources for a project.
+   * Transitions deployments, services, and project status in the database.
+   * The reconciler handles actual container cleanup on its next pass.
+   */
+  async stop(id: string): Promise<void> {
+    const project = await this.db.project.findUnique({ where: { id } });
+    if (!project) {
+      throw new NotFoundError("Project");
+    }
+
+    if (project.status !== "ACTIVE") {
+      throw new ConflictError(
+        `Cannot stop project with status ${project.status}. Only ACTIVE projects can be stopped.`
+      );
+    }
+
+    const activeServiceStatuses = ["RUNNING", "HEALTHY", "UNHEALTHY"] as const;
+
+    await this.db.$transaction(async (tx) => {
+      // Transition all RUNNING deployments to STOPPED
+      await tx.deployment.updateMany({
+        where: { projectId: id, status: "RUNNING" },
+        data: { status: "STOPPED", deployCompletedAt: new Date() },
+      });
+
+      // Transition all active services to STOPPED
+      await tx.service.updateMany({
+        where: {
+          projectId: id,
+          status: { in: [...activeServiceStatuses] },
+          deletedAt: null,
+        },
+        data: { status: "STOPPED" },
+      });
+
+      // Transition project to INACTIVE
+      await tx.project.update({
+        where: { id },
+        data: { status: "INACTIVE" },
+      });
+    });
   }
 }

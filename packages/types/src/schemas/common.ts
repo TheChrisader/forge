@@ -25,6 +25,7 @@ export const DeploymentStatusSchema = z.enum([
   "FAILED",
   "CANCELLED",
   "TIMED_OUT",
+  "STOPPED",
 ]);
 export const DeploymentStrategySchema = z.enum(["ROLLING", "BLUE_GREEN", "CANARY", "RECREATE"]);
 export const ActiveEnvironmentSchema = z.enum(["BLUE", "GREEN"]);

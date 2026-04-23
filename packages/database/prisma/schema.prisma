@@ -37,6 +37,7 @@ enum DeploymentStatus {
   FAILED
   CANCELLED
   TIMED_OUT
+  STOPPED
 
   @@map("deployment_status")
 }

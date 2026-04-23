@@ -4,7 +4,14 @@ import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
 import { Empty } from "@/shared/components/ui/empty";
 import { EmptyHeader, EmptyTitle, EmptyDescription } from "@/shared/components/ui/empty";
-import { SearchIcon, ChevronDownIcon, WifiIcon, WifiOffIcon, LoaderIcon } from "lucide-react";
+import {
+  SearchIcon,
+  ChevronDownIcon,
+  WifiIcon,
+  WifiOffIcon,
+  LoaderIcon,
+  ClockIcon,
+} from "lucide-react";
 
 interface LogsViewerProps {
   logs: Array<{
@@ -31,6 +38,7 @@ export function LogsViewer({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showTimestamps, setShowTimestamps] = useState(true);
 
   const filteredLogs = searchTerm
     ? logs.filter(
@@ -157,6 +165,14 @@ export function LogsViewer({
           />
         </div>
         <Button
+          variant={showTimestamps ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => setShowTimestamps((prev) => !prev)}
+          title={showTimestamps ? "Hide timestamps" : "Show timestamps"}
+        >
+          <ClockIcon className="h-3.5 w-3.5" />
+        </Button>
+        <Button
           variant="outline"
           size="sm"
           onClick={handleDownloadLogs}
@@ -186,7 +202,7 @@ export function LogsViewer({
               return (
                 <div
                   key={`${entry.lineNumber}-${entry.timestamp}`}
-                  className="flex hover:bg-muted/50"
+                  className={`flex hover:bg-muted/50${showTimestamps ? "" : " items-center"}`}
                 >
                   <div
                     className="select-none text-muted-foreground relative"
@@ -194,17 +210,19 @@ export function LogsViewer({
                       paddingRight: `${indexColumnSpacing}rem`,
                     }}
                   >
-                    <span className="absolute text-xs">
+                    <span className={`text-xs${showTimestamps ? " absolute" : ""}`}>
                       {searchTerm ? logs.indexOf(entry) + 1 : index + 1}
                     </span>
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{entry.timestamp}</span>
-                      {/* <span className="text-xs text-muted-foreground">{entry.source}</span> */}
-                    </div>
+                    {showTimestamps && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{entry.timestamp}</span>
+                        {/* <span className="text-xs text-muted-foreground">{entry.source}</span> */}
+                      </div>
+                    )}
                     <div className="whitespace-pre-wrap wrap-break-word text-foreground font-mono">
-                      {entry.message || "\u00A0"}
+                      {entry.message || " "}
                     </div>
                   </div>
                 </div>

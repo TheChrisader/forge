@@ -95,7 +95,7 @@ export class DockerRuntime implements IContainerRuntime {
     return {
       mode: "socket",
       socketPath: options?.socketPath || getDefaultSocketPath(),
-      timeout: options?.timeout || 30000,
+      timeout: options?.timeout || 5 * 60 * 1000,
     };
   }
 
@@ -601,58 +601,95 @@ export class DockerRuntime implements IContainerRuntime {
     const shouldFollow = options?.follow ?? false;
 
     if (shouldFollow) {
-      const followOptions: Docker.ContainerLogsOptions & { follow: true } = {
-        stdout: options?.stdout ?? true,
-        stderr: options?.stderr ?? true,
-        since: options?.since ? Math.floor(new Date(options.since).getTime() / 1000) : undefined,
-        until: options?.until ? Math.floor(new Date(options.until).getTime() / 1000) : undefined,
-        timestamps: options?.timestamps ?? true,
-        tail: tailValue as Docker.ContainerLogsOptions["tail"],
-        follow: true,
-      };
+      let since: number | undefined = options?.since
+        ? Math.floor(new Date(options.since).getTime() / 1000)
+        : undefined;
+      const maxReconnectAttempts = 3;
+      const reconnectDelayMs = 1000;
 
-      const logStream = await container.logs(followOptions);
-      const stream = logStream as unknown as NodeJS.ReadableStream;
-      let buffer = Buffer.alloc(0);
+      for (let attempt = 0; attempt <= maxReconnectAttempts; attempt++) {
+        const followOptions: Docker.ContainerLogsOptions & { follow: true } = {
+          stdout: options?.stdout ?? true,
+          stderr: options?.stderr ?? true,
+          since,
+          until: options?.until ? Math.floor(new Date(options.until).getTime() / 1000) : undefined,
+          timestamps: options?.timestamps ?? true,
+          tail: attempt === 0 ? (tailValue as Docker.ContainerLogsOptions["tail"]) : undefined,
+          follow: true,
+        };
 
-      try {
-        for await (const chunk of stream) {
-          buffer = Buffer.concat([buffer, chunk as Buffer]);
+        let lastChunkTime = Date.now();
+        const logStream = await container.logs(followOptions);
+        const stream = logStream as unknown as NodeJS.ReadableStream;
+        let buffer = Buffer.alloc(0);
 
-          const headerSize = 8;
-          let offset = 0;
-          while (offset + headerSize <= buffer.length) {
-            const streamType = buffer[offset];
-            const payloadLength = buffer.readUInt32BE(offset + 4);
-            const payloadStart = offset + 8;
-            const payloadEnd = payloadStart + payloadLength;
+        try {
+          for await (const chunk of stream) {
+            lastChunkTime = Date.now();
+            buffer = Buffer.concat([buffer, chunk as Buffer]);
 
-            if (payloadEnd > buffer.length) {
-              break;
+            const headerSize = 8;
+            let offset = 0;
+            while (offset + headerSize <= buffer.length) {
+              const streamType = buffer[offset];
+              const payloadLength = buffer.readUInt32BE(offset + 4);
+              const payloadStart = offset + 8;
+              const payloadEnd = payloadStart + payloadLength;
+
+              if (payloadEnd > buffer.length) {
+                break;
+              }
+
+              const payload = buffer.subarray(payloadStart, payloadEnd);
+              const message = payload.toString("utf-8");
+
+              const lines = message.split("\n").filter((line) => line.trim());
+              for (const line of lines) {
+                yield this.parseLogLine(
+                  line,
+                  followOptions?.timestamps,
+                  streamType === 1 ? "stdout" : "stderr"
+                );
+              }
+
+              offset = payloadEnd;
             }
 
-            const payload = buffer.subarray(payloadStart, payloadEnd);
-            const message = payload.toString("utf-8");
-
-            const lines = message.split("\n").filter((line) => line.trim());
-            for (const line of lines) {
-              yield this.parseLogLine(
-                line,
-                followOptions?.timestamps,
-                streamType === 1 ? "stdout" : "stderr"
-              );
-            }
-
-            offset = payloadEnd;
+            buffer = buffer.subarray(offset);
           }
 
-          buffer = buffer.subarray(offset);
-        }
-      } catch (error) {
-        if (error instanceof Error && error.message.includes("stream ended")) {
+          // Stream ended cleanly — container likely finished
           return;
+        } catch (error) {
+          const isConnectionDrop =
+            error instanceof Error &&
+            (/aborted|ECONNRESET|ETIMEDOUT|socket hang up|stream ended/i.test(error.message) ||
+              (error as { code?: string }).code === "ECONNRESET" ||
+              (error as { code?: string }).code === "ETIMEDOUT");
+
+          if (!isConnectionDrop || attempt >= maxReconnectAttempts) {
+            throw error;
+          }
+
+          // Check container state before reconnecting
+          const inspectResult = await container.inspect();
+          if (!inspectResult.State.Running) {
+            // Container exited — no point reconnecting, yield final logs if any
+            if (inspectResult.State.ExitCode !== 0) {
+              throw new DockerRuntimeError(
+                `Container exited with code ${inspectResult.State.ExitCode}`,
+                "CONTAINER_EXIT_ERROR",
+                inspectResult.State.ExitCode,
+                { containerId: id, exitCode: inspectResult.State.ExitCode }
+              );
+            }
+            return;
+          }
+
+          // Container still running — reconnect from where we left off
+          since = Math.floor(lastChunkTime / 1000);
+          await this.sleep(reconnectDelayMs);
         }
-        throw error;
       }
     } else {
       const nonFollowOptions: Docker.ContainerLogsOptions & { follow?: false } = {

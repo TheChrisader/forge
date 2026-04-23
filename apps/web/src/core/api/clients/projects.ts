@@ -48,6 +48,10 @@ export const projectsApi = {
     return apiClient.delete(`/api/projects/${id}`);
   },
 
+  stop: async (id: string): Promise<{ data: { stopped: boolean } }> => {
+    return apiClient.post(`/api/projects/${id}/stop`);
+  },
+
   /**
    * DEPRECATED: This endpoint is a stub and not functional
    * Use deploymentsApi.create() instead which calls the working endpoint:
