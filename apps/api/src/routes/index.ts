@@ -16,6 +16,9 @@ import { registerAuditLogRoutes } from "./audit-logs.routes.js";
 import { registerDashboardRoutes } from "./dashboard.routes.js";
 import { registerServiceRoutes } from "./services.routes.js";
 import { registerMetricsRoutes } from "./metrics.routes.js";
+import { registerAlertRoutes } from "./alert.routes.js";
+import { registerAlertRuleRoutes } from "./alert-rule.routes.js";
+import { registerAlertChannelRoutes } from "./alert-channel.routes.js";
 
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
@@ -35,4 +38,7 @@ export function setupRoutes(server: FastifyInstance): void {
   registerDashboardRoutes(server, server.config);
   registerServiceRoutes(server, server.config);
   registerMetricsRoutes(server, server.config);
+  registerAlertRoutes(server, server.config);
+  registerAlertRuleRoutes(server, server.config);
+  registerAlertChannelRoutes(server, server.config);
 }

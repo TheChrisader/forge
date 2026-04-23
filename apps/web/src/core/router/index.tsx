@@ -6,6 +6,7 @@ import { ServicesPage, ServiceDetailPage } from "@/features/services";
 import { DeploymentsPage, DeploymentLogsPage } from "@/features/deployments";
 import { ActivityPage } from "@/features/activity";
 import { MetricsPage } from "@/features/metrics";
+import { AlertsPage } from "@/features/alerts";
 import { SettingsPage } from "@/features/settings";
 import { ImagesPage } from "@/features/images";
 import { ContainerDetailPage, ContainerLogsPage } from "@/features/containers";
@@ -137,6 +138,12 @@ const metricsRoute = createRoute({
   component: MetricsPage,
 });
 
+const alertsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "/alerts",
+  component: AlertsPage,
+});
+
 const metricsSourceRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: "/metrics/source/$sourceType/$sourceId",
@@ -172,6 +179,7 @@ const routeTree = rootRoute.addChildren([
     activityRoute,
     metricsRoute,
     metricsSourceRoute,
+    alertsRoute,
     settingsRoute,
     notFoundRoute,
   ]),

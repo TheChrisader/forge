@@ -32,6 +32,7 @@ import { TerminalModule } from "./modules/terminal.module.js";
 import { ProxyModule } from "./modules/proxy.module.js";
 import { ServiceManagerModule } from "./modules/service.module.js";
 import { ServiceSSEModule } from "./modules/service-sse.module.js";
+import { AlertModule } from "./modules/alert.module.js";
 import { PermissionsService } from "@forge/auth";
 import { attachPermissionsToRequest } from "./middleware/permissions.js";
 import { TerminalService } from "./services/terminal.service.js";
@@ -79,6 +80,7 @@ export async function createServer(_options: CreateServerOptions = {}): Promise<
   registry.registerModule("proxy", new ProxyModule());
   registry.registerModule("services", new ServiceManagerModule());
   registry.registerModule("serviceSSE", new ServiceSSEModule());
+  registry.registerModule("alerts", new AlertModule());
 
   await registry.initialize();
 

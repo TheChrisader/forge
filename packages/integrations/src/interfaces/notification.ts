@@ -3,7 +3,7 @@
  * Allows pluggable notification backends (Slack, Discord, Email, Webhooks, etc.)
  */
 
-export type NotificationLevel = "info" | "success" | "warning" | "error";
+export type NotificationLevel = "INFO" | "SUCCESS" | "WARNING" | "ERROR";
 
 export interface Notification {
   title: string;
