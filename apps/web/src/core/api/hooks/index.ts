@@ -13,3 +13,4 @@ export * from "./useDomains";
 export * from "./useAuditLogs";
 export * from "./useDashboard";
 export * from "./useAlerts";
+export * from "./useSettings";

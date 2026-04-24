@@ -11,7 +11,9 @@ import {
   RefreshTokenResponseSchema,
   AuthMeResponseSchema,
   ChangePasswordRequestSchema,
+  UpdateProfileRequestSchema,
 } from "@forge/types";
+import type { AuthMeResponse } from "@forge/types";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 import type { PrismaClient } from "@forge/database";
 
@@ -150,69 +152,103 @@ export function registerAuthRoutes(_server: FastifyInstance, config: Config): vo
       const userId = requireAuth(request.userId);
       const authenticatedVia =
         (request as { authenticatedVia?: "jwt" | "api_key" }).authenticatedVia ?? "jwt";
-
-      const user = await db.user.findUnique({
-        where: { id: userId },
-        include: {
-          teamMemberships: {
-            include: { team: true },
-          },
-          roleAssignments: {
-            include: {
-              role: {
-                include: { permissions: { include: { permission: true } } },
-              },
-            },
-          },
-        },
-      });
-
-      if (!user) {
-        throw new UnauthorizedError("User not found");
-      }
-
-      const teams = user.teamMemberships.map((m) => ({
-        id: m.team.id,
-        name: m.team.name,
-        slug: m.team.slug,
-        role: m.role,
-      }));
-
-      const allPermissions = new Set<string>();
-      let isAdmin = false;
-
-      for (const assignment of user.roleAssignments) {
-        if (assignment.role.isSystem && assignment.role.name === "platform_admin") {
-          isAdmin = true;
-          allPermissions.add("admin");
-          break;
-        }
-        for (const rp of assignment.role.permissions) {
-          allPermissions.add(`${rp.permission.resource}:${rp.permission.action}`);
-        }
-      }
-
-      const currentTeamId = teams.length > 0 ? teams[0].id : null;
-
-      const userDataParseResult = AuthMeResponseSchema.safeParse({
-        userId: user.id,
-        email: user.email,
-        name: user.name,
-        avatarUrl: user.avatarUrl,
-        role: isAdmin ? "admin" : "user",
-        authenticatedVia,
-        teams,
-        currentTeamId,
-        permissions: [...allPermissions],
-      });
-
-      if (userDataParseResult.error) {
-        throw new InternalError("Error fetching user");
-      }
-
-      return userDataParseResult.data;
+      return buildAuthMeResponse(db, userId, authenticatedVia);
     }
   );
+
+  server.patch(
+    "/api/auth/me",
+    {
+      schema: {
+        body: UpdateProfileRequestSchema,
+        response: { 200: AuthMeResponseSchema },
+      },
+    },
+    async (request) => {
+      const userId = requireAuth(request.userId);
+      const body = request.body as { name?: string; email?: string };
+
+      const data: { name?: string; email?: string } = {};
+      if (body.name !== undefined) data.name = body.name;
+      if (body.email !== undefined) data.email = body.email;
+
+      await db.user.update({
+        where: { id: userId },
+        data,
+      });
+
+      const authenticatedVia =
+        (request as { authenticatedVia?: "jwt" | "api_key" }).authenticatedVia ?? "jwt";
+      return buildAuthMeResponse(db, userId, authenticatedVia);
+    }
+  );
+}
+
+async function buildAuthMeResponse(
+  db: PrismaClient,
+  userId: string,
+  authenticatedVia: "jwt" | "api_key"
+): Promise<AuthMeResponse> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    include: {
+      teamMemberships: {
+        include: { team: true },
+      },
+      roleAssignments: {
+        include: {
+          role: {
+            include: { permissions: { include: { permission: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    throw new UnauthorizedError("User not found");
+  }
+
+  const teams = user.teamMemberships.map((m) => ({
+    id: m.team.id,
+    name: m.team.name,
+    slug: m.team.slug,
+    role: m.role,
+  }));
+
+  const allPermissions = new Set<string>();
+  let isAdmin = false;
+
+  for (const assignment of user.roleAssignments) {
+    if (assignment.role.isSystem && assignment.role.name === "platform_admin") {
+      isAdmin = true;
+      allPermissions.add("admin");
+      break;
+    }
+    for (const rp of assignment.role.permissions) {
+      allPermissions.add(`${rp.permission.resource}:${rp.permission.action}`);
+    }
+  }
+
+  const currentTeamId = teams.length > 0 ? teams[0].id : null;
+
+  const result = AuthMeResponseSchema.safeParse({
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    avatarUrl: user.avatarUrl,
+    role: isAdmin ? "admin" : "user",
+    authenticatedVia,
+    teams,
+    currentTeamId,
+    permissions: [...allPermissions],
+  });
+
+  if (result.error) {
+    throw new InternalError("Error fetching user");
+  }
+
+  return result.data;
 }
 
 interface TokenPair {

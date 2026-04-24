@@ -77,6 +77,8 @@ import {
   ForgotPasswordRequestSchema,
   ResetPasswordRequestSchema,
   ChangePasswordRequestSchema,
+  UpdateProfileRequestSchema,
+  ApiKeyResponseSchema,
   AcceptInviteRequestSchema,
   AcceptInviteResponseSchema,
   CreateInvitationRequestSchema,
@@ -109,6 +111,10 @@ export type ForgotPasswordRequest = z.infer<typeof ForgotPasswordRequestSchema>;
 export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;
 
 export type ChangePasswordRequest = z.infer<typeof ChangePasswordRequestSchema>;
+
+export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequestSchema>;
+
+export type ApiKeyResponse = z.infer<typeof ApiKeyResponseSchema>;
 
 export type AcceptInviteRequest = z.infer<typeof AcceptInviteRequestSchema>;
 

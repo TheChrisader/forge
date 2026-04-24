@@ -65,6 +65,16 @@ export const ChangePasswordRequestSchema = z
   })
   .strict();
 
+export const UpdateProfileRequestSchema = z
+  .object({
+    name: z.string().min(1).max(255).optional(),
+    email: z.email().optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field must be provided",
+  });
+
 export const AcceptInviteRequestSchema = z
   .object({
     token: z.string().min(1),

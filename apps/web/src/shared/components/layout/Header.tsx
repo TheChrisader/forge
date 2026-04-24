@@ -1,4 +1,5 @@
 import { Bell, Search, LogOut, Command, Users, Settings } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/core/auth";
 import {
   DropdownMenu,
@@ -77,7 +78,10 @@ export function Header(): React.ReactElement {
             <span className="font-sans text-sm text-muted-foreground">{user.teams[0].name}</span>
           </button>
         )}
-        <button className="group relative flex items-center gap-2 py-1 transition-colors hover:text-foreground">
+        <Link
+          to="/alerts"
+          className="group relative flex items-center gap-2 py-1 transition-colors hover:text-foreground"
+        >
           <div className="relative">
             <Bell className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
             <span className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
@@ -88,7 +92,7 @@ export function Header(): React.ReactElement {
           <span className="font-mono text-[9px] tracking-wider text-muted-foreground/60 group-hover:text-foreground/80">
             ALERTS
           </span>
-        </button>
+        </Link>
 
         <div className="h-4 w-px bg-border/30" />
 
@@ -116,9 +120,11 @@ export function Header(): React.ReactElement {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer font-sans">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
+            <DropdownMenuItem asChild className="cursor-pointer font-sans">
+              <Link to="/settings">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
