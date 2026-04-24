@@ -6,6 +6,7 @@ import { registerDefaultStrategies } from "@forge/build";
 import { startCleanupJob } from "./jobs/cleanup.job.js";
 import { ServiceRegistry, DatabaseModule } from "@forge/core";
 import { QueueConfig } from "@forge/queue";
+import { DockerRuntime } from "@forge/docker";
 
 const logger = new LoggerService({
   level: (process.env.LOG_LEVEL as LogLevel) ?? "info",
@@ -34,8 +35,12 @@ async function main(): Promise<void> {
   registerDefaultStrategies();
   logger.info("Build strategies registered");
 
-  // Pre-pull required Docker images (e.g., nixpacks)
-  // await initBuildWorker();
+  const runtime = new DockerRuntime();
+  await runtime.createVolume({
+    name: "forge-nixpacks-cache",
+    labels: { "forge.managed": "true", "forge.purpose": "nixpacks-build-cache" },
+  });
+  logger.info("Nixpacks build cache volume ready");
 
   const queueConfig = getQueueConfig();
   logger.info("Connecting to Redis...", {

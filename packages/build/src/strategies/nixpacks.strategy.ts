@@ -108,6 +108,7 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
       volumes: [
         { source: context.sourceDir, target: "/app" },
         { source: this.getDockerSocketPath(), target: "/var/run/docker.sock" },
+        { source: "forge-nixpacks-cache", target: "/root/.cache/nixpacks" },
       ],
       env: nixpacksEnv,
       workingDir: "/app",
@@ -116,7 +117,6 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
     let container: { id: string } | undefined;
 
     try {
-      // Create and start the nixpacks container
       container = await runtime.create(containerConfig);
       await runtime.start(container.id);
 
@@ -127,7 +127,6 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
         stage: "build",
       });
 
-      // Stream logs
       let logs = "";
       for await (const entry of runtime.logs(container.id, {
         follow: true,

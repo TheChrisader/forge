@@ -140,10 +140,23 @@ export class DeploymentOrchestrator {
           projectId: project.id,
           id: { not: deploymentId },
           status: "RUNNING",
+          deployCompletedAt: null,
         },
         data: {
           status: "STOPPED",
           deployCompletedAt: new Date(),
+        },
+      });
+
+      await tx.deployment.updateMany({
+        where: {
+          projectId: project.id,
+          id: { not: deploymentId },
+          status: "RUNNING",
+          deployCompletedAt: { not: null },
+        },
+        data: {
+          status: "STOPPED",
         },
       });
 

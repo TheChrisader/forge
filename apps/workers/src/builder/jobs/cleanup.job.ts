@@ -83,6 +83,22 @@ export function startCleanupJob(container: ServiceContainer): void {
       totalDeleted += dangling.deleted.length;
       totalReclaimed += dangling.reclaimedBytes;
 
+      try {
+        const cacheVolumes = await runtime.listVolumes({ name: ["forge-nixpacks-cache"] });
+        if (cacheVolumes.length > 0) {
+          logger.info("Nixpacks cache volume present", {
+            event: "nixpacks_cache_volume_ok",
+            volumeName: cacheVolumes[0].name,
+            labels: cacheVolumes[0].labels,
+          });
+        }
+      } catch (volErr) {
+        logger.warn("Could not check nixpacks cache volume", {
+          event: "nixpacks_cache_volume_check_failed",
+          error: volErr instanceof Error ? volErr.message : String(volErr),
+        });
+      }
+
       logger.info("Image cleanup completed", {
         event: "cleanup_completed",
         totalDeleted,
