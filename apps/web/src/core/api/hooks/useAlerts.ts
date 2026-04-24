@@ -279,3 +279,14 @@ export function useRemoveChannelRule(): ReturnType<
     },
   });
 }
+
+export function useTestAlertChannel(): ReturnType<
+  typeof useMutation<{ success: boolean; error?: string }, unknown, string>
+> {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await alertsApi.testChannel(id);
+      return response.data;
+    },
+  });
+}

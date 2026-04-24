@@ -9,19 +9,19 @@ import {
 } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/components/ui/tabs";
-import { Switch } from "@/shared/components/ui/switch";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/shared/components/ui/select";
+// import { Switch } from "@/shared/components/ui/switch";
+// import {
+//   Select,
+//   SelectTrigger,
+//   SelectValue,
+//   SelectContent,
+//   SelectItem,
+// } from "@/shared/components/ui/select";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Alert, AlertTitle, AlertDescription } from "@/shared/components/ui/alert";
 import { Separator } from "@/shared/components/ui/separator";
-import { UserIcon, BellIcon, SlidersIcon, KeyIcon, CheckIcon } from "lucide-react";
+import { UserIcon, KeyIcon, CheckIcon } from "lucide-react";
 import { TeamSettingsPage } from "./TeamSettingsPage";
 
 export function SettingsPage(): React.ReactElement {
@@ -80,8 +80,8 @@ export function SettingsPage(): React.ReactElement {
       <Tabs defaultValue="profile">
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          {/* <TabsTrigger value="notifications">Notifications</TabsTrigger> */}
+          {/* <TabsTrigger value="preferences">Preferences</TabsTrigger> */}
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
         </TabsList>
@@ -125,7 +125,7 @@ export function SettingsPage(): React.ReactElement {
                 />
               </div>
 
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                   Timezone
                 </label>
@@ -146,9 +146,9 @@ export function SettingsPage(): React.ReactElement {
                     <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
 
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                   Language
                 </label>
@@ -167,12 +167,12 @@ export function SettingsPage(): React.ReactElement {
                     <SelectItem value="ja">日本語</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications" className="space-y-6">
+        {/* <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -270,9 +270,9 @@ export function SettingsPage(): React.ReactElement {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent> */}
 
-        <TabsContent value="preferences" className="space-y-6">
+        {/* <TabsContent value="preferences" className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -361,7 +361,7 @@ export function SettingsPage(): React.ReactElement {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent> */}
 
         <TabsContent value="api-keys" className="space-y-6">
           <Card>

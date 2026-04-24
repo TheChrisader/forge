@@ -78,6 +78,8 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@forge/certificate": "workspace:*"
+    "@forge/certificate": "workspace:*",
+    "@types/web-push": "^3.6.4",
+    "web-push": "^3.6.7"
   }
 }

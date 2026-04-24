@@ -1,1 +1,10 @@
 export * from "./interfaces/notification";
+export * from "./providers/factory";
+export { SlackNotificationProvider } from "./providers/slack.provider";
+export { DiscordNotificationProvider } from "./providers/discord.provider";
+export { EmailNotificationProvider } from "./providers/email.provider";
+export { WebhookNotificationProvider } from "./providers/webhook.provider";
+export { TeamsNotificationProvider } from "./providers/teams.provider";
+export { PagerDutyNotificationProvider } from "./providers/pagerduty.provider";
+export { SmsNotificationProvider } from "./providers/sms.provider";
+export { PushNotificationProvider } from "./providers/push.provider";

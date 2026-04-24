@@ -19,6 +19,7 @@ import { registerMetricsRoutes } from "./metrics.routes.js";
 import { registerAlertRoutes } from "./alert.routes.js";
 import { registerAlertRuleRoutes } from "./alert-rule.routes.js";
 import { registerAlertChannelRoutes } from "./alert-channel.routes.js";
+import { registerPushRoutes } from "./push.routes.js";
 
 export function setupRoutes(server: FastifyInstance): void {
   registerHealthRoutes(server, server.config);
@@ -41,4 +42,5 @@ export function setupRoutes(server: FastifyInstance): void {
   registerAlertRoutes(server, server.config);
   registerAlertRuleRoutes(server, server.config);
   registerAlertChannelRoutes(server, server.config);
+  registerPushRoutes(server, server.config);
 }

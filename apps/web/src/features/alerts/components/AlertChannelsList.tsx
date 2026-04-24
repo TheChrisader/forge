@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Link2 } from "lucide-react";
+import { Plus, Trash2, Link2, Send } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Skeleton } from "@/shared/components/ui/skeleton";
@@ -8,6 +8,7 @@ import {
   useAlertChannels,
   useDeleteAlertChannel,
   useUpdateAlertChannel,
+  useTestAlertChannel,
 } from "@/core/api/hooks/useAlerts";
 import { CreateAlertChannelModal } from "./CreateAlertChannelModal";
 import { cn } from "@/shared/lib/utils";
@@ -20,12 +21,14 @@ const CHANNEL_TYPE_LABEL: Record<string, string> = {
   WEBHOOK: "Webhook",
   PAGERDUTY: "PagerDuty",
   SMS: "SMS",
+  PUSH: "Browser Push",
 };
 
 export function AlertChannelsList(): React.ReactElement {
   const { data, isLoading } = useAlertChannels({ limit: 100 });
   const deleteChannel = useDeleteAlertChannel();
   const updateChannel = useUpdateAlertChannel();
+  const testChannel = useTestAlertChannel();
 
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -85,6 +88,17 @@ export function AlertChannelsList(): React.ReactElement {
                   </Badge>
                 </div>
               </div>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                disabled={testChannel.isPending}
+                onClick={() => testChannel.mutate(channel.id)}
+                title="Test channel"
+              >
+                <Send className="h-3 w-3" />
+              </Button>
 
               <Button
                 size="sm"

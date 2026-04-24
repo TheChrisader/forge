@@ -30,6 +30,7 @@
     "@forge/cache": "workspace:*",
     "@forge/core": "workspace:*",
     "@forge/database": "workspace:*",
+    "@forge/integrations": "workspace:*",
     "@forge/logger": "workspace:*",
     "@forge/observability": "workspace:*",
     "@forge/proxy": "workspace:*",

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,12 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { useCreateAlertChannel } from "@/core/api/hooks/useAlerts";
+import { pushApi } from "@/core/api/clients/push";
+import {
+  registerServiceWorker,
+  subscribeToPush,
+  getPushPermissionStatus,
+} from "@/shared/utils/push";
 import type { ApiClientError } from "@/core/api/client";
 
 interface CreateAlertChannelModalProps {
@@ -47,6 +53,7 @@ const CHANNEL_TYPES = [
     fields: [{ key: "routingKey", label: "Routing Key" }],
   },
   { value: "SMS", label: "SMS", fields: [{ key: "phoneNumber", label: "Phone Number" }] },
+  { value: "PUSH", label: "Browser Push", fields: [] },
 ] as const;
 
 export function CreateAlertChannelModal({
@@ -59,6 +66,8 @@ export function CreateAlertChannelModal({
   const [type, setType] = useState("WEBHOOK");
   const [configFields, setConfigFields] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushEnabling, setPushEnabling] = useState(false);
 
   const selectedType = CHANNEL_TYPES.find((ct) => ct.value === type);
 
@@ -68,14 +77,54 @@ export function CreateAlertChannelModal({
       setType("WEBHOOK");
       setConfigFields({});
       setError(null);
+      setPushEnabled(false);
     }
   }, [isOpen]);
+
+  const handleEnablePush = useCallback(async () => {
+    setPushEnabling(true);
+    setError(null);
+
+    try {
+      await registerServiceWorker();
+      const result = await subscribeToPush();
+
+      if (!result.success || !result.subscription) {
+        setError(result.error ?? "Failed to enable push notifications");
+        return;
+      }
+
+      const subJson = result.subscription.toJSON();
+      if (!subJson.endpoint) {
+        setError("Push subscription returned no endpoint");
+        return;
+      }
+      await pushApi.subscribe({
+        endpoint: subJson.endpoint,
+        keys: subJson.keys as { p256dh: string; auth: string },
+      });
+
+      setPushEnabled(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to enable browser notifications");
+    } finally {
+      setPushEnabling(false);
+    }
+  }, []);
+
+  const pushPermission = getPushPermissionStatus();
+  const isPushType = type === "PUSH";
 
   const handleSubmit = async (): Promise<void> => {
     setError(null);
 
     if (!name.trim()) {
       setError("Channel name is required");
+      return;
+    }
+
+    if (isPushType && !pushEnabled) {
+      setError("Enable browser notifications before creating this channel");
       return;
     }
 
@@ -152,6 +201,31 @@ export function CreateAlertChannelModal({
             </Select>
           </div>
 
+          {isPushType && (
+            <div className="space-y-2">
+              {pushEnabled ? (
+                <div className="flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                  <span className="text-emerald-500 text-sm">Browser notifications enabled</span>
+                </div>
+              ) : pushPermission === "denied" ? (
+                <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2">
+                  <p className="font-mono text-xs text-destructive">
+                    Notifications are blocked. Enable them in your browser settings.
+                  </p>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={void handleEnablePush}
+                  disabled={pushEnabling}
+                >
+                  {pushEnabling ? "Enabling..." : "Enable Browser Notifications"}
+                </Button>
+              )}
+            </div>
+          )}
+
           {selectedType?.fields.map((field) => (
             <div key={field.key} className="space-y-1.5">
               <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -173,7 +247,7 @@ export function CreateAlertChannelModal({
           <Button variant="outline" onClick={onClose} disabled={createChannel.isPending}>
             Cancel
           </Button>
-          <Button onClick={void handleSubmit} disabled={createChannel.isPending}>
+          <Button onClick={() => void handleSubmit()} disabled={createChannel.isPending}>
             Create
           </Button>
         </DialogFooter>

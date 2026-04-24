@@ -129,4 +129,8 @@ export const alertsApi = {
   removeChannelRule: async (channelId: string, ruleId: string): Promise<void> => {
     return apiClient.delete(`/api/alert-channels/${channelId}/rules/${ruleId}`);
   },
+
+  testChannel: async (id: string): Promise<{ data: { success: boolean; error?: string } }> => {
+    return apiClient.post(`/api/alert-channels/${id}/test`);
+  },
 };

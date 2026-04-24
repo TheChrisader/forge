@@ -8,6 +8,9 @@ import type { ServiceStatus } from "@forge/database";
 import type { MetricsCollector } from "@forge/observability";
 import { collectDockerStats } from "@forge/observability";
 import { OrphanDetector } from "./service-provisioner/orphan-detector.js";
+import type { QueueService } from "@forge/queue";
+import type { NotificationRateLimiter } from "./notifier/rate-limiter.js";
+import { createAlertAndDispatch } from "./notifier/dispatch-alert.js";
 
 const logger = new LoggerService({
   level: (process.env.LOG_LEVEL as LogLevel) ?? "info",
@@ -20,6 +23,8 @@ interface ServiceHealthMonitorOptions {
   pollIntervalMs?: number;
   metricsEnabled?: boolean;
   metricsCollector?: MetricsCollector;
+  queueService?: QueueService;
+  rateLimiter?: NotificationRateLimiter;
 }
 
 export class ServiceHealthMonitor {
@@ -35,6 +40,8 @@ export class ServiceHealthMonitor {
   private readonly maxDockerFailuresBeforeUnavailable = 3;
   private healthCheckCycleCount = 0;
   private readonly reconciliationFrequency = 10; // every N cycles
+  private readonly queueService?: QueueService;
+  private readonly rateLimiter?: NotificationRateLimiter;
 
   constructor(options?: ServiceHealthMonitorOptions) {
     this.db = getDatabaseClient();
@@ -42,6 +49,8 @@ export class ServiceHealthMonitor {
     this.pollIntervalMs = options?.pollIntervalMs ?? 15_000;
     this.metricsEnabled = options?.metricsEnabled ?? true;
     this.metricsCollector = options?.metricsCollector;
+    this.queueService = options?.queueService;
+    this.rateLimiter = options?.rateLimiter;
   }
 
   async start(): Promise<void> {
@@ -726,14 +735,12 @@ export class ServiceHealthMonitor {
       // Don't duplicate firing alerts for the same rule
       if (rule.alerts.length > 0) continue;
 
-      await this.db.alert.create({
-        data: {
-          ruleId: rule.id,
-          status: "FIRING",
-          severity: rule.severity,
-          value: 0,
-          message: `Service "${serviceName}" (${engine}) is ${newStatus}`,
-        },
+      await createAlertAndDispatch(this.db, this.queueService ?? null, this.rateLimiter ?? null, {
+        ruleId: rule.id,
+        status: "FIRING",
+        severity: rule.severity,
+        value: 0,
+        message: `Service "${serviceName}" (${engine}) is ${newStatus}`,
       });
 
       logger.info("Alert fired for unhealthy service", {

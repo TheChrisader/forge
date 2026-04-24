@@ -22,3 +22,8 @@ export {
 export { handleProvision } from "./service-provisioner/handlers/provision.handler.js";
 export { ServiceHealthMonitor } from "./service-health-monitor.js";
 export { BackupScheduler } from "./backup-scheduler.js";
+
+export { NotificationWorker, type NotificationWorkerOptions } from "./notifier/worker.js";
+export { handleNotifyJob } from "./notifier/handlers/notify.handler.js";
+export { NotificationDispatcher } from "./notifier/dispatcher.js";
+export { NotificationRateLimiter } from "./notifier/rate-limiter.js";

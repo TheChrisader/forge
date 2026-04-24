@@ -55,9 +55,17 @@ export interface WebhookJobData {
 }
 
 export interface NotificationJobData {
-  channel: "slack" | "discord" | "email" | "webhook";
-  message: string;
-  metadata?: Record<string, unknown>;
+  alertNotificationId: string;
+  alertNotificationTimestamp: string;
+  channelId: string;
+  channelType: string;
+  channelConfig: Record<string, unknown>;
+  notification: {
+    title: string;
+    message: string;
+    level: string;
+    metadata?: Record<string, unknown>;
+  };
 }
 
 export interface BuildJobResult {

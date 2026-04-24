@@ -6,6 +6,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permissions.js";
 import { getTypedFastifyInstance } from "../utils/getTypedInstance.js";
 import { AlertChannelService } from "../services/alert-channel.service.js";
+import { createNotificationProvider } from "@forge/integrations";
 import {
   AlertChannelSchema,
   AlertChannelFiltersSchema,
@@ -180,6 +181,41 @@ export function registerAlertChannelRoutes(_server: FastifyInstance, _config: Co
       const { channelId, ruleId } = request.params as { channelId: string; ruleId: string };
       await channelService.removeRule(channelId, ruleId);
       return reply.status(204).send();
+    }
+  );
+
+  server.post(
+    "/api/alert-channels/:id/test",
+    {
+      schema: {
+        params: ChannelIdParamsSchema,
+        response: {
+          200: ApiResponseSchema(z.object({ success: z.boolean(), error: z.string().optional() })),
+        },
+      },
+    },
+    async (request, reply) => {
+      requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "alerts", action: "update" });
+
+      const { id } = request.params as { id: string };
+      const channel = await channelService.getById(id);
+
+      try {
+        const provider = createNotificationProvider(
+          channel.type as string,
+          channel.config as Record<string, unknown>
+        );
+        const result = await provider.test();
+        return reply.send({ data: result });
+      } catch (err) {
+        return reply.send({
+          data: {
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        });
+      }
     }
   );
 }

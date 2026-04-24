@@ -6,6 +6,9 @@ import { DockerRuntime } from "@forge/docker";
 import type { ContainerInfo } from "@forge/docker";
 import type { MetricsCollector } from "@forge/observability";
 import { collectDockerStats } from "@forge/observability";
+import type { QueueService } from "@forge/queue";
+import type { NotificationRateLimiter } from "../notifier/rate-limiter.js";
+import { createAlertAndDispatch } from "../notifier/dispatch-alert.js";
 
 const POLL_STATUSES: ContainerStatus[] = ["RUNNING", "HEALTHY", "UNHEALTHY", "STARTING"];
 
@@ -21,6 +24,8 @@ const logger = new LoggerService({
 interface DeploymentHealthMonitorOptions {
   pollIntervalMs?: number;
   metricsCollector: MetricsCollector;
+  queueService?: QueueService;
+  rateLimiter?: NotificationRateLimiter;
 }
 
 export class DeploymentHealthMonitor {
@@ -32,12 +37,16 @@ export class DeploymentHealthMonitor {
   private readonly metricsCollector: MetricsCollector;
   private dockerAvailable = true;
   private consecutiveDockerFailures = 0;
+  private readonly queueService?: QueueService;
+  private readonly rateLimiter?: NotificationRateLimiter;
 
   constructor(options: DeploymentHealthMonitorOptions) {
     this.db = getDatabaseClient();
     this.runtime = new DockerRuntime();
     this.pollIntervalMs = options.pollIntervalMs ?? 15_000;
     this.metricsCollector = options.metricsCollector;
+    this.queueService = options.queueService;
+    this.rateLimiter = options.rateLimiter;
   }
 
   async start(): Promise<void> {
@@ -244,14 +253,12 @@ export class DeploymentHealthMonitor {
     for (const rule of rules) {
       if (rule.alerts.length > 0) continue;
 
-      await this.db.alert.create({
-        data: {
-          ruleId: rule.id,
-          status: "FIRING",
-          severity: rule.severity,
-          value: 0,
-          message: `Deployment container "${containerName}" (deployment: ${deploymentId}) is ${newStatus}`,
-        },
+      await createAlertAndDispatch(this.db, this.queueService ?? null, this.rateLimiter ?? null, {
+        ruleId: rule.id,
+        status: "FIRING",
+        severity: rule.severity,
+        value: 0,
+        message: `Deployment container "${containerName}" (deployment: ${deploymentId}) is ${newStatus}`,
       });
 
       logger.info("Alert fired for unhealthy deployment container", {

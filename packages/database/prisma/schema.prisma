@@ -299,6 +299,7 @@ enum ChannelType {
   SMS
   DISCORD
   TEAMS
+  PUSH
 
   @@map("channel_type")
 }
@@ -387,6 +388,7 @@ model User {
   refreshTokens   RefreshToken[]
   invitations     Invitation[] @relation("InvitedBy")
   passwordResetTokens PasswordResetToken[]
+  pushSubscriptions   PushSubscription[]
 
   @@map("users")
   @@index([email])
@@ -550,6 +552,26 @@ model PasswordResetToken {
   @@index([userId])
   @@index([tokenHash])
   @@index([expiresAt])
+}
+
+// ============================================================================
+// PUSH NOTIFICATIONS
+// ============================================================================
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  endpoint  String   @db.VarChar(500)
+  p256dh    String   @db.VarChar(255)
+  auth      String   @db.VarChar(255)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@map("push_subscriptions")
+  @@index([userId])
 }
 
 // ============================================================================

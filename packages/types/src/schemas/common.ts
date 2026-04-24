@@ -121,6 +121,7 @@ export const ChannelTypeSchema = z.enum([
   "SMS",
   "DISCORD",
   "TEAMS",
+  "PUSH",
 ]);
 export const NotificationStatusSchema = z.enum(["PENDING", "SENT", "FAILED"]);
 

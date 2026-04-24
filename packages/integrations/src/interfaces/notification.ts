@@ -65,8 +65,34 @@ export interface WebhookConfig {
   headers?: Record<string, string>;
 }
 
+export interface TeamsConfig {
+  webhookUrl: string;
+}
+
+export interface PagerDutyConfig {
+  routingKey: string;
+  severity?: "critical" | "high" | "low" | "info";
+  component?: string;
+  group?: string;
+}
+
+export interface SmsConfig {
+  phoneNumber: string;
+  provider?: "twilio" | "sns";
+}
+
+export interface PushConfig {
+  vapidPublicKey: string;
+  vapidPrivateKey: string;
+  vapidSubject: string;
+}
+
 export type NotificationProviderConfig =
   | { type: "slack"; config: SlackConfig }
   | { type: "discord"; config: DiscordConfig }
   | { type: "email"; config: EmailConfig }
-  | { type: "webhook"; config: WebhookConfig };
+  | { type: "webhook"; config: WebhookConfig }
+  | { type: "teams"; config: TeamsConfig }
+  | { type: "pagerduty"; config: PagerDutyConfig }
+  | { type: "sms"; config: SmsConfig }
+  | { type: "push"; config: PushConfig };
