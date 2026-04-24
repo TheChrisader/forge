@@ -71,12 +71,18 @@ function formatDuration(deployment: Deployment): string {
     return "-";
   }
 
-  const endTime = deployment.deployCompletedAt ?? deployment.buildCompletedAt ?? new Date();
+  const endTime = deployment.deployCompletedAt ?? deployment.buildCompletedAt;
+  if (!endTime) {
+    const isActive = ["PENDING", "QUEUED", "BUILDING", "DEPLOYING"].includes(deployment.status);
+    if (!isActive) return "-";
+  }
+
   const startTime = new Date(deployment.buildStartedAt);
-  const end = new Date(endTime);
+  const end = new Date(endTime ?? new Date());
 
   const diffMs = end.getTime() - startTime.getTime();
 
+  if (diffMs < 0) return "0ms";
   if (diffMs < 1000) return `${diffMs}ms`;
   const diffSecs = Math.floor(diffMs / 1000);
   if (diffSecs < 60) return `${diffSecs}s`;
@@ -84,7 +90,6 @@ function formatDuration(deployment: Deployment): string {
   return `${diffMins}m ${diffSecs % 60}s`;
 }
 
-// Status info helper matching ProjectDetailPage
 function getDeploymentStatusInfo(status: string): {
   label: string;
   category: "success" | "progress" | "error" | "warning" | "neutral";
@@ -125,10 +130,8 @@ export function DeploymentsPage(): React.ReactElement {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [page, setPage] = useState(1);
 
-  // Fetch project data
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
 
-  // Build filter object for API call
   const apiFilters = useMemo(() => {
     const filters: {
       status?: string[];
@@ -156,7 +159,6 @@ export function DeploymentsPage(): React.ReactElement {
     return filters;
   }, [statusFilter, strategyFilter, searchQuery, page]);
 
-  // Fetch project deployments with server-side filtering
   const {
     data: response,
     isLoading: deploymentsLoading,
@@ -166,7 +168,6 @@ export function DeploymentsPage(): React.ReactElement {
   const deployments = response?.data ?? [];
   const totalPages = response?.meta.totalPages ?? 1;
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
   }, [statusFilter, strategyFilter, searchQuery]);
@@ -174,14 +175,12 @@ export function DeploymentsPage(): React.ReactElement {
   const isLoading = projectLoading || deploymentsLoading;
   const error = projectError ?? deploymentsError;
 
-  // Handle row click - navigate to deployment logs
   const handleDeploymentClick = (deploymentId: string): void => {
     void router.navigate({
       to: `/projects/${projectId}/deployments/${deploymentId}`,
     });
   };
 
-  // Calculate deployment stats
   const stats = useMemo(() => {
     if (deployments.length === 0) return null;
     const activeCount = deployments.filter((d: Deployment) =>
@@ -195,7 +194,6 @@ export function DeploymentsPage(): React.ReactElement {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -210,21 +208,16 @@ export function DeploymentsPage(): React.ReactElement {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Operational Command Bar */}
       <div className="border-l-2 border-primary/60 bg-primary/3">
         <div className="flex items-center justify-between gap-8 px-5 py-3">
-          {/* Left: Status Signal + Stats */}
           <div className="flex items-center gap-6">
             {stats && deployments.length > 0 ? (
               <>
-                {/* Status Signal */}
                 <div className="flex items-center gap-3">
                   <div className="relative flex items-center justify-center">
-                    {/* Outer ring - pulses when active */}
                     {stats.activeCount > 0 && (
                       <div className="absolute h-4 w-4 rounded-full bg-primary/30 animate-ping" />
                     )}
-                    {/* Core indicator */}
                     <div
                       className={`relative h-2.5 w-2.5 rounded-full ${
                         stats.activeCount > 0
@@ -245,10 +238,8 @@ export function DeploymentsPage(): React.ReactElement {
                   </div>
                 </div>
 
-                {/* Vertical separator */}
                 <div className="h-8 w-px bg-border" />
 
-                {/* Deployment stats - monospace technical */}
                 <div className="hidden sm:flex items-center gap-4 text-xs font-mono">
                   <div className="flex items-center gap-1.5">
                     <span className="text-muted-foreground">TOTAL</span>
@@ -277,7 +268,6 @@ export function DeploymentsPage(): React.ReactElement {
             )}
           </div>
 
-          {/* Right: Actions */}
           <div className="flex items-center gap-3 shrink-0">
             {project && (
               <>
@@ -299,7 +289,6 @@ export function DeploymentsPage(): React.ReactElement {
         </div>
       </div>
 
-      {/* Filters Bar */}
       <div className="border-b border-border/50 pb-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2 text-sm">
@@ -363,7 +352,6 @@ export function DeploymentsPage(): React.ReactElement {
         </div>
       </div>
 
-      {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center py-16">
           <div className="text-center">
@@ -373,7 +361,6 @@ export function DeploymentsPage(): React.ReactElement {
         </div>
       )}
 
-      {/* Error State */}
       {!isLoading && error && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="flex items-center justify-center w-14 h-14 rounded-lg bg-destructive/10 mb-4">
@@ -388,7 +375,6 @@ export function DeploymentsPage(): React.ReactElement {
         </div>
       )}
 
-      {/* Empty State */}
       {!isLoading && !error && deployments.length === 0 && (
         <div className="border border-dashed rounded-lg py-16 text-center">
           <div className="flex items-center justify-center w-14 h-14 rounded-lg bg-primary/10 mx-auto mb-4">
@@ -403,10 +389,8 @@ export function DeploymentsPage(): React.ReactElement {
         </div>
       )}
 
-      {/* Deployments Timeline */}
       {!isLoading && !error && deployments.length > 0 && (
         <div className="space-y-6">
-          {/* List header */}
           <div className="flex items-center justify-between text-sm">
             <h3 className="font-serif text-lg font-semibold">Deployment History</h3>
             <span className="font-mono text-xs text-muted-foreground">
@@ -414,7 +398,6 @@ export function DeploymentsPage(): React.ReactElement {
             </span>
           </div>
 
-          {/* Timeline */}
           <div className="space-y-0">
             {deployments.map((deployment: Deployment, index: number) => {
               const statusInfo = getDeploymentStatusInfo(deployment.status);
@@ -437,7 +420,6 @@ export function DeploymentsPage(): React.ReactElement {
                     className="flex gap-4 px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
                     onClick={() => handleDeploymentClick(deployment.id)}
                   >
-                    {/* Timeline column */}
                     <div className="flex flex-col items-center">
                       <div className="relative">
                         <div
@@ -460,11 +442,9 @@ export function DeploymentsPage(): React.ReactElement {
                       )}
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          {/* Icon */}
                           <div
                             className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors group-hover:scale-110 ${
                               isActive
@@ -489,7 +469,6 @@ export function DeploymentsPage(): React.ReactElement {
                             />
                           </div>
 
-                          {/* Details */}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap mb-1">
                               <code className="font-mono text-sm font-medium">
@@ -519,7 +498,6 @@ export function DeploymentsPage(): React.ReactElement {
                           </div>
                         </div>
 
-                        {/* Status and arrow */}
                         <div className="flex items-center gap-3 shrink-0">
                           <Badge variant="outline" className={statusInfo.badgeClass}>
                             {statusInfo.label}
@@ -535,7 +513,6 @@ export function DeploymentsPage(): React.ReactElement {
             })}
           </div>
 
-          {/* Server-side pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center pt-4">
               <Pagination>
@@ -556,7 +533,6 @@ export function DeploymentsPage(): React.ReactElement {
                     )}
                   </PaginationItem>
 
-                  {/* Show page numbers */}
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNum;
                     if (totalPages <= 5) {

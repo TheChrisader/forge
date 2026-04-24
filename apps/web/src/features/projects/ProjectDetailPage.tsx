@@ -109,18 +109,30 @@ function getDeploymentStatusInfo(status: string): {
   return { label: "Inactive", category: "neutral" };
 }
 
-function formatDeploymentDuration(deployment: {
-  buildStartedAt?: Date | string | null | undefined;
-  buildCompletedAt?: Date | string | null | undefined;
-  deployCompletedAt?: Date | string | null | undefined;
-}): string {
+function formatDeploymentDuration(
+  deployment: {
+    status?: string | null;
+    buildStartedAt?: Date | string | null | undefined;
+    buildCompletedAt?: Date | string | null | undefined;
+    deployCompletedAt?: Date | string | null | undefined;
+  },
+  now?: Date
+): string {
   if (!deployment.buildStartedAt) return "-";
 
-  const endTime = deployment.deployCompletedAt ?? deployment.buildCompletedAt ?? new Date();
+  const endTime = deployment.deployCompletedAt ?? deployment.buildCompletedAt;
+  if (!endTime) {
+    const isActive = deployment.status
+      ? ["PENDING", "QUEUED", "BUILDING", "DEPLOYING"].includes(deployment.status)
+      : false;
+    if (!isActive) return "-";
+  }
+
   const startTime = new Date(deployment.buildStartedAt);
-  const end = new Date(endTime);
+  const end = new Date(endTime ?? now ?? new Date());
   const diffMs = end.getTime() - startTime.getTime();
 
+  if (diffMs < 0) return "0ms";
   if (diffMs < 1000) return `${diffMs}ms`;
   const diffSecs = Math.floor(diffMs / 1000);
   if (diffSecs < 60) return `${diffSecs}s`;
