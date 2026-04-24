@@ -87,8 +87,8 @@ export function ApiKeysSettings(): React.ReactElement {
       </CardHeader>
       <CardContent className="space-y-5">
         {newKey && (
-          <Alert className="border-warning-500/20 bg-warning-500/5">
-            <div className="flex flex-col gap-3">
+          <Alert className="border-warning-500/20 bg-warning-500/5 flex">
+            <div className="flex flex-col max-w-full gap-3">
               <div>
                 <AlertTitle className="font-serif text-sm">API Key Created — Copy Now</AlertTitle>
                 <AlertDescription className="font-sans text-xs text-muted-foreground">
@@ -97,7 +97,7 @@ export function ApiKeysSettings(): React.ReactElement {
                 </AlertDescription>
               </div>
               <div className="flex items-center gap-2">
-                <code className="flex-1 rounded-md border border-border/50 bg-muted/50 px-3 py-2 font-mono text-xs break-all">
+                <code className="flex-1 rounded-md border border-border/50 bg-muted/50 px-3 py-2 font-mono text-xs truncate">
                   {newKey}
                 </code>
                 <Button

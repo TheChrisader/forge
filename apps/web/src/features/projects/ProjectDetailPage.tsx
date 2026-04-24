@@ -45,6 +45,9 @@ import {
   RotateCcwIcon,
   PlusIcon,
   InfoIcon,
+  FolderIcon,
+  ContainerIcon,
+  FileTextIcon,
 } from "lucide-react";
 import { useProject } from "@/core/api/hooks/useProjects";
 import { useProjectDeployments, useCreateDeployment } from "@/core/api/hooks/useDeployments";
@@ -772,6 +775,8 @@ export function ProjectDetailPage(): React.ReactElement {
   const deployConfig = (config.deploy as Record<string, unknown> | undefined) || {};
   const framework = buildConfig.framework as string | undefined;
   const defaultStrategy = deployConfig.strategy as DeploymentStrategy | undefined;
+  const sourceType = project.sourceType as string | undefined;
+  const isGitSource = sourceType === "git";
   const repository = project.sourceUrl || "No repository configured";
   const createdAt = formatTimestamp(project.createdAt);
   const updatedAt = formatTimestamp(project.updatedAt);
@@ -983,7 +988,7 @@ export function ProjectDetailPage(): React.ReactElement {
                     <SettingsIcon className="h-3.5 w-3.5" />
                     Configure
                   </Button>
-                  {repository !== "No repository configured" && (
+                  {isGitSource && repository !== "No repository configured" && (
                     <Button size="sm" variant="ghost" className="gap-1.5 text-xs h-8" asChild>
                       <a
                         href={repository.startsWith("http") ? repository : undefined}
@@ -1160,33 +1165,81 @@ export function ProjectDetailPage(): React.ReactElement {
           )}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {repository !== "No repository configured" && (
+            {sourceType && (
               <Card className="border-border/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="font-serif text-base flex items-center gap-2">
-                    <GitForkIcon className="h-4 w-4 text-muted-foreground" />
-                    Source Repository
+                    {sourceType === "git" && (
+                      <GitForkIcon className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    {sourceType === "local" && (
+                      <FolderIcon className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    {sourceType === "image" && (
+                      <ContainerIcon className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    {sourceType === "docker-compose" && (
+                      <FileTextIcon className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    {sourceType === "git"
+                      ? "Source Repository"
+                      : sourceType === "image"
+                        ? "Container Image"
+                        : sourceType === "docker-compose"
+                          ? "Docker Compose"
+                          : "Local Source"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="font-mono text-xs break-all text-muted-foreground/80">
-                    {repository}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5 text-xs h-8"
-                    asChild
-                  >
-                    <a
-                      href={repository.startsWith("http") ? repository : undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLinkIcon className="h-3.5 w-3.5" />
-                      Open in Git
-                    </a>
-                  </Button>
+                  {repository !== "No repository configured" ? (
+                    <>
+                      <p className="font-mono text-xs break-all text-muted-foreground/80">
+                        {repository}
+                      </p>
+                      {isGitSource && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full gap-1.5 text-xs h-8"
+                          asChild
+                        >
+                          <a
+                            href={repository.startsWith("http") ? repository : undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLinkIcon className="h-3.5 w-3.5" />
+                            Open in Git
+                          </a>
+                        </Button>
+                      )}
+                      {!isGitSource && sourceType === "image" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full gap-1.5 text-xs h-8"
+                          asChild
+                        >
+                          <a
+                            href={repository.startsWith("http") ? repository : undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLinkIcon className="h-3.5 w-3.5" />
+                            View on DockerHub
+                          </a>
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/70">
+                      {sourceType === "local"
+                        ? "Local filesystem — code is uploaded directly"
+                        : sourceType === "docker-compose"
+                          ? "Defined via docker-compose configuration"
+                          : "No source URL configured"}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}

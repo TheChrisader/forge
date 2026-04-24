@@ -121,7 +121,7 @@ function ResourceRowSkeleton(): React.ReactElement {
 
 export function DashboardPage(): React.ReactElement {
   const { data: dashboard, isLoading, error, refetch } = useDashboardStats();
-  const { data: auditData } = useAuditLogs({ page: 1, limit: 5 });
+  const { data: auditData } = useAuditLogs({ page: 1, limit: 4 });
 
   const stats = dashboard
     ? [
@@ -364,7 +364,7 @@ export function DashboardPage(): React.ReactElement {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 gap-4">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>

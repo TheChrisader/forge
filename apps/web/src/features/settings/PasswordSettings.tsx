@@ -129,7 +129,7 @@ export function PasswordSettings(): React.ReactElement {
             />
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="mt-6">
           <Button
             type="submit"
             variant="default"
