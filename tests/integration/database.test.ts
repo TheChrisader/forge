@@ -119,14 +119,12 @@ describe("Database Integration", () => {
       const deployment = await db.deployment.create({
         data: {
           projectId: project.id,
-          version: 1,
           status: "PENDING",
         },
       });
 
       expect(deployment).toBeDefined();
       expect(deployment.projectId).toBe(project.id);
-      expect(deployment.version).toBe(1);
 
       const projectWithDeployments = await db.project.findUnique({
         where: { id: project.id },
@@ -153,7 +151,6 @@ describe("Database Integration", () => {
       const deployment = await db.deployment.create({
         data: {
           projectId: project.id,
-          version: 1,
           status: "PENDING",
         },
       });
@@ -182,7 +179,6 @@ describe("Database Integration", () => {
           metadata: {},
           deployments: {
             create: {
-              version: 1,
               status: "PENDING",
             },
           },
@@ -223,7 +219,6 @@ describe("Database Integration", () => {
       const deployment = await db.deployment.create({
         data: {
           projectId: project.id,
-          version: 1,
           status: "RUNNING",
         },
       });
@@ -267,7 +262,6 @@ describe("Database Integration", () => {
       const deployment = await db.deployment.create({
         data: {
           projectId: project.id,
-          version: 1,
           status: "RUNNING",
         },
       });
@@ -310,7 +304,6 @@ describe("Database Integration", () => {
         await tx.deployment.create({
           data: {
             projectId: project.id,
-            version: 1,
             status: "PENDING",
           },
         });

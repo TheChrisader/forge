@@ -82,64 +82,6 @@ export async function retry<T>(
 }
 
 /**
- * Create a mock function with call tracking
- */
-export function createMock<T extends (...args: unknown[]) => unknown>(): MockFunction<T> {
-  const calls: Array<Parameters<T>> = [];
-  let mockImplementation: T | undefined;
-
-  const fn = ((...args: Parameters<T>) => {
-    calls.push(args);
-    return mockImplementation ? mockImplementation(...args) : undefined;
-  }) as MockFunction<T>;
-
-  fn.mockImplementation = (impl: T): MockFunction<T> => {
-    mockImplementation = impl;
-    return fn;
-  };
-
-  fn.mockReturnValue = (value: ReturnType<T>): MockFunction<T> => {
-    mockImplementation = (() => value) as T;
-    return fn;
-  };
-
-  fn.mockResolvedValue = (value: Awaited<ReturnType<T>>): MockFunction<T> => {
-    mockImplementation = (() => Promise.resolve(value)) as T;
-    return fn;
-  };
-
-  fn.mockRejectedValue = (error: Error): MockFunction<T> => {
-    mockImplementation = (() => Promise.reject(error)) as T;
-    return fn;
-  };
-
-  fn.calls = calls;
-  fn.callCount = (): number => calls.length;
-  fn.wasCalled = (): boolean => calls.length > 0;
-  fn.wasCalledWith = (...args: Parameters<T>): boolean =>
-    calls.some((call) => JSON.stringify(call) === JSON.stringify(args));
-  fn.reset = (): void => {
-    calls.length = 0;
-    mockImplementation = undefined;
-  };
-
-  return fn;
-}
-
-export interface MockFunction<T extends (...args: unknown[]) => unknown> {
-  (...args: Parameters<T>): ReturnType<T>;
-  mockImplementation(impl: T): MockFunction<T>;
-  mockReturnValue(value: ReturnType<T>): MockFunction<T>;
-  mockResolvedValue(value: Awaited<ReturnType<T>>): MockFunction<T>;
-  mockRejectedValue(error: Error): MockFunction<T>;
-  calls: Array<Parameters<T>>;
-  callCount(): number;
-  wasCalled(): boolean;
-  wasCalledWith(...args: Parameters<T>): boolean;
-  reset(): void;
-}
-
-/**
  * Collect items from an async iterable into an array
  */
 export async function collectAsync<T>(iterable: AsyncIterable<T>): Promise<T[]> {
