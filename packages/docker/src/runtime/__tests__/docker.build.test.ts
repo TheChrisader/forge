@@ -2,20 +2,28 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DockerRuntime } from "../docker.js";
 import { Readable } from "node:stream";
 
-vi.mock("tar-fs", () => ({
-  pack: () => {
-    return new Readable({
-      read() {
-        this.push(null);
-      },
-    });
-  },
-}));
+vi.mock(
+  "tar-fs",
+  (): Record<string, unknown> => ({
+    pack: (): Readable => {
+      return new Readable({
+        read(): void {
+          this.push(null);
+        },
+      });
+    },
+  })
+);
 
-vi.mock("node:path", () => ({
-  basename: () => "test",
-  join: (...args: string[]) => args.join("/"),
-}));
+vi.mock("node:path", async (importOriginal): Promise<Record<string, unknown>> => {
+  const actual = await importOriginal<typeof import("node:path")>();
+  return {
+    ...actual,
+    default: actual,
+    basename: (): string => "test",
+    join: (...args: string[]): string => args.join("/"),
+  } as unknown as Record<string, unknown>;
+});
 
 describe("DockerRuntime.buildImage", () => {
   let runtime: DockerRuntime;
@@ -38,7 +46,7 @@ describe("DockerRuntime.buildImage", () => {
 
   it("builds an image and returns metadata", async () => {
     const mockStream = new Readable({
-      read() {
+      read(): void {
         this.push(JSON.stringify({ stream: "Step 1/3 : FROM node:20\n" }) + "\n");
         this.push(JSON.stringify({ stream: "Step 2/3 : COPY . .\n" }) + "\n");
         this.push(JSON.stringify({ aux: { ID: "sha256:abc123" } }) + "\n");
@@ -59,7 +67,7 @@ describe("DockerRuntime.buildImage", () => {
 
   it("emits progress events through onProgress callback", async () => {
     const mockStream = new Readable({
-      read() {
+      read(): void {
         this.push(JSON.stringify({ stream: "Building...\n" }) + "\n");
         this.push(JSON.stringify({ aux: { ID: "sha256:abc" } }) + "\n");
         this.push(null);
@@ -81,7 +89,7 @@ describe("DockerRuntime.buildImage", () => {
 
   it("throws DockerSyntaxError on Dockerfile parse error", async () => {
     const mockStream = new Readable({
-      read() {
+      read(): void {
         this.push(
           JSON.stringify({
             errorDetail: { message: "Dockerfile parse error: unknown instruction: FOO" },
@@ -100,7 +108,7 @@ describe("DockerRuntime.buildImage", () => {
 
   it("collects warnings during build", async () => {
     const mockStream = new Readable({
-      read() {
+      read(): void {
         this.push(JSON.stringify({ stream: "Warning: apt-key deprecated\n" }) + "\n");
         this.push(JSON.stringify({ aux: { ID: "sha256:abc" } }) + "\n");
         this.push(null);

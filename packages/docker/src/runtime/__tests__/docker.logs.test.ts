@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DockerRuntime } from "../docker.js";
+import { Readable } from "node:stream";
 
 describe("DockerRuntime.logs - log parsing", () => {
   let runtime: DockerRuntime;
@@ -12,7 +13,7 @@ describe("DockerRuntime.logs - log parsing", () => {
     };
 
     mockDocker = {
-      getContainer: vi.fn(() => mockContainer),
+      getContainer: vi.fn((): typeof mockContainer => mockContainer),
     };
 
     runtime = new DockerRuntime({ socketPath: "/mock/docker.sock" });
@@ -118,7 +119,7 @@ describe("DockerRuntime.logs - log parsing", () => {
 
   describe("follow mode", () => {
     it("streams log frames as they arrive", async () => {
-      const { Readable } = require("node:stream");
+      // Readable imported at top of file
 
       const msg1 = "Starting build...\n";
       const msg2 = "Installing dependencies...\n";
@@ -160,7 +161,7 @@ describe("DockerRuntime.logs - log parsing", () => {
     });
 
     it("reassembles frames split across chunks", async () => {
-      const { Readable } = require("node:stream");
+      // Readable imported at top of file
 
       // Create a complete frame, then split it in half
       const message = "This is a long log message that spans chunks\n";
@@ -189,7 +190,7 @@ describe("DockerRuntime.logs - log parsing", () => {
     });
 
     it("handles multiple complete frames followed by partial frame", async () => {
-      const { Readable } = require("node:stream");
+      // Readable imported at top of file
 
       const msg1 = "First message\n";
       const msg2 = "Second message\n";

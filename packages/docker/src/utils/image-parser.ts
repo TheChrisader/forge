@@ -183,16 +183,21 @@ export function parseDockerImage(reference: string): DockerImageReference {
     const isPort = /^\d+$/.test(potentialTag) && !beforeColon.includes("/") && looksLikeDomain;
 
     if (!isPort) {
-      // This is a tag
-      if (!isValidTag(potentialTag)) {
-        throw new DockerImageParseError(
-          `Invalid tag format: ${potentialTag}`,
-          original,
-          colonIndex + 1
-        );
+      // If the potential tag contains a '/', the colon is part of domain:port,
+      // not a tag separator — skip tag extraction entirely.
+      if (potentialTag.includes("/")) {
+        // Colon is part of domain:port, leave remaining unchanged
+      } else {
+        if (!isValidTag(potentialTag)) {
+          throw new DockerImageParseError(
+            `Invalid tag format: ${potentialTag}`,
+            original,
+            colonIndex + 1
+          );
+        }
+        tag = potentialTag;
+        remaining = beforeColon;
       }
-      tag = potentialTag;
-      remaining = beforeColon;
     }
   }
 

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import DockerIgnore from "@balena/dockerignore";
 import type { Ignore } from "@balena/dockerignore";
-import minimatch from "minimatch";
+import { match as minimatchMatch } from "minimatch";
 
 /**
  * Parse and filter paths based on .dockerignore rules.
@@ -156,7 +156,10 @@ export function createDefaultIgnore(): (name: string) => boolean {
     return DEFAULT_IGNORE_PATTERNS.some((pattern) => {
       // Handle patterns like .env.* that match multiple files
       if (pattern.includes("*")) {
-        return minimatch.match([basename], pattern) || minimatch.match([filePath], pattern);
+        return (
+          minimatchMatch([basename], pattern).length > 0 ||
+          minimatchMatch([filePath], pattern).length > 0
+        );
       }
       // Handle directory patterns (should match the directory itself and any contents)
       if (
