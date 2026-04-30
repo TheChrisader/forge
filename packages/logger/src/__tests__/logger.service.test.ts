@@ -2,7 +2,7 @@
  * Logger Service Tests
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { LoggerService, createLogger, validateLoggerConfig } from "../logger.service";
 import type { LoggerConfig } from "../types";
 import { LoggerConfigError } from "../errors";
@@ -12,7 +12,7 @@ describe("LoggerService", () => {
 
   beforeEach(() => {
     defaultConfig = {
-      level: "info",
+      level: "INFO",
       format: "json",
       enabled: true,
       name: "test-logger",
@@ -23,7 +23,7 @@ describe("LoggerService", () => {
     it("should create a logger with valid config", () => {
       const logger = new LoggerService(defaultConfig);
       expect(logger).toBeDefined();
-      expect(logger.getLevel()).toBe("info");
+      expect(logger.getLevel()).toBe("INFO");
     });
 
     it("should throw LoggerConfigError with invalid level", () => {
@@ -42,7 +42,7 @@ describe("LoggerService", () => {
     });
 
     it("should accept all valid log levels", () => {
-      const levels = ["trace", "debug", "info", "warn", "error", "fatal"] as const;
+      const levels = ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"] as const;
 
       for (const level of levels) {
         const config = { ...defaultConfig, level };
@@ -122,23 +122,24 @@ describe("LoggerService", () => {
   describe("level management", () => {
     it("should get the current level", () => {
       const logger = new LoggerService(defaultConfig);
-      expect(logger.getLevel()).toBe("info");
+      expect(logger.getLevel()).toBe("INFO");
     });
 
     it("should set a new valid level", () => {
       const logger = new LoggerService(defaultConfig);
-      logger.setLevel("debug");
-      expect(logger.getLevel()).toBe("debug");
+      logger.setLevel("DEBUG");
+      expect(logger.getLevel()).toBe("DEBUG");
     });
 
     it("should throw when setting invalid level", () => {
       const logger = new LoggerService(defaultConfig);
-      expect(() => logger.setLevel("invalid" as any)).toThrow(LoggerConfigError);
+      // @ts-expect-error invalid level
+      expect(() => logger.setLevel("invalid")).toThrow(LoggerConfigError);
     });
 
     it("should allow changing to any valid level", () => {
       const logger = new LoggerService(defaultConfig);
-      const levels = ["trace", "debug", "info", "warn", "error", "fatal"] as const;
+      const levels = ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"] as const;
 
       for (const level of levels) {
         logger.setLevel(level);
@@ -178,7 +179,7 @@ describe("LoggerService", () => {
 describe("createLogger", () => {
   it("should create a LoggerService instance", () => {
     const config: LoggerConfig = {
-      level: "info",
+      level: "INFO",
       format: "json",
       enabled: true,
     };
@@ -191,7 +192,7 @@ describe("createLogger", () => {
 describe("validateLoggerConfig", () => {
   it("should return valid: true for correct config", () => {
     const config: LoggerConfig = {
-      level: "info",
+      level: "INFO",
       format: "json",
       enabled: true,
     };

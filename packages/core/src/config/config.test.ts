@@ -202,7 +202,7 @@ describe("ConfigValidator", () => {
         ssl: { enabled: true, autoGenerate: true },
       },
       observability: {
-        logs: { enabled: true, level: "debug", retention: "30d", format: "json" },
+        logs: { enabled: true, level: "DEBUG", retention: "30d", format: "json" },
         metrics: { enabled: true, interval: 10000, retention: "90d" },
         tracing: { enabled: false, samplingRate: 0.1 },
       },

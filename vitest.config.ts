@@ -7,6 +7,7 @@ const __dirname = dirname(__filename);
 
 export default defineConfig({
   test: {
+    passWithNoTests: true,
     globals: true,
     environment: "node",
     setupFiles: [resolve(__dirname, "tests/integration/setup.ts")],

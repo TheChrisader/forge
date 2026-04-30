@@ -96,10 +96,9 @@ export function printDeploymentsTable(deployments: Deployment[]): void {
   }
 
   const data = [
-    ["ID", "Version", "Status", "Created"].map((h) => chalk.bold(h)),
+    ["ID", "Status", "Created"].map((h) => chalk.bold(h)),
     ...deployments.map((d) => [
       d.id.substring(0, 8),
-      d.version,
       formatStatus(d.status),
       formatRelativeTime(d.createdAt),
     ]),

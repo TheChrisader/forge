@@ -16,7 +16,7 @@ describe("Child Logger", () => {
 
   beforeEach(() => {
     defaultConfig = {
-      level: "info",
+      level: "INFO",
       format: "json",
       enabled: true,
       name: "test-logger",
@@ -80,42 +80,42 @@ describe("Child Logger", () => {
 
   describe("level management", () => {
     it("should inherit parent's level initially", () => {
-      const parent = new LoggerService({ ...defaultConfig, level: "debug" });
+      const parent = new LoggerService({ ...defaultConfig, level: "DEBUG" });
       const child = parent.child({ requestId: "123" });
 
-      expect(child.getLevel()).toBe("debug");
+      expect(child.getLevel()).toBe("DEBUG");
     });
 
     it("should allow independent level changes", () => {
-      const parent = new LoggerService({ ...defaultConfig, level: "info" });
+      const parent = new LoggerService({ ...defaultConfig, level: "INFO" });
       const child = parent.child({ requestId: "123" });
 
-      child.setLevel("debug");
+      child.setLevel("DEBUG");
 
-      expect(parent.getLevel()).toBe("info");
-      expect(child.getLevel()).toBe("debug");
+      expect(parent.getLevel()).toBe("INFO");
+      expect(child.getLevel()).toBe("DEBUG");
     });
 
     it("should not affect parent when child level changes", () => {
-      const parent = new LoggerService({ ...defaultConfig, level: "info" });
+      const parent = new LoggerService({ ...defaultConfig, level: "INFO" });
       const child = parent.child({ requestId: "123" });
 
-      child.setLevel("error");
+      child.setLevel("ERROR");
 
-      expect(parent.getLevel()).toBe("info");
-      expect(child.getLevel()).toBe("error");
+      expect(parent.getLevel()).toBe("INFO");
+      expect(child.getLevel()).toBe("ERROR");
     });
 
     it("should not affect siblings when one child changes level", () => {
-      const parent = new LoggerService({ ...defaultConfig, level: "info" });
+      const parent = new LoggerService({ ...defaultConfig, level: "INFO" });
       const child1 = parent.child({ child: "1" });
       const child2 = parent.child({ child: "2" });
 
-      child1.setLevel("debug");
+      child1.setLevel("DEBUG");
 
-      expect(parent.getLevel()).toBe("info");
-      expect(child1.getLevel()).toBe("debug");
-      expect(child2.getLevel()).toBe("info");
+      expect(parent.getLevel()).toBe("INFO");
+      expect(child1.getLevel()).toBe("DEBUG");
+      expect(child2.getLevel()).toBe("INFO");
     });
   });
 

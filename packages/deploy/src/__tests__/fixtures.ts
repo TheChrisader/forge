@@ -15,7 +15,7 @@ export function createMockLogger(): ILogger {
     error: vi.fn(),
     fatal: vi.fn(),
     child: vi.fn().mockReturnThis(),
-    getLevel: vi.fn().mockReturnValue("info" as const),
+    getLevel: vi.fn().mockReturnValue("INFO" as const),
     setLevel: vi.fn(),
     flush: vi.fn().mockResolvedValue(undefined),
   };

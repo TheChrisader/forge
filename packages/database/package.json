@@ -8,10 +8,10 @@
     "seed": "tsx prisma/seed.ts"
   },
   "scripts": {
-    "prebuild": "shx rm -rf dist tsconfig.tsbuildinfo",
+    "prebuild": "shx rm -rf tsconfig.tsbuildinfo",
     "build": "tsc",
     "dev": "tsc --watch",
-    "postbuild": "shx mkdir -p dist/generated && shx cp -r src/generated/client dist/generated/client",
+    "postbuild": "shx rm -rf dist/generated && shx mkdir -p dist/generated && shx cp -r src/generated/client dist/generated/client",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",

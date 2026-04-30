@@ -6,7 +6,6 @@ import { createSpinner } from "../utils/spinner.js";
 import type { DeploymentStrategy } from "@forge/types";
 
 interface DeployOptions {
-  version?: string;
   strategy?: DeploymentStrategy;
 }
 
@@ -14,7 +13,6 @@ export function createDeployCommand(): Command {
   return new Command("deploy")
     .description("Deploy a project")
     .argument("[project-id]", "Project ID (uses default if not specified)")
-    .option("-v, --version <version>", "Version to deploy")
     .option("-s, --strategy <strategy>", "Deployment strategy", "rolling")
     .action(async (projectId: string | undefined, options: DeployOptions) => {
       try {
@@ -30,7 +28,6 @@ export function createDeployCommand(): Command {
         const spinner = createSpinner("Starting deployment...").start();
 
         const result = await client.deployProject(id, {
-          version: options.version,
           strategy: options.strategy,
         });
 
@@ -39,7 +36,6 @@ export function createDeployCommand(): Command {
         output.newline();
         output.keyValue("Deployment ID", result.deployment.id);
         output.keyValue("Project ID", result.deployment.projectId);
-        output.keyValue("Version", String(result.deployment.version));
         output.keyValue("Status", result.deployment.status);
         output.newline();
 

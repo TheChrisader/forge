@@ -118,7 +118,7 @@ describe("LoggerModule", () => {
       observability: {
         logs: {
           enabled: true,
-          level: "info",
+          level: "INFO",
           retention: "30d",
           format: "json",
         },

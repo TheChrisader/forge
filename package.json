@@ -10,7 +10,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "turbo run build",
+    "build": "turbo run build postbuild",
     "dev": "turbo run dev",
     "test": "turbo run test",
     "test:run": "vitest run",

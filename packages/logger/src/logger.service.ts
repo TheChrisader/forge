@@ -22,7 +22,7 @@ function validateConfig(config: LoggerConfig): void {
     errors.push("level is required");
   } else if (!["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"].includes(config.level)) {
     errors.push(
-      `level must be one of: trace, debug, info, warn, error, fatal. Got: ${config.level}`
+      `level must be one of: TRACE, DEBUG, INFO, WARN, ERROR, FATAL. Got: ${config.level}`
     );
   }
 
@@ -46,7 +46,7 @@ function validateConfig(config: LoggerConfig): void {
  */
 function createPinoOptions(config: LoggerConfig): pino.LoggerOptions {
   const options: pino.LoggerOptions = {
-    level: config.level,
+    level: config.level.toLowerCase(),
     timestamp: config.timestamp !== false ? pino.stdTimeFunctions.isoTime : false,
     messageKey: config.messageKey ?? "msg",
     errorKey: config.errorKey ?? "err",
@@ -187,7 +187,7 @@ export class LoggerService implements ILogger {
    * Get the current log level
    */
   getLevel(): LogLevel {
-    return this.pino.level as LogLevel;
+    return this.pino.level.toUpperCase() as LogLevel;
   }
 
   /**
@@ -196,11 +196,11 @@ export class LoggerService implements ILogger {
   setLevel(level: LogLevel): void {
     if (!["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"].includes(level)) {
       throw new LoggerConfigError(
-        `Invalid log level: ${level}. Must be one of: trace, debug, info, warn, error, fatal`
+        `Invalid log level: ${level}. Must be one of: TRACE, DEBUG, INFO, WARN, ERROR, FATAL`
       );
     }
 
-    this.pino.level = level;
+    this.pino.level = level.toLowerCase();
   }
 
   /**

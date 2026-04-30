@@ -36,7 +36,7 @@ describe("FlushManager", () => {
       error: vi.fn(),
       fatal: vi.fn(),
       child: vi.fn().mockReturnThis(),
-      getLevel: vi.fn().mockReturnValue("info"),
+      getLevel: vi.fn().mockReturnValue("INFO"),
       setLevel: vi.fn(),
     } as unknown as ILogger;
 

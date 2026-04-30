@@ -1,94 +1,98 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { DeployJobData } from "@forge/types";
-import type { IJobContext } from "@forge/queue";
+import type { IJobContext, QueueConfig } from "@forge/queue";
 
-// Create mock objects using hoisted so they can be used in vi.mock
-const { mockDb, mockRuntime, MockDockerRuntime, getDatabaseClientMock, createTransactionMock } =
-  vi.hoisted(() => {
-    const mockRuntime = {
-      create: vi.fn(),
-      start: vi.fn(),
-      stop: vi.fn(),
-      remove: vi.fn(),
-      waitForHealthy: vi.fn(),
-      listNetworks: vi.fn(),
-      createNetwork: vi.fn(),
-      listVolumes: vi.fn(),
-      createVolume: vi.fn(),
-    };
+const {
+  mockDb,
+  mockRuntime,
+  getDatabaseClientMock,
+  MockDockerRuntime,
+  mockOrchestrator,
+  MockDeploymentOrchestrator,
+  mockLock,
+  MockRedisDeployLock,
+  mockStrategyRegistry,
+} = vi.hoisted(() => {
+  const mockRuntime = {
+    create: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    remove: vi.fn(),
+    waitForHealthy: vi.fn(),
+    listNetworks: vi.fn(),
+    createNetwork: vi.fn(),
+    listVolumes: vi.fn(),
+    createVolume: vi.fn(),
+  };
 
-    class MockDockerRuntime {
-      constructor() {
-        return mockRuntime;
-      }
+  class MockDockerRuntime {
+    constructor() {
+      return mockRuntime;
     }
+  }
 
-    const getDatabaseClientMock = vi.fn(() => mockDb);
+  const mockDb = {
+    deployment: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    project: {
+      update: vi.fn(),
+    },
+    container: {
+      findMany: vi.fn(),
+      updateMany: vi.fn(),
+      update: vi.fn(),
+    },
+    $transaction: vi.fn(),
+  };
 
-    // Create a transaction mock that provides all Prisma methods
-    const createTransactionMock = (): {
-      mock: (callback: (tx: unknown) => Promise<unknown>) => Promise<unknown>;
-      txMock: unknown;
-    } => {
-      const txMock = {
-        container: {
-          create: vi.fn(),
-        },
-        portMapping: {
-          createMany: vi.fn(),
-        },
-        volumeMapping: {
-          createMany: vi.fn(),
-        },
-        healthCheckConfig: {
-          create: vi.fn(),
-        },
-        networkAttachment: {
-          create: vi.fn(),
-        },
-        resourceLimit: {
-          create: vi.fn(),
-        },
-      };
+  const getDatabaseClientMock = vi.fn(() => mockDb);
 
-      const mock = async (callback: (tx: unknown) => Promise<unknown>): Promise<unknown> => {
-        return await callback(txMock);
-      };
+  const mockOrchestrator = {
+    deploy: vi.fn(),
+    handleFailure: vi.fn(),
+  };
 
-      Object.assign(mock, txMock);
+  class MockDeploymentOrchestrator {
+    constructor() {
+      return mockOrchestrator;
+    }
+  }
 
-      return { mock, txMock };
-    };
+  const mockLock = {
+    acquire: vi.fn(),
+    release: vi.fn(),
+    extend: vi.fn(),
+    acquireProjectLock: vi.fn(),
+    releaseProjectLock: vi.fn(),
+    extendProjectLock: vi.fn(),
+  };
 
-    const mockDb = {
-      deployment: {
-        findUnique: vi.fn(),
-        update: vi.fn(),
-      },
-      project: {
-        update: vi.fn(),
-      },
-      container: {
-        update: vi.fn(),
-        updateMany: vi.fn(),
-      },
-      $transaction: vi.fn(),
-    };
+  class MockRedisDeployLock {
+    constructor() {
+      return mockLock;
+    }
+  }
 
-    const _mockQueueService = {
-      addJob: vi.fn(),
-      close: vi.fn(),
-    };
+  const mockStrategyRegistry = {
+    register: vi.fn(),
+    get: vi.fn(),
+    getAll: vi.fn(),
+  };
 
-    return {
-      mockDb,
-      mockRuntime,
-      _mockQueueService,
-      MockDockerRuntime,
-      getDatabaseClientMock,
-      createTransactionMock,
-    };
-  });
+  return {
+    mockDb,
+    mockRuntime,
+    getDatabaseClientMock,
+    MockDockerRuntime,
+    mockOrchestrator,
+    MockDeploymentOrchestrator,
+    mockLock,
+    MockRedisDeployLock,
+    mockStrategyRegistry,
+  };
+});
 
 vi.mock("@forge/database", () => ({
   getDatabaseClient: getDatabaseClientMock,
@@ -98,227 +102,203 @@ vi.mock("@forge/docker", () => ({
   DockerRuntime: MockDockerRuntime,
 }));
 
+vi.mock("@forge/core", async () => {
+  const actual = await vi.importActual("@forge/core");
+  class MockBuildLogService {
+    getLineCount = vi.fn().mockResolvedValue(0);
+    appendBatch = vi.fn().mockResolvedValue(undefined);
+  }
+  return {
+    ...actual,
+    BuildLogService: MockBuildLogService,
+  };
+});
+
+vi.mock("@forge/deploy", () => {
+  class MockContainerLifecycle {
+    createContainer = vi.fn();
+    startContainer = vi.fn();
+    waitForHealthy = vi.fn();
+    stopAndRemoveWithContext = vi.fn();
+  }
+  return {
+    createDefaultStrategyRegistry: vi.fn(() => mockStrategyRegistry),
+    ContainerLifecycle: MockContainerLifecycle,
+  };
+});
+
+vi.mock("@forge/security", () => ({
+  decrypt: vi.fn((val: string) => val),
+}));
+
+vi.mock("@forge/queue", async () => {
+  const actual = await vi.importActual("@forge/queue");
+  return {
+    ...actual,
+    RedisDeployLock: MockRedisDeployLock,
+  };
+});
+
+vi.mock("../../deployment-orchestrator.service.js", () => ({
+  DeploymentOrchestrator: MockDeploymentOrchestrator,
+}));
+
 import { handleDeployJob } from "../deploy.handler.js";
+import type { IProxyIntegration } from "@forge/proxy";
+
+const mockProxyIntegration: IProxyIntegration = {
+  onContainerDeployed: vi.fn(),
+  onContainerRemoved: vi.fn(),
+} as unknown as IProxyIntegration;
+
+const queueConfig: QueueConfig = {
+  connection: {
+    type: "redis",
+    redis: { host: "localhost", port: 6379, db: 0 },
+  },
+};
+
+const mockContext: IJobContext<DeployJobData> = {
+  job: {
+    id: "test-job-1",
+    name: "deploy",
+    data: {
+      deploymentId: "deploy-123",
+      projectId: "project-456",
+      image: "forge/test-project:v1.0.0",
+    },
+    progress: 0,
+    attemptsMade: 0,
+    timestamp: Date.now(),
+    opts: {},
+  },
+  updateProgress: vi.fn().mockResolvedValue(undefined),
+};
 
 describe("handleDeployJob", () => {
-  let transactionMock: {
-    container: { create: ReturnType<typeof vi.fn> };
-    portMapping: { createMany: ReturnType<typeof vi.fn> };
-    volumeMapping: { createMany: ReturnType<typeof vi.fn> };
-    healthCheckConfig: { create: ReturnType<typeof vi.fn> };
-    networkAttachment: { create: ReturnType<typeof vi.fn> };
-    resourceLimit: { create: ReturnType<typeof vi.fn> };
-  };
-
-  const mockDeployment = {
-    id: "deploy-123",
-    version: 1,
-    project: {
-      id: "project-456",
-      name: "test-project",
-      config: {
-        port: 3000,
-        env: { NODE_ENV: "production" },
-        healthCheck: {
-          test: ["CMD", "curl", "-f", "http://localhost:3000/health"],
-          interval: "10s",
-          timeout: "5s",
-          retries: 3,
-          startPeriod: "30s",
-        },
-      },
-    },
-  };
-
-  const mockContainer = {
-    id: "container-789",
-    containerId: "docker-container-abc",
-  };
-
-  const mockContext: IJobContext<DeployJobData> = {
-    job: {
-      id: "test-job-1",
-      name: "deploy",
-      data: {
-        deploymentId: "deploy-123",
-        projectId: "project-456",
-        image: "forge/test-project:v1.0.0",
-      },
-      progress: 0,
-      attemptsMade: 0,
-      timestamp: Date.now(),
-      opts: {},
-    },
-    updateProgress: vi.fn().mockResolvedValue(undefined),
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SECRETS_ENCRYPTION_KEY = "test-encryption-key-32bytes!!";
 
-    const { mock: txMock } = createTransactionMock();
-    transactionMock = txMock as unknown as typeof transactionMock;
-    mockDb.$transaction = txMock as any;
+    mockLock.acquire.mockResolvedValue("lock-token-123");
+    mockLock.release.mockResolvedValue(true);
+    mockLock.extend.mockResolvedValue(true);
+    mockLock.acquireProjectLock.mockResolvedValue("project-lock-token-456");
+    mockLock.releaseProjectLock.mockResolvedValue(true);
+    mockLock.extendProjectLock.mockResolvedValue(true);
 
-    mockDb.deployment.findUnique.mockResolvedValue(mockDeployment);
-    mockDb.deployment.update.mockResolvedValue({});
-    mockDb.project.update.mockResolvedValue({});
-    mockDb.container.update.mockResolvedValue({});
-    mockDb.container.updateMany.mockResolvedValue({});
+    mockDb.container.findMany.mockResolvedValue([]);
 
-    transactionMock.container.create.mockResolvedValue(mockContainer);
-
-    mockRuntime.create.mockResolvedValue({
-      id: "docker-container-abc",
-    });
-    mockRuntime.start.mockResolvedValue(undefined);
-    mockRuntime.waitForHealthy.mockResolvedValue(undefined);
-    mockRuntime.listNetworks.mockResolvedValue([]);
-    mockRuntime.createNetwork.mockResolvedValue({});
-    mockRuntime.listVolumes.mockResolvedValue([]);
-    mockRuntime.createVolume.mockResolvedValue({});
+    mockOrchestrator.deploy.mockResolvedValue(undefined);
+    mockOrchestrator.handleFailure.mockResolvedValue(undefined);
   });
 
   it("should process deploy job successfully", async () => {
-    await handleDeployJob(mockContext);
+    await handleDeployJob(mockContext, mockProxyIntegration, mockRuntime as any, queueConfig);
 
-    expect(mockDb.deployment.findUnique).toHaveBeenCalledWith({
-      where: { id: "deploy-123" },
-      include: {
-        project: {
-          select: { id: true, name: true, config: true },
-        },
-      },
-    });
-
-    expect(mockDb.deployment.update).toHaveBeenCalledWith({
-      where: { id: "deploy-123" },
-      data: {
-        status: "DEPLOYING",
-        deployStartedAt: expect.any(Date),
-        buildImage: "forge/test-project:v1.0.0",
-      },
-    });
-
-    expect(mockRuntime.create).toHaveBeenCalled();
-
-    expect(mockRuntime.start).toHaveBeenCalledWith("docker-container-abc");
-
-    expect(mockRuntime.waitForHealthy).toHaveBeenCalledWith("docker-container-abc", {
-      timeout: 120_000,
-    });
-
-    expect(mockDb.deployment.update).toHaveBeenCalledWith({
-      where: { id: "deploy-123" },
-      data: {
-        status: "RUNNING",
-        deployCompletedAt: expect.any(Date),
-      },
-    });
-
-    expect(mockDb.project.update).toHaveBeenCalledWith({
-      where: { id: "project-456" },
-      data: { status: "ACTIVE" },
-    });
-
-    expect(mockDb.container.update).toHaveBeenCalledWith({
-      where: { id: "container-789" },
-      data: { status: "HEALTHY", healthStatus: "HEALTHY" },
-    });
+    expect(mockLock.acquire).toHaveBeenCalledWith("deploy-123", 300000);
+    expect(mockLock.acquireProjectLock).toHaveBeenCalledWith("project-456", 300000);
+    expect(mockOrchestrator.deploy).toHaveBeenCalledWith(
+      "deploy-123",
+      "forge/test-project:v1.0.0",
+      {
+        progressCallback: expect.any(Function),
+      }
+    );
+    expect(mockLock.release).toHaveBeenCalledWith("deploy-123", "lock-token-123");
+    expect(mockLock.releaseProjectLock).toHaveBeenCalledWith(
+      "project-456",
+      "project-lock-token-456"
+    );
   });
 
   it("should handle deployment not found error", async () => {
-    mockDb.deployment.findUnique.mockResolvedValue(null);
+    mockOrchestrator.deploy.mockRejectedValue(new Error("Deployment deploy-123 not found"));
 
-    await expect(handleDeployJob(mockContext)).rejects.toThrow("Deployment deploy-123 not found");
+    await expect(
+      handleDeployJob(mockContext, mockProxyIntegration, mockRuntime as any, queueConfig)
+    ).rejects.toThrow("Deployment deploy-123 not found");
+
+    expect(mockOrchestrator.handleFailure).toHaveBeenCalledWith(
+      "deploy-123",
+      "Deployment deploy-123 not found"
+    );
   });
 
   it("should handle health check failure", async () => {
-    mockRuntime.waitForHealthy.mockRejectedValue(new Error("Health check timeout"));
+    mockOrchestrator.deploy.mockRejectedValue(new Error("Container failed health check"));
 
-    await expect(handleDeployJob(mockContext)).rejects.toThrow();
+    await expect(
+      handleDeployJob(mockContext, mockProxyIntegration, mockRuntime as any, queueConfig)
+    ).rejects.toThrow("Container failed health check");
 
-    expect(mockRuntime.stop).toHaveBeenCalledWith("docker-container-abc", {
-      timeout: 10_000,
-    });
-    expect(mockRuntime.remove).toHaveBeenCalledWith("docker-container-abc", {
-      force: true,
-    });
-
-    expect(mockDb.deployment.update).toHaveBeenCalledWith({
-      where: { id: "deploy-123" },
-      data: {
-        status: "FAILED",
-        deployCompletedAt: expect.any(Date),
-        error: "Container failed health check",
-      },
-    });
+    expect(mockOrchestrator.handleFailure).toHaveBeenCalled();
   });
 
-  it("should handle container creation failure", async () => {
-    mockRuntime.create.mockRejectedValue(new Error("Docker daemon not available"));
+  it("should skip duplicate job when deploy lock is already held", async () => {
+    mockLock.acquire.mockResolvedValue(null);
 
-    await expect(handleDeployJob(mockContext)).rejects.toThrow();
+    await handleDeployJob(mockContext, mockProxyIntegration, mockRuntime as any, queueConfig);
 
-    expect(mockDb.deployment.update).toHaveBeenCalled();
+    expect(mockOrchestrator.deploy).not.toHaveBeenCalled();
+    expect(mockLock.release).not.toHaveBeenCalled();
+  });
+
+  it("should skip concurrent project deploy when project lock is held", async () => {
+    mockLock.acquireProjectLock.mockResolvedValue(null);
+
+    await handleDeployJob(mockContext, mockProxyIntegration, mockRuntime as any, queueConfig);
+
+    expect(mockOrchestrator.deploy).not.toHaveBeenCalled();
+    expect(mockLock.release).toHaveBeenCalledWith("deploy-123", "lock-token-123");
   });
 
   it("should use the image from job data", async () => {
-    await handleDeployJob(mockContext);
+    await handleDeployJob(mockContext, mockProxyIntegration, mockRuntime as any, queueConfig);
 
-    expect(mockRuntime.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        image: "forge/test-project:v1.0.0",
-      })
+    expect(mockOrchestrator.deploy).toHaveBeenCalledWith(
+      "deploy-123",
+      "forge/test-project:v1.0.0",
+      expect.anything()
     );
   });
 
-  it("should create project network", async () => {
-    await handleDeployJob(mockContext);
+  it("should clean up leftover containers on retry", async () => {
+    const retryContext: IJobContext<DeployJobData> = {
+      ...mockContext,
+      job: { ...mockContext.job, attemptsMade: 1 },
+    };
 
-    expect(mockRuntime.listNetworks).toHaveBeenCalledWith({
-      name: ["forge-project-project-456"],
-    });
+    mockDb.container.findMany.mockResolvedValue([
+      { containerId: "leftover-container-1" },
+      { containerId: "leftover-container-2" },
+    ]);
 
-    expect(mockRuntime.createNetwork).toHaveBeenCalledWith({
-      name: "forge-project-project-456",
-      driver: "bridge",
-      internal: false,
-      attachable: true,
-      labels: expect.objectContaining({
-        "forge.managed": "true",
-        "forge.projectId": "project-456",
-        "forge.type": "project-network",
-      }),
+    await handleDeployJob(retryContext, mockProxyIntegration, mockRuntime as any, queueConfig);
+
+    expect(mockRuntime.stop).toHaveBeenCalledTimes(2);
+    expect(mockRuntime.remove).toHaveBeenCalledTimes(2);
+
+    expect(mockDb.container.updateMany).toHaveBeenCalledWith({
+      where: {
+        deploymentId: "deploy-123",
+        status: { in: ["CREATING", "STARTING", "RUNNING", "HEALTHY", "UNHEALTHY", "ERROR"] },
+      },
+      data: { status: "TERMINATED", healthStatus: "UNHEALTHY" },
     });
   });
 
-  it("should apply container labels for Forge tracking", async () => {
-    await handleDeployJob(mockContext);
+  it("should release locks even if deploy fails", async () => {
+    mockOrchestrator.deploy.mockRejectedValue(new Error("Deploy failed"));
 
-    expect(mockRuntime.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        labels: {
-          "forge.managed": "true",
-          "forge.projectId": "project-456",
-          "forge.deploymentId": "deploy-123",
-          "forge.type": "deployment-container",
-        },
-      })
-    );
-  });
+    await expect(
+      handleDeployJob(mockContext, mockProxyIntegration, mockRuntime as any, queueConfig)
+    ).rejects.toThrow("Deploy failed");
 
-  it("should set environment variables including Forge metadata", async () => {
-    await handleDeployJob(mockContext);
-
-    expect(mockRuntime.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        env: expect.objectContaining({
-          NODE_ENV: "production",
-          PORT: "3000",
-          FORGE_PROJECT_ID: "project-456",
-          FORGE_DEPLOYMENT_ID: "deploy-123",
-        }),
-      })
+    expect(mockLock.release).toHaveBeenCalledWith("deploy-123", "lock-token-123");
+    expect(mockLock.releaseProjectLock).toHaveBeenCalledWith(
+      "project-456",
+      "project-lock-token-456"
     );
   });
 });

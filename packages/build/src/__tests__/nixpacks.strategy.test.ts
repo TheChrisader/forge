@@ -159,7 +159,7 @@ describe("NixpacksBuildStrategy", () => {
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain("nixpacksImage must include a tag (e.g., 'railwayapp/nixpacks:latest')");
+      expect(result.errors).toContain("nixpacksImage must include a tag (e.g., 'forge/nixpacks-builder:local')");
     });
 
     it("should accept config without nixpacksImage", () => {

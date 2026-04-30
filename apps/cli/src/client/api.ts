@@ -43,6 +43,10 @@ export class ApiClient {
     );
   }
 
+  get http(): AxiosInstance {
+    return this.client;
+  }
+
   async getProjects(params?: {
     page?: number;
     limit?: number;
