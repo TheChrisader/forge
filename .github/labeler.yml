@@ -1,0 +1,47 @@
+"documentation":
+  - changed-files:
+      - any-glob-to-any-file: ["docs/**", "*.md", "packages/**/README.md"]
+
+"dependencies":
+  - changed-files:
+      - any-glob-to-any-file: ["package.json", "pnpm-lock.yaml", "packages/*/package.json", "apps/*/package.json"]
+
+"docker":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/docker/**", "packages/build/**", "docker-compose.yml", "Dockerfile"]
+
+"database":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/database/**", "prisma/**"]
+
+"infrastructure":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/core/**", "packages/proxy/**", "packages/certificate/**", "packages/security/**"]
+
+"observability":
+  - changed-files:
+      - any-glob-to-any-file: ["packages/observability/**", "packages/logger/**"]
+
+"api":
+  - changed-files:
+      - any-glob-to-any-file: ["apps/api/**"]
+
+"web":
+  - changed-files:
+      - any-glob-to-any-file: ["apps/web/**"]
+
+"cli":
+  - changed-files:
+      - any-glob-to-any-file: ["apps/cli/**"]
+
+"workers":
+  - changed-files:
+      - any-glob-to-any-file: ["apps/workers/**"]
+
+"ci/cd":
+  - changed-files:
+      - any-glob-to-any-file: [".github/**"]
+
+"tests":
+  - changed-files:
+      - any-glob-to-any-file: ["**/*.test.ts", "**/*.spec.ts", "**/test/**", "packages/test-utils/**"]
