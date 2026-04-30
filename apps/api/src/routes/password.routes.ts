@@ -29,6 +29,7 @@ export function registerPasswordRoutes(_server: FastifyInstance, _config: Config
     "/api/auth/forgot-password",
     {
       schema: {
+        tags: ["auth"],
         body: ForgotPasswordRequestSchema,
       },
     },
@@ -68,6 +69,7 @@ export function registerPasswordRoutes(_server: FastifyInstance, _config: Config
     "/api/auth/reset-password",
     {
       schema: {
+        tags: ["auth"],
         body: ResetPasswordRequestSchema,
       },
     },

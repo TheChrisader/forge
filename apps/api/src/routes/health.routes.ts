@@ -12,11 +12,15 @@ declare module "fastify" {
 }
 
 export function registerHealthRoutes(server: FastifyInstance, _config: Config): void {
-  server.get("/health", async (_request, _reply) => {
+  server.get("/health", {
+    schema: { tags: ["system"] },
+  }, async (_request, _reply) => {
     return { status: "ok", timestamp: new Date().toISOString() };
   });
 
-  server.get("/health/ready", async (_request, reply) => {
+  server.get("/health/ready", {
+    schema: { tags: ["system"] },
+  }, async (_request, reply) => {
     const checks: Record<string, { status: string; latencyMs?: number; error?: string }> = {};
 
     let allHealthy = true;

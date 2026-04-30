@@ -37,6 +37,7 @@ export function registerAlertChannelRoutes(_server: FastifyInstance, _config: Co
     "/api/alert-channels",
     {
       schema: {
+        tags: ["alerts"],
         querystring: AlertChannelFiltersSchema,
         response: {
           200: PaginatedResponseSchema(AlertChannelSchema),
@@ -70,6 +71,7 @@ export function registerAlertChannelRoutes(_server: FastifyInstance, _config: Co
     "/api/alert-channels/:id",
     {
       schema: {
+        tags: ["alerts"],
         params: ChannelIdParamsSchema,
         response: {
           200: ApiResponseSchema(AlertChannelSchema),
@@ -90,6 +92,7 @@ export function registerAlertChannelRoutes(_server: FastifyInstance, _config: Co
     "/api/alert-channels",
     {
       schema: {
+        tags: ["alerts"],
         body: CreateAlertChannelRequestSchema,
         response: {
           201: ApiResponseSchema(AlertChannelSchema),
@@ -110,6 +113,7 @@ export function registerAlertChannelRoutes(_server: FastifyInstance, _config: Co
     "/api/alert-channels/:id",
     {
       schema: {
+        tags: ["alerts"],
         params: ChannelIdParamsSchema,
         body: UpdateAlertChannelRequestSchema,
         response: {
@@ -132,6 +136,7 @@ export function registerAlertChannelRoutes(_server: FastifyInstance, _config: Co
     "/api/alert-channels/:id",
     {
       schema: {
+        tags: ["alerts"],
         params: ChannelIdParamsSchema,
       },
     },
@@ -149,6 +154,7 @@ export function registerAlertChannelRoutes(_server: FastifyInstance, _config: Co
     "/api/alert-channels/:id/rules",
     {
       schema: {
+        tags: ["alerts"],
         params: ChannelIdParamsSchema,
         body: CreateAlertChannelRuleRequestSchema,
         response: {
@@ -171,6 +177,7 @@ export function registerAlertChannelRoutes(_server: FastifyInstance, _config: Co
     "/api/alert-channels/:channelId/rules/:ruleId",
     {
       schema: {
+        tags: ["alerts"],
         params: ChannelRuleParamsSchema,
       },
     },
@@ -188,6 +195,7 @@ export function registerAlertChannelRoutes(_server: FastifyInstance, _config: Co
     "/api/alert-channels/:id/test",
     {
       schema: {
+        tags: ["alerts"],
         params: ChannelIdParamsSchema,
         response: {
           200: ApiResponseSchema(z.object({ success: z.boolean(), error: z.string().optional() })),

@@ -16,6 +16,7 @@ export function registerDashboardRoutes(_server: FastifyInstance, _config: Confi
     "/api/dashboard/stats",
     {
       schema: {
+        tags: ["dashboard"],
         response: { 200: DashboardStatsResponseSchema },
       },
     },

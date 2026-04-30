@@ -32,6 +32,7 @@ export function registerAuthRoutes(_server: FastifyInstance, config: Config): vo
     "/api/auth/login",
     {
       schema: {
+        tags: ["auth"],
         body: LoginRequestSchema,
         response: { 200: LoginResponseSchema },
       },
@@ -77,6 +78,7 @@ export function registerAuthRoutes(_server: FastifyInstance, config: Config): vo
     "/api/auth/refresh",
     {
       schema: {
+        tags: ["auth"],
         body: RefreshTokenRequestSchema,
         response: { 200: RefreshTokenResponseSchema },
       },
@@ -111,7 +113,7 @@ export function registerAuthRoutes(_server: FastifyInstance, config: Config): vo
   server.post(
     "/api/auth/change-password",
     {
-      schema: { body: ChangePasswordRequestSchema },
+      schema: { tags: ["auth"], body: ChangePasswordRequestSchema },
     },
     async (request) => {
       const userId = requireAuth(request.userId);
@@ -146,7 +148,7 @@ export function registerAuthRoutes(_server: FastifyInstance, config: Config): vo
   server.get(
     "/api/auth/me",
     {
-      schema: { response: { 200: AuthMeResponseSchema } },
+      schema: { tags: ["auth"], response: { 200: AuthMeResponseSchema } },
     },
     async (request) => {
       const userId = requireAuth(request.userId);
@@ -160,6 +162,7 @@ export function registerAuthRoutes(_server: FastifyInstance, config: Config): vo
     "/api/auth/me",
     {
       schema: {
+        tags: ["auth"],
         body: UpdateProfileRequestSchema,
         response: { 200: AuthMeResponseSchema },
       },

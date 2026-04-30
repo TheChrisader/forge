@@ -35,6 +35,7 @@ export function registerInvitationRoutes(_server: FastifyInstance, config: Confi
     "/api/auth/register",
     {
       schema: {
+        tags: ["invitations"],
         body: RegisterRequestSchema,
         response: { 200: RegisterResponseSchema },
       },
@@ -77,6 +78,7 @@ export function registerInvitationRoutes(_server: FastifyInstance, config: Confi
     "/api/auth/accept-invite",
     {
       schema: {
+        tags: ["invitations"],
         body: AcceptInviteRequestSchema,
         response: { 200: AcceptInviteResponseSchema },
       },
@@ -165,6 +167,7 @@ export function registerInvitationRoutes(_server: FastifyInstance, config: Confi
     "/api/teams/:teamId/invitations",
     {
       schema: {
+        tags: ["invitations"],
         body: CreateInvitationRequestSchema,
         response: { 201: InvitationResponseSchema },
       },
@@ -228,6 +231,7 @@ export function registerInvitationRoutes(_server: FastifyInstance, config: Confi
     "/api/teams/:teamId/invitations",
     {
       schema: {
+        tags: ["invitations"],
         response: { 200: InvitationResponseSchema.array() },
       },
     },
@@ -271,6 +275,7 @@ export function registerInvitationRoutes(_server: FastifyInstance, config: Confi
     "/api/teams/:teamId/invitations/:id",
     {
       schema: {
+        tags: ["invitations"],
         response: { 200: InvitationResponseSchema },
       },
     },

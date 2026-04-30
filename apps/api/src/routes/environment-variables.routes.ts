@@ -30,6 +30,7 @@ export function registerEnvironmentVariableRoutes(_server: FastifyInstance, _con
     "/api/projects/:projectId/environment-variables",
     {
       schema: {
+        tags: ["environment"],
         params: ProjectIdParamsSchema,
         querystring: EnvVarListQuerySchema,
         response: {
@@ -57,6 +58,7 @@ export function registerEnvironmentVariableRoutes(_server: FastifyInstance, _con
     "/api/projects/:projectId/environment-variables/resolved",
     {
       schema: {
+        tags: ["environment"],
         params: ProjectIdParamsSchema,
         querystring: EnvVarListQuerySchema,
         response: {
@@ -84,6 +86,7 @@ export function registerEnvironmentVariableRoutes(_server: FastifyInstance, _con
     "/api/projects/:projectId/environment-variables",
     {
       schema: {
+        tags: ["environment"],
         params: ProjectIdParamsSchema,
         body: UpsertEnvVarsRequestSchema,
         response: {
@@ -113,6 +116,7 @@ export function registerEnvironmentVariableRoutes(_server: FastifyInstance, _con
     "/api/projects/:projectId/environment-variables/:key",
     {
       schema: {
+        tags: ["environment"],
         params: EnvVarDeleteParamsSchema,
         querystring: EnvVarListQuerySchema,
       },

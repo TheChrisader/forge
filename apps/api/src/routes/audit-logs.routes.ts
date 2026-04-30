@@ -11,6 +11,7 @@ export function registerAuditLogRoutes(server: FastifyInstance): void {
     "/api/audit-logs",
     {
       schema: {
+        tags: ["audit-logs"],
         querystring: AuditLogQuerySchema,
       },
     },

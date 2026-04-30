@@ -30,6 +30,7 @@ export function registerDomainRoutes(_server: FastifyInstance, _config: Config):
     "/api/projects/:projectId/domains",
     {
       schema: {
+        tags: ["domains"],
         params: ProjectIdParamsSchema,
         response: {
           200: ApiResponseSchema(DomainResponseSchema.array()),
@@ -55,6 +56,7 @@ export function registerDomainRoutes(_server: FastifyInstance, _config: Config):
     "/api/projects/:projectId/domains",
     {
       schema: {
+        tags: ["domains"],
         params: ProjectIdParamsSchema,
         body: AddDomainRequestSchema,
         response: {
@@ -82,6 +84,7 @@ export function registerDomainRoutes(_server: FastifyInstance, _config: Config):
     "/api/projects/:projectId/domains/:domainId",
     {
       schema: {
+        tags: ["domains"],
         params: DomainIdParamsSchema,
       },
     },
@@ -104,6 +107,7 @@ export function registerDomainRoutes(_server: FastifyInstance, _config: Config):
     "/api/projects/:projectId/domains/:domainId/verify",
     {
       schema: {
+        tags: ["domains"],
         params: DomainIdParamsSchema,
         response: {
           200: ApiResponseSchema(DomainResponseSchema),
@@ -129,6 +133,7 @@ export function registerDomainRoutes(_server: FastifyInstance, _config: Config):
     "/api/proxy/status",
     {
       schema: {
+        tags: ["domains"],
         response: {
           200: ApiResponseSchema(ProxyStatusResponseSchema),
         },

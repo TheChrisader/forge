@@ -27,6 +27,7 @@ export function registerSecretRoutes(_server: FastifyInstance, _config: Config):
     "/api/projects/:projectId/secrets",
     {
       schema: {
+        tags: ["secrets"],
         params: ProjectIdParamsSchema,
         response: {
           200: ApiResponseSchema(SecretResponseSchema.array()),
@@ -52,6 +53,7 @@ export function registerSecretRoutes(_server: FastifyInstance, _config: Config):
     "/api/projects/:projectId/secrets",
     {
       schema: {
+        tags: ["secrets"],
         params: ProjectIdParamsSchema,
         body: CreateSecretRequestSchema,
         response: {
@@ -85,6 +87,7 @@ export function registerSecretRoutes(_server: FastifyInstance, _config: Config):
     "/api/projects/:projectId/secrets/:id",
     {
       schema: {
+        tags: ["secrets"],
         params: SecretIdParamsSchema,
         body: UpdateSecretRequestSchema,
         response: {
@@ -120,6 +123,7 @@ export function registerSecretRoutes(_server: FastifyInstance, _config: Config):
     "/api/projects/:projectId/secrets/:id",
     {
       schema: {
+        tags: ["secrets"],
         params: SecretIdParamsSchema,
       },
     },

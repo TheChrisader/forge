@@ -39,6 +39,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     "/api/projects",
     {
       schema: {
+        tags: ["projects"],
         querystring: ProjectListQuerySchema,
         response: {
           200: PaginatedResponseSchema(ProjectSchema),
@@ -114,6 +115,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     "/api/projects",
     {
       schema: {
+        tags: ["projects"],
         body: CreateProjectRequestSchema,
         response: {
           201: ApiResponseSchema(ProjectSchema),
@@ -145,6 +147,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     "/api/projects/:projectId",
     {
       schema: {
+        tags: ["projects"],
         params: ProjectIdParamsSchema,
         querystring: ProjectIncludeQuerySchema,
         response: {
@@ -176,6 +179,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     "/api/projects/:projectId",
     {
       schema: {
+        tags: ["projects"],
         params: ProjectIdParamsSchema,
         body: UpdateProjectRequestSchema,
         response: {
@@ -210,6 +214,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     "/api/projects/:projectId",
     {
       schema: {
+        tags: ["projects"],
         params: ProjectIdParamsSchema,
         body: UpdateProjectRequestSchema,
         response: {
@@ -244,6 +249,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     "/api/projects/:projectId/stop",
     {
       schema: {
+        tags: ["projects"],
         params: ProjectIdParamsSchema,
       },
     },
@@ -266,6 +272,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     "/api/projects/:projectId",
     {
       schema: {
+        tags: ["projects"],
         params: ProjectIdParamsSchema,
       },
     },
@@ -288,6 +295,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     "/api/projects/:id/cache",
     {
       schema: {
+        tags: ["projects"],
         params: ProjectIdParamsSchema,
         response: {
           200: ApiResponseSchema(CacheStatsSchema),
@@ -322,6 +330,7 @@ export function registerProjectRoutes(_server: FastifyInstance, _config: Config)
     "/api/projects/:id/cache",
     {
       schema: {
+        tags: ["projects"],
         params: ProjectIdParamsSchema,
         response: {
           200: ApiResponseSchema(CacheClearResultSchema),

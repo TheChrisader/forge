@@ -65,6 +65,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/projects/:projectId/containers",
     {
       schema: {
+        tags: ["containers"],
         params: ProjectIdParamsSchema,
         querystring: ContainerListQuerySchema,
       },
@@ -88,6 +89,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/deployments/:deploymentId/containers",
     {
       schema: {
+        tags: ["containers"],
         params: DeploymentIdParamsSchema,
         querystring: ContainerListQuerySchema,
       },
@@ -113,6 +115,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/containers/:id",
     {
       schema: {
+        tags: ["containers"],
         params: ContainerIdParamsSchema,
       },
     },
@@ -141,6 +144,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/containers/:id/start",
     {
       schema: {
+        tags: ["containers"],
         params: ContainerIdParamsSchema,
       },
     },
@@ -162,6 +166,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/containers/:id/stop",
     {
       schema: {
+        tags: ["containers"],
         params: ContainerIdParamsSchema,
         querystring: ContainerStopQuerySchema,
       },
@@ -185,6 +190,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/containers/:id/restart",
     {
       schema: {
+        tags: ["containers"],
         params: ContainerIdParamsSchema,
       },
     },
@@ -206,6 +212,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/containers/:id",
     {
       schema: {
+        tags: ["containers"],
         params: ContainerIdParamsSchema,
         querystring: ContainerRemoveQuerySchema,
       },
@@ -229,6 +236,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/containers/:id/logs",
     {
       schema: {
+        tags: ["containers"],
         params: ContainerIdParamsSchema,
         querystring: ContainerLogsQuerySchema,
       },
@@ -264,6 +272,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     {
       sse: true,
       schema: {
+        tags: ["containers"],
         params: ContainerIdParamsSchema,
       },
     },
@@ -321,6 +330,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/containers/:id/stats",
     {
       schema: {
+        tags: ["containers"],
         params: ContainerIdParamsSchema,
       },
     },
@@ -342,6 +352,7 @@ export function registerContainerRoutes(_server: FastifyInstance, _config: Confi
     "/api/containers/:id/exec",
     {
       schema: {
+        tags: ["containers"],
         params: ContainerIdParamsSchema,
         body: ContainerExecBodySchema,
       },

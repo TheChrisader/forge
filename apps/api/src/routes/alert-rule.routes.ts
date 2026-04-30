@@ -30,6 +30,7 @@ export function registerAlertRuleRoutes(_server: FastifyInstance, _config: Confi
     "/api/alert-rules",
     {
       schema: {
+        tags: ["alerts"],
         querystring: AlertRuleFiltersSchema,
         response: {
           200: PaginatedResponseSchema(AlertRuleSchema),
@@ -64,6 +65,7 @@ export function registerAlertRuleRoutes(_server: FastifyInstance, _config: Confi
     "/api/alert-rules/:id",
     {
       schema: {
+        tags: ["alerts"],
         params: RuleIdParamsSchema,
         response: {
           200: ApiResponseSchema(AlertRuleSchema),
@@ -84,6 +86,7 @@ export function registerAlertRuleRoutes(_server: FastifyInstance, _config: Confi
     "/api/alert-rules",
     {
       schema: {
+        tags: ["alerts"],
         body: CreateAlertRuleRequestSchema,
         response: {
           201: ApiResponseSchema(AlertRuleSchema),
@@ -104,6 +107,7 @@ export function registerAlertRuleRoutes(_server: FastifyInstance, _config: Confi
     "/api/alert-rules/:id",
     {
       schema: {
+        tags: ["alerts"],
         params: RuleIdParamsSchema,
         body: UpdateAlertRuleRequestSchema,
         response: {
@@ -126,6 +130,7 @@ export function registerAlertRuleRoutes(_server: FastifyInstance, _config: Confi
     "/api/alert-rules/:id",
     {
       schema: {
+        tags: ["alerts"],
         params: RuleIdParamsSchema,
       },
     },

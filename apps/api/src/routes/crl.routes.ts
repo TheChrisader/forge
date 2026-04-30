@@ -21,7 +21,9 @@ function resolveProjectPath(relativePath: string): string {
 }
 
 export function registerCrlRoutes(server: FastifyInstance, config: Config): void {
-  server.get("/.well-known/crl/ca.crl", async (_request, reply) => {
+  server.get("/.well-known/crl/ca.crl", {
+    schema: { tags: ["system"] },
+  }, async (_request, reply) => {
     const crlPath = join(resolveProjectPath(config.paths.data), "crl", "ca.crl");
 
     if (!existsSync(crlPath)) {

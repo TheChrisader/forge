@@ -58,6 +58,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     "/api/deployments",
     {
       schema: {
+        tags: ["deployments"],
         querystring: DeploymentFiltersSchema,
         response: {
           200: PaginatedResponseSchema(DeploymentSchema),
@@ -108,6 +109,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     "/api/deployments/projects/:projectId/deployments",
     {
       schema: {
+        tags: ["deployments"],
         params: ProjectIdParamsSchema,
         body: CreateDeploymentBodySchema,
         response: {
@@ -145,6 +147,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     "/api/deployments/:id",
     {
       schema: {
+        tags: ["deployments"],
         params: DeploymentIdParamsSchema,
         response: {
           200: ApiResponseSchema(DeploymentSchema),
@@ -174,6 +177,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     "/api/deployments/:id/cancel",
     {
       schema: {
+        tags: ["deployments"],
         params: DeploymentIdParamsSchema,
         response: {
           200: ApiResponseSchema(DeploymentSchema),
@@ -204,6 +208,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     "/api/deployments/:id/logs",
     {
       schema: {
+        tags: ["deployments"],
         params: DeploymentIdParamsSchema,
         querystring: DeploymentLogsQuerySchema,
         response: {
@@ -260,6 +265,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     "/api/deployments/:id/logs/export",
     {
       schema: {
+        tags: ["deployments"],
         params: DeploymentIdParamsSchema,
       },
     },
@@ -303,6 +309,7 @@ export function registerDeploymentRoutes(_server: FastifyInstance, _config: Conf
     {
       sse: true, // Enable @fastify/sse plugin for this route
       schema: {
+        tags: ["deployments"],
         params: DeploymentIdParamsSchema,
       },
     },

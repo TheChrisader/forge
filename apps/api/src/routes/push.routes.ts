@@ -19,18 +19,25 @@ const UnsubscribeBodySchema = z.object({
 export function registerPushRoutes(_server: FastifyInstance, _config: Config): void {
   const server = _server;
 
-  server.get("/api/push/vapid-key", async (_request, reply) => {
-    const publicKey = process.env.VAPID_PUBLIC_KEY;
-    if (!publicKey) {
-      return reply.status(503).send({ error: "Push notifications not configured" });
+  server.get(
+    "/api/push/vapid-key",
+    {
+      schema: { tags: ["push"] },
+    },
+    async (_request, reply) => {
+      const publicKey = process.env.VAPID_PUBLIC_KEY;
+      if (!publicKey) {
+        return reply.status(503).send({ error: "Push notifications not configured" });
+      }
+      return reply.send({ data: { publicKey } });
     }
-    return reply.send({ data: { publicKey } });
-  });
+  );
 
   server.post(
     "/api/push/subscribe",
     {
       schema: {
+        tags: ["push"],
         body: SubscribeBodySchema,
         response: {
           200: z.object({ data: z.object({ id: z.string() }) }),
@@ -69,6 +76,7 @@ export function registerPushRoutes(_server: FastifyInstance, _config: Config): v
     "/api/push/unsubscribe",
     {
       schema: {
+        tags: ["push"],
         body: UnsubscribeBodySchema,
         response: {
           200: z.object({ data: z.object({ deleted: z.boolean() }) }),

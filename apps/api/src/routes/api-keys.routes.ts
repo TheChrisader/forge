@@ -24,6 +24,7 @@ export function registerApiKeyRoutes(_server: FastifyInstance, _config: Config):
     "/api/auth/api-keys",
     {
       schema: {
+        tags: ["api-keys"],
         body: CreateApiKeyBodySchema,
         response: { 201: ApiKeyResponseSchema },
       },
@@ -65,6 +66,7 @@ export function registerApiKeyRoutes(_server: FastifyInstance, _config: Config):
     "/api/auth/api-keys",
     {
       schema: {
+        tags: ["api-keys"],
         response: { 200: ApiKeyResponseSchema.omit({ key: true }).array() },
       },
     },
@@ -93,7 +95,9 @@ export function registerApiKeyRoutes(_server: FastifyInstance, _config: Config):
   );
 
   // Revoke API key
-  server.delete("/api/auth/api-keys/:id", async (request) => {
+  server.delete("/api/auth/api-keys/:id", {
+    schema: { tags: ["api-keys"] },
+  }, async (request) => {
     const userId = requireAuth(request.userId);
     const { id } = request.params as { id: string };
 

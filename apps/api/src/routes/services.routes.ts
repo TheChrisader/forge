@@ -58,12 +58,11 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
   const container = server.registry.getContainer();
   const serviceService = container.resolveSync<ServiceService>(SERVICE_KEY_STRINGS.SERVICE_SERVICE);
 
-  // --- Engine catalog ---
-
   server.get(
     "/api/services/engines",
     {
       schema: {
+        tags: ["services"],
         response: {
           200: ApiResponseSchema(EngineDetailSchema.array()),
         },
@@ -82,6 +81,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/engines/:engine/config",
     {
       schema: {
+        tags: ["services"],
         params: EngineParamsSchema,
         response: {
           200: ApiResponseSchema(EngineDetailSchema),
@@ -108,12 +108,11 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     }
   );
 
-  // --- CRUD ---
-
   server.get(
     "/api/services",
     {
       schema: {
+        tags: ["services"],
         querystring: ServiceFiltersSchema,
         response: {
           200: PaginatedResponseSchema(ServiceSchema),
@@ -149,6 +148,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services",
     {
       schema: {
+        tags: ["services"],
         body: CreateServiceRequestSchema,
         response: {
           201: ApiResponseSchema(ServiceSchema),
@@ -171,6 +171,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         response: {
           200: ApiResponseSchema(ServiceWithRelationsSchema),
@@ -189,12 +190,11 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     }
   );
 
-  // --- Connection ---
-
   server.get(
     "/api/services/:id/connection",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         querystring: ServiceConnectionQuerySchema,
         response: {
@@ -219,12 +219,11 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     }
   );
 
-  // --- Lifecycle ---
-
   server.post(
     "/api/services/:id/start",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         response: {
           200: ApiResponseSchema(ServiceSchema),
@@ -247,6 +246,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id/stop",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         response: {
           200: ApiResponseSchema(ServiceSchema),
@@ -269,6 +269,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id/restart",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         response: {
           200: ApiResponseSchema(ServiceSchema),
@@ -291,6 +292,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
       },
     },
@@ -306,12 +308,11 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     }
   );
 
-  // --- Shared service linking ---
-
   server.post(
     "/api/services/:id/link/:projectId",
     {
       schema: {
+        tags: ["services"],
         params: LinkProjectParamsSchema,
       },
     },
@@ -331,6 +332,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id/link/:projectId",
     {
       schema: {
+        tags: ["services"],
         params: LinkProjectParamsSchema,
       },
     },
@@ -346,12 +348,11 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     }
   );
 
-  // --- Backups ---
-
   server.get(
     "/api/services/:id/backups",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         response: {
           200: ApiResponseSchema(ServiceBackupSchema.array()),
@@ -374,6 +375,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id/backups",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         response: {
           201: ApiResponseSchema(ServiceBackupSchema),
@@ -396,6 +398,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id/backups/:backupId/restore",
     {
       schema: {
+        tags: ["services"],
         params: z.object({ id: z.uuid(), backupId: z.uuid() }),
         response: {
           200: ApiResponseSchema(ServiceBackupSchema),
@@ -423,6 +426,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id/backup-schedule",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         body: BackupScheduleBodySchema,
         response: {
@@ -448,12 +452,11 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     }
   );
 
-  // --- Logs & Stats ---
-
   server.get(
     "/api/services/:id/logs",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         querystring: LogsQuerySchema,
       },
@@ -475,6 +478,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id/stats",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
       },
     },
@@ -490,8 +494,6 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     }
   );
 
-  // --- Upgrade ---
-
   const UpgradeBodySchema = z.object({
     targetVersion: z.string().max(50),
   });
@@ -500,6 +502,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/:id/upgrade",
     {
       schema: {
+        tags: ["services"],
         params: ServiceIdParamsSchema,
         body: UpgradeBodySchema,
         response: {
@@ -520,12 +523,11 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     }
   );
 
-  // --- Orphan Management (admin) ---
-
   server.get(
     "/api/services/orphans",
     {
       schema: {
+        tags: ["services"],
         response: {
           200: ApiResponseSchema(
             z.object({
@@ -549,6 +551,7 @@ export function registerServiceRoutes(_server: FastifyInstance, _config: Config)
     "/api/services/orphans/cleanup",
     {
       schema: {
+        tags: ["services"],
         response: {
           200: ApiResponseSchema(
             z.object({

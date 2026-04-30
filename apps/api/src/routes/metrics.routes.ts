@@ -44,6 +44,7 @@ export function registerMetricsRoutes(_server: FastifyInstance, config: Config):
       config: {
         rateLimit: { max: 30, timeWindow: "1 minute" },
       },
+      schema: { tags: ["system"] },
     },
     async (_request, reply) => {
       const prometheusRegistry = server.prometheusRegistry;
@@ -75,6 +76,7 @@ export function registerMetricsRoutes(_server: FastifyInstance, config: Config):
         rateLimit: { max: 30, timeWindow: "1 minute" },
       },
       schema: {
+        tags: ["system"],
         querystring: PrometheusQuerySchema,
       },
     },
@@ -159,6 +161,7 @@ export function registerMetricsRoutes(_server: FastifyInstance, config: Config):
     {
       config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
+        tags: ["system"],
         querystring: PlatformSummaryQuerySchema,
         response: { 200: z.object({ data: PlatformSummarySchema }) },
       },
@@ -176,6 +179,7 @@ export function registerMetricsRoutes(_server: FastifyInstance, config: Config):
     {
       config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
       schema: {
+        tags: ["system"],
         querystring: MetricsQuerySchema,
         response: { 200: z.object({ data: z.array(TimeSeriesResultSchema) }) },
       },
@@ -203,6 +207,7 @@ export function registerMetricsRoutes(_server: FastifyInstance, config: Config):
     {
       config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
+        tags: ["system"],
         querystring: MetricsSourcesQuerySchema,
         response: { 200: z.object({ data: z.array(MetricSourceSchema) }) },
       },
@@ -220,6 +225,7 @@ export function registerMetricsRoutes(_server: FastifyInstance, config: Config):
     {
       config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
       schema: {
+        tags: ["system"],
         querystring: LatestMetricsQuerySchema,
         response: { 200: z.object({ data: z.array(LatestMetricValueSchema) }) },
       },
@@ -241,6 +247,7 @@ export function registerMetricsRoutes(_server: FastifyInstance, config: Config):
     {
       config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
       schema: {
+        tags: ["system"],
         params: SourceParamsSchema,
         querystring: SourceMetricsQuerySchema,
         response: { 200: z.object({ data: z.array(TimeSeriesResultSchema) }) },

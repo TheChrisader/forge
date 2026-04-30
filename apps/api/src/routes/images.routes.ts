@@ -23,6 +23,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     "/api/images",
     {
       schema: {
+        tags: ["images"],
         querystring: z.object({
           project: z.string().optional(),
           dangling: z.coerce.boolean().optional(),
@@ -66,6 +67,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     "/api/images/stats",
     {
       schema: {
+        tags: ["images"],
         querystring: z.object({
           project: z.string().optional(),
         }),
@@ -101,6 +103,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     "/api/images/:id",
     {
       schema: {
+        tags: ["images"],
         params: z.object({
           id: z.string(),
         }),
@@ -124,7 +127,9 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
    * POST /api/images/prune
    * Prunes dangling images
    */
-  server.post("/api/images/prune", {}, async (request, reply) => {
+  server.post("/api/images/prune", {
+    schema: { tags: ["images"] },
+  }, async (request, reply) => {
     requireAuth((request as { userId?: string }).userId);
     await requirePermission(request, { resource: "images", action: "delete" });
     const result = await runtime.pruneDanglingImages();
@@ -139,6 +144,7 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
     "/api/projects/:projectId/images/prune",
     {
       schema: {
+        tags: ["images"],
         params: ProjectIdParamsSchema,
         body: z.object({
           maxAgeDays: z.coerce.number().int().min(1).default(30),

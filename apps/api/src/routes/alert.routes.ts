@@ -26,6 +26,7 @@ export function registerAlertRoutes(_server: FastifyInstance, _config: Config): 
     "/api/alerts",
     {
       schema: {
+        tags: ["alerts"],
         querystring: AlertFiltersSchema,
         response: {
           200: PaginatedResponseSchema(AlertSchema),
@@ -60,6 +61,7 @@ export function registerAlertRoutes(_server: FastifyInstance, _config: Config): 
     "/api/alerts/:id",
     {
       schema: {
+        tags: ["alerts"],
         params: AlertIdParamsSchema,
         response: {
           200: ApiResponseSchema(AlertSchema),
@@ -80,6 +82,7 @@ export function registerAlertRoutes(_server: FastifyInstance, _config: Config): 
     "/api/alerts/:id/acknowledge",
     {
       schema: {
+        tags: ["alerts"],
         params: AlertIdParamsSchema,
         response: {
           200: ApiResponseSchema(AlertSchema),
@@ -100,6 +103,7 @@ export function registerAlertRoutes(_server: FastifyInstance, _config: Config): 
     "/api/alerts/:id/resolve",
     {
       schema: {
+        tags: ["alerts"],
         params: AlertIdParamsSchema,
         response: {
           200: ApiResponseSchema(AlertSchema),
