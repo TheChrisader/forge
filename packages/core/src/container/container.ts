@@ -8,7 +8,7 @@ export interface ServiceRegistration<T> {
 }
 
 export class ServiceContainer {
-  private services = new Map<string, ServiceRegistration<any>>();
+  private services = new Map<string, ServiceRegistration<unknown>>();
   private resolving = new Set<string>();
 
   register<T>(key: string, factory: ServiceFactory<T>, scope: ServiceScope = "singleton"): void {
@@ -132,15 +132,14 @@ export class ServiceContainer {
 
   async dispose(): Promise<void> {
     for (const registration of this.services.values()) {
-      if (registration.instance && typeof registration.instance === "object") {
-        const instance = registration.instance as any;
-
-        if (typeof instance.dispose === "function") {
-          await instance.dispose();
-        } else if (typeof instance.close === "function") {
-          await instance.close();
-        } else if (typeof instance.cleanup === "function") {
-          await instance.cleanup();
+      const instance = registration.instance;
+      if (instance && typeof instance === "object") {
+        if ("dispose" in instance && typeof instance.dispose === "function") {
+          await (instance as { dispose(): void | Promise<void> }).dispose();
+        } else if ("close" in instance && typeof instance.close === "function") {
+          await (instance as { close(): void | Promise<void> }).close();
+        } else if ("cleanup" in instance && typeof instance.cleanup === "function") {
+          await (instance as { cleanup(): void | Promise<void> }).cleanup();
         }
       }
     }

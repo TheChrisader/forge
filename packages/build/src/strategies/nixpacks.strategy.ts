@@ -1,9 +1,3 @@
-/**
- * Nixpacks build strategy
- * Detects projects with nixpacks.toml or generic projects and uses nixpacks for zero-config builds
- * Supports 20+ languages/frameworks via auto-detection
- */
-
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type {
@@ -127,26 +121,26 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
         stage: "build",
       });
 
-      let logs = "";
       for await (const entry of runtime.logs(container.id, {
         follow: true,
         stdout: true,
         stderr: true,
       })) {
-        logs += entry.message + "\n";
         void onProgress?.({
           // type: entry.stream === "stderr" ? "error" : "log",
           type: "log",
           message: entry.message,
           timestamp: entry.timestamp,
           stage: "nixpacks-build",
-          log: false
+          log: false,
         });
       }
 
       const images = await runtime.listImages({ reference: [imageTag] });
       if (images.length === 0) {
-        throw new BuildValidationError("Build completed but image not found", { strategy: "nixpacks" });
+        throw new BuildValidationError("Build completed but image not found", {
+          strategy: "nixpacks",
+        });
       }
 
       const imageId = images[0].id;
@@ -171,7 +165,7 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
         try {
           await runtime.remove(container.id, { force: true, volumes: true });
         } catch {
-          // Container may already be removed or removing — don't mask the original error
+          // Container may already be removed or removing
         }
       }
     }
@@ -184,7 +178,6 @@ export class NixpacksBuildStrategy implements IBuildStrategy {
     if (config?.buildCommand) env["NIXPACKS_BUILD_CMD"] = config.buildCommand;
     if (config?.startCommand) env["NIXPACKS_START_CMD"] = config.startCommand;
 
-    // Pass through any user-specified env vars
     if (config?.envVars) {
       Object.assign(env, config.envVars);
     }

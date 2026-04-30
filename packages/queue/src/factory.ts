@@ -19,7 +19,8 @@ export function createAdapterFactory(config: QueueConfig): IQueueAdapterFactory 
 
     default: {
       // TypeScript exhaustive check - ensures we handle all connection types
-      const _exhaustive: never = connectionType;
+      const _exhaustive = connectionType;
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Unsupported connection type: ${_exhaustive}`);
     }
   }

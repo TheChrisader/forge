@@ -1,7 +1,3 @@
-/**
- * Image name generator tests
- */
-
 import { describe, it, expect } from "vitest";
 import { generateImageName, generateImageTagPrefix } from "../utils/image-name-generator.js";
 

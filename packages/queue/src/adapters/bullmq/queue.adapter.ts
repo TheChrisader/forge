@@ -1,7 +1,3 @@
-/**
- * BullMQ queue adapter implementation
- */
-
 import { Queue, JobsOptions } from "bullmq";
 import type { JobOptions, JobStatus, JobInfo } from "@forge/types";
 import type { IQueueAdapter, IEventEmitter } from "../../domain/interfaces";
@@ -9,9 +5,6 @@ import type { QueueConfig, QueueOptions } from "../../domain/types";
 import { getRedisConnection, extractRedisConfig, type RedisConfig } from "./redis";
 import { BullMQEventEmitterAdapter } from "./events.adapter";
 
-/**
- * Convert domain JobOptions to BullMQ JobsOptions
- */
 function toBullMQJobOptions(options?: JobOptions): JobsOptions | undefined {
   if (!options) {
     return undefined;
@@ -19,9 +12,6 @@ function toBullMQJobOptions(options?: JobOptions): JobsOptions | undefined {
   return options as JobsOptions;
 }
 
-/**
- * Convert BullMQ Job to domain JobInfo
- */
 function toJobInfo<T>(
   job: { id?: string; name: string; data: T } | null | undefined
 ): JobInfo<T> | undefined {
@@ -31,10 +21,6 @@ function toJobInfo<T>(
   return job as JobInfo<T>;
 }
 
-/**
- * BullMQ Queue Adapter
- * Implements IQueueAdapter using BullMQ's Queue class
- */
 export class BullMQQueueAdapter implements IQueueAdapter {
   private queue: Queue;
   private events?: BullMQEventEmitterAdapter;
@@ -70,7 +56,6 @@ export class BullMQQueueAdapter implements IQueueAdapter {
     this.events = new BullMQEventEmitterAdapter(name, eventsConnection);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   private setupDeadLetterQueue(
     name: string,
     connection: ReturnType<typeof getRedisConnection>,
@@ -78,7 +63,7 @@ export class BullMQQueueAdapter implements IQueueAdapter {
   ): void {
     const dlqName = deadLetterConfig.queueName || `${name}:dead-letter`;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
     const { Queue: BullMQQueue } = require("bullmq");
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
@@ -92,9 +77,11 @@ export class BullMQQueueAdapter implements IQueueAdapter {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     (this.queue as any).on("failed", async (job: any, error: Error) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (job && job.attemptsMade >= (job.opts.attempts || 3)) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         await dlq.add(
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           `${job.name}-failed`,
           {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
@@ -108,7 +95,7 @@ export class BullMQQueueAdapter implements IQueueAdapter {
             failedAt: new Date().toISOString(),
           },
           {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             jobId: `${job.id}-dlq`,
           }
         );
@@ -160,6 +147,7 @@ export class BullMQQueueAdapter implements IQueueAdapter {
       return jobs.map((job: any) => toJobInfo<T>(job)) as JobInfo<T>[];
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const statusMap: Record<string, () => Promise<any[]>> = {
       waiting: () => this.queue.getWaiting(start, end),
       active: () => this.queue.getActive(start, end),
@@ -206,7 +194,7 @@ export class BullMQQueueAdapter implements IQueueAdapter {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async isPaused(): Promise<boolean> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
     return (this.queue as any).isPaused();
   }
 

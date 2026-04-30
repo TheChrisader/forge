@@ -7,15 +7,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-/**
- * Result of parsing package.json scripts
- */
 export interface PackageJsonScripts {
-  /** Build script command if present */
   build?: string;
-  /** Start script command if present */
   start?: string;
-  /** Install script command if present */
   install?: string;
   /** All available scripts from the manifest */
   all: Record<string, string>;
@@ -23,15 +17,9 @@ export interface PackageJsonScripts {
   sourcePath: string;
 }
 
-/**
- * Result of discovering scripts from any manifest file
- */
 export interface DiscoveredScripts {
-  /** Build command if discovered */
   build?: string;
-  /** Start command if discovered */
   start?: string;
-  /** Install command if discovered */
   install?: string;
   /** All available scripts from the manifest */
   all: Record<string, string>;
@@ -41,9 +29,6 @@ export interface DiscoveredScripts {
   sourcePath: string;
 }
 
-/**
- * Framework-specific script patterns for detecting build commands
- */
 const FRAMEWORK_SCRIPT_PATTERNS = {
   nextjs: ["build", "build:prod", "build:production"],
   vite: ["build", "build:prod", "build:production"],
@@ -56,9 +41,6 @@ const FRAMEWORK_SCRIPT_PATTERNS = {
   remix: ["build", "build:prod"],
 };
 
-/**
- * Framework-specific script patterns for detecting start commands
- */
 const START_SCRIPT_PATTERNS = {
   nextjs: ["start", "start:prod", "start:production"],
   vite: ["preview", "start", "preview:dist"],
@@ -135,12 +117,11 @@ export function getEnvironmentScriptVariants(baseScript: string, environment?: s
 
   if (environment) {
     const env = environment.toLowerCase();
-    // Try environment-specific variants first
+
     variants.unshift(`${baseScript}:${env}`);
     variants.unshift(`${baseScript}:${env === "production" ? "prod" : env}`);
   }
 
-  // Add common production variants
   if (baseScript === "build") {
     variants.push("build:prod", "build:production");
   }
@@ -251,11 +232,10 @@ export async function discoverPythonScripts(sourceDir: string): Promise<Discover
   }
 
   // Try to read scripts from pyproject.toml (if using modern Python tooling)
-  let allScripts: Record<string, string> = {};
+  const allScripts: Record<string, string> = {};
   if (hasPyproject) {
     try {
       const content = await fs.readFile(pyprojectPath, "utf-8");
-      // Basic parsing of [project.scripts] section
       const scriptsMatch = content.match(/\[project\.scripts\]([\s\S]*?)(?=\[|$)/);
       if (scriptsMatch) {
         const scriptLines = scriptsMatch[1].split("\n");
@@ -359,12 +339,10 @@ export function analyzeDiscoveredScripts(
     return { available: [], missing: requiredScripts };
   }
 
-  // Add all discovered script names
   for (const name of Object.keys(discovered.all)) {
     available.push(name);
   }
 
-  // Check for required scripts
   for (const required of requiredScripts) {
     if (!discovered[required]) {
       missing.push(required);

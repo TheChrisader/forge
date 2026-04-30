@@ -1,7 +1,3 @@
-/**
- * Dockerfile build strategy tests
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DockerfileBuildStrategy } from "../strategies/dockerfile.strategy.js";
 import type { BuildContext } from "../interfaces/strategy.js";

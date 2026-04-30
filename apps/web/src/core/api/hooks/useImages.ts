@@ -1,4 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  UseQueryResult,
+  UseMutationResult,
+} from "@tanstack/react-query";
 import type { Image } from "@forge/types";
 import { imagesApi, type ImageStats, type PruneResult } from "../clients/images";
 
@@ -9,7 +15,12 @@ export const imageKeys = {
   stats: () => [...imageKeys.all, "stats"] as const,
 };
 
-export function useImages(params?: { project?: string; dangling?: boolean }) {
+export function useImages(params?: { project?: string; dangling?: boolean }): UseQueryResult<
+  {
+    data: Image[];
+  },
+  Error
+> {
   return useQuery<{ data: Image[] }>({
     queryKey: imageKeys.list(params),
     queryFn: async () => {
@@ -18,7 +29,7 @@ export function useImages(params?: { project?: string; dangling?: boolean }) {
   });
 }
 
-export function useImageStats(params?: { project?: string }) {
+export function useImageStats(params?: { project?: string }): UseQueryResult<ImageStats, Error> {
   return useQuery<ImageStats>({
     queryKey: [...imageKeys.stats(), params],
     queryFn: async () => {
@@ -28,7 +39,15 @@ export function useImageStats(params?: { project?: string }) {
   });
 }
 
-export function useDeleteImage() {
+export function useDeleteImage(): UseMutationResult<
+  void,
+  Error,
+  {
+    id: string;
+    force?: boolean;
+  },
+  unknown
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -42,7 +61,7 @@ export function useDeleteImage() {
   });
 }
 
-export function usePruneDangling() {
+export function usePruneDangling(): UseMutationResult<PruneResult, Error, void, unknown> {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -57,7 +76,15 @@ export function usePruneDangling() {
   });
 }
 
-export function usePruneProject() {
+export function usePruneProject(): UseMutationResult<
+  PruneResult,
+  Error,
+  {
+    projectId: string;
+    maxAgeDays?: number;
+  },
+  unknown
+> {
   const queryClient = useQueryClient();
 
   return useMutation({

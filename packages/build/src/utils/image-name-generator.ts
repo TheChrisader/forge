@@ -21,8 +21,8 @@ function sanitizeProjectName(projectName: string): string {
   const sanitized = projectName
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
   if (sanitized.length === 0) {
     throw new Error("Project name must contain at least one alphanumeric character");

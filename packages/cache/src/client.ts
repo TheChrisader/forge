@@ -38,7 +38,8 @@ export function getCacheClient(config: CacheConfig): Redis {
     });
 
     cacheClient.on("connect", () => {
-      console.log("Cache connected");
+      // eslint-disable-next-line no-console
+      console.debug("Cache connected");
     });
   }
 

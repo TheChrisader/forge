@@ -5,6 +5,7 @@
  */
 
 async function schedulerMain(): Promise<void> {
+  // eslint-disable-next-line no-console
   console.log("Forge Scheduler Worker - Not yet implemented");
   process.exit(0);
 }

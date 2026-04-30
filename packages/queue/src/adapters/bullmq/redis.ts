@@ -37,7 +37,6 @@ class RedisConnectionManager {
       });
 
       connection.on("error", (error) => {
-        // eslint-disable-next-line no-console
         console.error(`Redis connection error [${key}]:`, error);
       });
 

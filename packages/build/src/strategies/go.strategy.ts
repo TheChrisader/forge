@@ -1,9 +1,3 @@
-/**
- * Go build strategy
- * Detects Go projects and applications
- * Uses script discovery to find actual commands from go.mod
- */
-
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type {
@@ -76,9 +70,6 @@ export class GoBuildStrategy implements IBuildStrategy {
     }
   }
 
-  /**
-   * Detect the specific Go framework from go.mod
-   */
   private async detectFramework(
     sourceDir: string,
     hasGoMod: boolean
@@ -90,7 +81,6 @@ export class GoBuildStrategy implements IBuildStrategy {
     const content = await fs.readFile(path.join(sourceDir, "go.mod"), "utf-8");
     const lowerContent = content.toLowerCase();
 
-    // Common Go web frameworks/libraries
     if (
       lowerContent.includes("gin-gonic/gin") ||
       lowerContent.includes("github.com/gin-gonic/gin")
@@ -133,9 +123,6 @@ export class GoBuildStrategy implements IBuildStrategy {
     return null;
   }
 
-  /**
-   * Build a DetectionResult with resolved commands
-   */
   private buildDetectionResult(
     framework: string,
     version: string,
@@ -207,11 +194,11 @@ export class GoBuildStrategy implements IBuildStrategy {
       progress: 100,
     });
 
-    return {
+    return Promise.resolve({
       success: true,
       logs: `Go build stub for ${context.projectId}`,
       duration: Date.now() - startTime,
-    };
+    });
   }
 
   getDefaultConfig(): BuildConfig {

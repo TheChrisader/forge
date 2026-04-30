@@ -1,9 +1,3 @@
-/**
- * Static site build strategy
- * Fallback strategy for static HTML/CSS/JS sites
- * Uses script discovery to find actual commands from package.json for static site generators
- */
-
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type {
@@ -155,11 +149,11 @@ export class StaticBuildStrategy implements IBuildStrategy {
       progress: 100,
     });
 
-    return {
+    return Promise.resolve({
       success: true,
       logs: `Static build stub for ${context.projectId}`,
       duration: Date.now() - startTime,
-    };
+    });
   }
 
   getDefaultConfig(): BuildConfig {

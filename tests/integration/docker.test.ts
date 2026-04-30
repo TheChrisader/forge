@@ -311,4 +311,190 @@ describe("Docker Integration", () => {
       expect(info.networkSettings.ports["80/tcp"]).toBeDefined();
     }, 60000);
   });
+
+  describe("Container with Environment Variables", () => {
+    it("should pass environment variables into a running container", async () => {
+      const container = await docker.create({
+        image: "alpine:latest",
+        cmd: ["sh", "-c", "sleep 30"],
+        env: { FORGE_TEST_VAR: "hello-world", ANOTHER_KEY: "123" },
+        labels: { "forge.test": "true" },
+      });
+
+      testContainers.push(container.id);
+      await docker.start(container.id);
+
+      await waitFor(
+        async () => {
+          const info = await docker.inspect(container.id);
+          return info.state.running;
+        },
+        { timeout: 10000, message: "Container did not start" }
+      );
+
+      const result = await docker.exec(container.id, ["sh", "-c", "echo $FORGE_TEST_VAR"]);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toBe("hello-world");
+
+      const second = await docker.exec(container.id, ["sh", "-c", "echo $ANOTHER_KEY"]);
+      expect(second.exitCode).toBe(0);
+      expect(second.output).toBe("123");
+    }, 30000);
+  });
+
+  describe("Container with Network Attachment", () => {
+    it("should attach a container to a custom network during creation", async () => {
+      const network = await docker.createNetwork({
+        name: `forge-test-net-attach-${Date.now()}`,
+        driver: "bridge",
+        labels: { "forge.test": "true" },
+      });
+      testNetworks.push(network.id);
+
+      const container = await docker.create({
+        image: "alpine:latest",
+        cmd: ["sh", "-c", "sleep 30"],
+        networks: [{ name: network.name }],
+        labels: { "forge.test": "true" },
+      });
+
+      testContainers.push(container.id);
+      await docker.start(container.id);
+
+      await waitFor(
+        async () => {
+          const info = await docker.inspect(container.id);
+          return info.state.running;
+        },
+        { timeout: 10000, message: "Container did not start" }
+      );
+
+      const info = await docker.inspect(container.id);
+      expect(info.networkSettings.networks[network.name]).toBeDefined();
+      expect(info.networkSettings.networks[network.name].ipAddress).toBeTruthy();
+    }, 30000);
+  });
+
+  describe("Image Pull", () => {
+    it("should pull an image and invoke progress callbacks", async () => {
+      const statuses: string[] = [];
+
+      await docker.pullImage("busybox", {
+        tag: "1.36",
+        onProgress: (progress) => {
+          statuses.push(progress.status);
+        },
+      });
+
+      expect(statuses.length).toBeGreaterThan(0);
+      const uniqueStatuses = [...new Set(statuses)];
+      expect(
+        uniqueStatuses.some(
+          (s) => s.includes("Pull") || s.includes("Download") || s.includes("Digest")
+        )
+      ).toBe(true);
+    }, 120000);
+  });
+
+  describe("Wait Patterns", () => {
+    it("should wait for a container to become healthy", async () => {
+      const container = await docker.create({
+        image: "nginx:alpine",
+        cmd: ["nginx", "-g", "daemon off;"],
+        healthCheck: {
+          test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"],
+          interval: "2s",
+          timeout: "3s",
+          retries: 10,
+          startPeriod: "3s",
+        },
+        labels: { "forge.test": "true" },
+      });
+
+      testContainers.push(container.id);
+      await docker.start(container.id);
+
+      await docker.waitForHealthy(container.id, { timeout: 30000 });
+
+      const info = await docker.inspect(container.id);
+      expect(info.health?.status).toBe("healthy");
+    }, 60000);
+
+    it("should wait for a container to reach running state", async () => {
+      const container = await docker.create({
+        image: "alpine:latest",
+        cmd: ["sh", "-c", "sleep 30"],
+        labels: { "forge.test": "true" },
+      });
+
+      testContainers.push(container.id);
+      await docker.start(container.id);
+
+      await docker.waitForState(container.id, "running", { timeout: 10000 });
+
+      const info = await docker.inspect(container.id);
+      expect(info.state.running).toBe(true);
+    }, 30000);
+
+    it("should wait for a container to reach exited state after stop", async () => {
+      const container = await docker.create({
+        image: "alpine:latest",
+        cmd: ["sh", "-c", "sleep 30"],
+        labels: { "forge.test": "true" },
+      });
+
+      testContainers.push(container.id);
+      await docker.start(container.id);
+
+      await waitFor(
+        async () => {
+          const info = await docker.inspect(container.id);
+          return info.state.running;
+        },
+        { timeout: 10000, message: "Container did not start" }
+      );
+
+      await docker.stop(container.id, { timeout: 10 });
+
+      await docker.waitForState(container.id, "exited", { timeout: 15000 });
+
+      const info = await docker.inspect(container.id);
+      expect(info.state.running).toBe(false);
+      expect(info.status).toBe("exited");
+    }, 30000);
+  });
+
+  describe("System Information", () => {
+    it("should retrieve Docker system info", async () => {
+      const info = await docker.getSystemInfo();
+
+      expect(info.ServerVersion).toBeTruthy();
+      expect(info.OperatingSystem).toBeTruthy();
+      expect(info.Architecture).toBeTruthy();
+      expect(info.NCPU).toBeGreaterThan(0);
+      expect(info.MemTotal).toBeGreaterThan(0);
+      expect(typeof info.Containers).toBe("number");
+      expect(typeof info.Images).toBe("number");
+    }, 15000);
+
+    it("should retrieve Docker disk usage", async () => {
+      const usage = await docker.getDiskUsage();
+
+      expect(typeof usage.imagesSizeBytes).toBe("number");
+      expect(typeof usage.containersSizeBytes).toBe("number");
+      expect(typeof usage.volumesSizeBytes).toBe("number");
+      expect(typeof usage.totalSizeBytes).toBe("number");
+      expect(usage.imagesSizeBytes).toBeGreaterThanOrEqual(0);
+    }, 15000);
+
+    it("should retrieve aggregated stats across running containers", async () => {
+      const stats = await docker.getAggregatedStats();
+
+      expect(typeof stats.cpuPercent).toBe("number");
+      expect(typeof stats.memoryUsedBytes).toBe("number");
+      expect(typeof stats.memoryLimitBytes).toBe("number");
+      expect(stats.cpuPercent).toBeGreaterThanOrEqual(0);
+      expect(stats.memoryLimitBytes).toBeGreaterThan(0);
+    }, 15000);
+  });
 });

@@ -36,29 +36,21 @@ export interface DeepMergeOptions {
  * @param options - Configuration options for merge behavior
  * @returns A new object with merged values (target is not mutated)
  */
-export function deepMerge<T>(
-  target: T,
-  source: Partial<T>,
-  options?: DeepMergeOptions
-): T {
+export function deepMerge<T>(target: T, source: Partial<T>, options?: DeepMergeOptions): T {
   const arrayMerge = options?.arrayMerge ?? "replace";
 
-  // If source is null/undefined, return target as-is
   if (source === null || source === undefined) {
     return target;
   }
 
-  // If source is a primitive or array (not a plain object), return it directly
   if (typeof source !== "object" || Array.isArray(source)) {
     return source as T;
   }
 
-  // If target is null/undefined or not an object, return source
   if (target === null || typeof target !== "object" || Array.isArray(target)) {
     return source as T;
   }
 
-  // Both are plain objects - merge them
   const result = { ...target } as Record<string, unknown>;
 
   for (const key in source) {
@@ -69,12 +61,10 @@ export function deepMerge<T>(
     const sourceValue = (source as Record<string, unknown>)[key];
     const targetValue = (target as Record<string, unknown>)[key];
 
-    // Skip undefined values in source (don't delete from target)
     if (sourceValue === undefined) {
       continue;
     }
 
-    // Both source and target are objects - recurse
     if (
       typeof sourceValue === "object" &&
       sourceValue !== null &&
@@ -91,18 +81,18 @@ export function deepMerge<T>(
       continue;
     }
 
-    // Handle arrays based on arrayMerge option
     if (Array.isArray(sourceValue)) {
       if (arrayMerge === "merge" && Array.isArray(targetValue)) {
-        result[key] = [...targetValue, ...sourceValue];
+        result[key] = [
+          ...(Array.isArray(targetValue) ? (targetValue as unknown[]) : []),
+          ...(Array.isArray(sourceValue) ? (sourceValue as unknown[]) : []),
+        ];
       } else {
-        // Replace mode (default) or target is not an array
         result[key] = sourceValue;
       }
       continue;
     }
 
-    // Primitives or incompatible types - replace with source
     result[key] = sourceValue;
   }
 

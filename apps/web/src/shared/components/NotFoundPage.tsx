@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
+import { JSX } from "react/jsx-runtime";
 
-export function NotFoundPage() {
+export function NotFoundPage(): JSX.Element {
   return (
     <div className="flex h-full items-center justify-center">
       <div className="text-center">

@@ -12,6 +12,8 @@ export default [
       "**/node_modules/**",
       "**/dist/**",
       "**/build/**",
+      "!packages/build/**",
+      "**/generated/client/**",
       "**/coverage/**",
       "**/.turbo/**",
       "**/*.d.ts",

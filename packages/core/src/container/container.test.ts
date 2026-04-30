@@ -87,9 +87,7 @@ describe("ServiceContainer", () => {
     });
 
     it("should throw when using resolveSync with async factory", () => {
-      container.singleton("asyncService", async () => {
-        return { ready: true };
-      });
+      container.singleton("asyncService", () => Promise.resolve({ ready: true }));
 
       expect(() => container.resolveSync("asyncService")).toThrow();
     });

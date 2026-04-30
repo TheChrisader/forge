@@ -4,9 +4,10 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NixpacksBuildStrategy } from "../strategies/nixpacks.strategy.js";
-import type { BuildContext } from "../interfaces/strategy.js";
+import type { BuildContext, BuildProgressEvent } from "../interfaces/strategy.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { Image } from "@forge/database";
 
 // Mock fs and path
 vi.mock("node:fs/promises");
@@ -15,17 +16,27 @@ vi.mock("node:path");
 // Mock DockerRuntime - we'll test the actual Docker integration in integration tests
 vi.mock("@forge/docker", () => ({
   DockerRuntime: class {
-    async create(_config: unknown) {
-      return { id: "test-container-id" };
+    async create(_config: unknown): Promise<{ id: string }> {
+      return Promise.resolve({ id: "test-container-id" });
     }
-    async start(_id: string) {}
-    async *logs(_id: string, _options: unknown) {
-      yield { timestamp: new Date(), stream: "stdout" as const, message: "Building..." };
-      yield { timestamp: new Date(), stream: "stdout" as const, message: "Done!" };
+    async start(_id: string): Promise<void> {}
+    async *logs(_id: string, _options: unknown): AsyncGenerator<BuildProgressEvent> {
+      yield Promise.resolve({
+        type: "stage" as const,
+        timestamp: new Date(),
+        stream: "stdout" as const,
+        message: "Building...",
+      });
+      yield Promise.resolve({
+        type: "stage" as const,
+        timestamp: new Date(),
+        stream: "stdout" as const,
+        message: "Done!",
+      });
     }
-    async waitForState(_id: string, _state: string, _options?: unknown) {}
-    async listImages(_filters?: unknown) {
-      return [{ id: "sha256:test123", repoTags: ["forge/test:dep1"] }];
+    async waitForState(_id: string, _state: string, _options?: unknown): Promise<void> {}
+    async listImages(_filters?: unknown): Promise<Partial<Image>[]> {
+      return Promise.resolve([{ id: "sha256:test123", repoTags: ["forge/test:dep1"] }]);
     }
   },
 }));
@@ -159,7 +170,9 @@ describe("NixpacksBuildStrategy", () => {
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain("nixpacksImage must include a tag (e.g., 'forge/nixpacks-builder:local')");
+      expect(result.errors).toContain(
+        "nixpacksImage must include a tag (e.g., 'forge/nixpacks-builder:local')"
+      );
     });
 
     it("should accept config without nixpacksImage", () => {

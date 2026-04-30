@@ -1,15 +1,3 @@
-/**
- * Build strategy interface
- * Allows pluggable build strategies for different frameworks/languages
- */
-
-/**
- * Progress event emitted during build
- * Consumers can listen to these events for real-time build updates
- *
- * Named BuildProgressEvent to avoid conflict with @forge/docker's BuildProgress
- * which is used for Docker runtime callbacks (stream/status/progress/error)
- */
 export interface BuildProgressEvent {
   type: "log" | "stage" | "complete" | "error";
   message: string;
@@ -58,21 +46,15 @@ export interface BuildConfig {
   startCommand?: string;
   port?: number;
   envVars?: Record<string, string>;
-  // Script discovery options
   /** Whether to auto-discover scripts from manifest files (default: true) */
   autoDiscoverScripts?: boolean;
-  /** Explicit command overrides (take priority over discovered scripts) */
   overrideInstallCommand?: string;
   overrideBuildCommand?: string;
   overrideStartCommand?: string;
   /** Environment context for script variant selection (e.g., "production", "staging") */
   environment?: string;
-  // Nixpacks-specific options
-  /** Path to nixpacks.toml configuration file */
   nixpacksTomlPath?: string;
-  /** Nixpacks image to use (default: nixpacks/nixpacks:latest) */
   nixpacksImage?: string;
-  /** Nixpacks CLI arguments (e.g., --no-cache, --verbose) */
   nixpacksArgs?: string[];
 }
 
@@ -82,7 +64,6 @@ export interface DetectionResult {
   version?: string;
   confidence: number; // 0-1
   config?: BuildConfig;
-  /** Metadata about discovered scripts from manifest files */
   discoveredScripts?: {
     /** All available script names from the manifest */
     available: string[];
@@ -90,7 +71,6 @@ export interface DetectionResult {
     missing: string[];
     /** Type of manifest file (e.g., "package.json", "requirements.txt") */
     source: string;
-    /** Path to the manifest file */
     sourcePath: string;
   };
 }
@@ -120,7 +100,6 @@ export interface IBuildStrategy {
 export interface IBuildStrategyRegistry {
   register(strategy: IBuildStrategy): void;
   getAll(): IBuildStrategy[];
-  /** Now throws NoStrategyFoundError if no strategy detected (was: returns null) */
   detect(context: BuildContext): Promise<IBuildStrategy>;
   get(name: string): IBuildStrategy | null;
 }

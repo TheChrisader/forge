@@ -1,15 +1,6 @@
-/**
- * Command resolution utilities
- * Resolves build, start, and install commands with intelligent fallbacks
- */
-
 import type { DiscoveredScripts } from "./script-discovery.js";
 
-/**
- * Framework-specific default commands
- */
 const FRAMEWORK_DEFAULTS = {
-  // Node.js frameworks
   nextjs: {
     build: "next build",
     start: "next start",
@@ -60,7 +51,6 @@ const FRAMEWORK_DEFAULTS = {
     start: "node server.js",
     install: "npm ci",
   },
-  // Python frameworks
   fastapi: {
     install: "pip install -r requirements.txt",
     start: "uvicorn main:app --host 0.0.0.0 --port 8000",
@@ -81,7 +71,6 @@ const FRAMEWORK_DEFAULTS = {
     start: "python main.py",
     build: undefined,
   },
-  // Go frameworks
   gin: {
     install: "go mod download",
     build: "go build -o app",
@@ -97,7 +86,6 @@ const FRAMEWORK_DEFAULTS = {
     build: "go build -o app",
     start: "./app",
   },
-  // Static site generators
   hugo: {
     install: "hugo",
     build: "hugo --minify",
@@ -108,7 +96,6 @@ const FRAMEWORK_DEFAULTS = {
     build: "bundle exec jekyll build",
     start: "bundle exec jekyll serve",
   },
-  // Generic defaults
   generic: {
     install: "npm ci",
     build: "npm run build",
@@ -126,9 +113,6 @@ const FRAMEWORK_DEFAULTS = {
   },
 } as const;
 
-/**
- * Result of resolving a command
- */
 export interface ResolvedCommand {
   /** The resolved command, or null if no command could be determined */
   command: string | null;
@@ -138,9 +122,6 @@ export interface ResolvedCommand {
   warnings: string[];
 }
 
-/**
- * Options for command resolution
- */
 export interface CommandResolutionOptions {
   /** User-provided override command (highest priority) */
   override?: string;
@@ -172,7 +153,6 @@ export function resolveBuildCommand(
   const framework = options?.framework?.toLowerCase() ?? "generic";
   const override = options?.override;
 
-  // 1. User override takes highest priority
   if (override) {
     return {
       command: override,
@@ -181,7 +161,6 @@ export function resolveBuildCommand(
     };
   }
 
-  // 2. Discovered script from manifest
   if (scripts?.build) {
     return {
       command: scripts.build,
@@ -190,7 +169,6 @@ export function resolveBuildCommand(
     };
   }
 
-  // 3. Framework-specific default
   const frameworkDefaults = FRAMEWORK_DEFAULTS[framework as keyof typeof FRAMEWORK_DEFAULTS];
   if (frameworkDefaults?.build) {
     return {
@@ -202,7 +180,6 @@ export function resolveBuildCommand(
     };
   }
 
-  // 4. Generic fallback
   const genericDefaults = FRAMEWORK_DEFAULTS.generic;
   if (genericDefaults.build) {
     return {
@@ -252,7 +229,6 @@ export function resolveStartCommand(
   const framework = options?.framework?.toLowerCase() ?? "generic";
   const override = options?.override;
 
-  // 1. User override takes highest priority
   if (override) {
     return {
       command: override,
@@ -261,7 +237,6 @@ export function resolveStartCommand(
     };
   }
 
-  // 2. Discovered script from manifest
   if (scripts?.start) {
     return {
       command: scripts.start,
@@ -270,7 +245,6 @@ export function resolveStartCommand(
     };
   }
 
-  // 3. Framework-specific default
   const frameworkDefaults = FRAMEWORK_DEFAULTS[framework as keyof typeof FRAMEWORK_DEFAULTS];
   if (frameworkDefaults?.start) {
     return {
@@ -282,7 +256,6 @@ export function resolveStartCommand(
     };
   }
 
-  // 4. Generic fallback
   const genericDefaults = FRAMEWORK_DEFAULTS.generic;
   if (genericDefaults.start) {
     return {
@@ -294,7 +267,6 @@ export function resolveStartCommand(
     };
   }
 
-  // No command available
   if (options?.allowNull) {
     return {
       command: null,
@@ -332,7 +304,6 @@ export function resolveInstallCommand(
   const framework = options?.framework?.toLowerCase() ?? "generic";
   const override = options?.override;
 
-  // 1. User override takes highest priority
   if (override) {
     return {
       command: override,
@@ -341,7 +312,6 @@ export function resolveInstallCommand(
     };
   }
 
-  // 2. Discovered script from manifest
   if (scripts?.install) {
     return {
       command: scripts.install,
@@ -350,7 +320,6 @@ export function resolveInstallCommand(
     };
   }
 
-  // 3. Framework-specific default
   const frameworkDefaults = FRAMEWORK_DEFAULTS[framework as keyof typeof FRAMEWORK_DEFAULTS];
   if (frameworkDefaults?.install) {
     return {
@@ -362,7 +331,6 @@ export function resolveInstallCommand(
     };
   }
 
-  // 4. Generic fallback
   const genericDefaults = FRAMEWORK_DEFAULTS.generic;
   if (genericDefaults.install) {
     return {
@@ -374,7 +342,6 @@ export function resolveInstallCommand(
     };
   }
 
-  // No command available
   if (options?.allowNull) {
     return {
       command: null,
@@ -446,7 +413,6 @@ export function normalizeFrameworkName(frameworkName?: string): string {
 
   const normalized = frameworkName.toLowerCase();
 
-  // Map common framework name variations
   const frameworkMap: Record<string, string> = {
     "next.js": "nextjs",
     next: "nextjs",
@@ -489,7 +455,6 @@ export function normalizeFrameworkName(frameworkName?: string): string {
  * @returns true if command appears safe, false otherwise
  */
 export function validateCommandSafety(command: string): boolean {
-  // Basic safety checks - prevent obvious command injection
   const dangerousPatterns = [
     /\|\|/, // Command chaining
     /&&/, // Command chaining

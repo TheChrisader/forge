@@ -1,8 +1,3 @@
-/**
- * Dockerfile build strategy
- * Detects projects with a Dockerfile and uses it for building
- */
-
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type {
@@ -61,7 +56,6 @@ export class DockerfileBuildStrategy implements IBuildStrategy {
       stage: "init",
     });
 
-    // Validate Dockerfile exists
     try {
       await fs.access(dockerfilePath);
       void onProgress?.({
@@ -79,7 +73,6 @@ export class DockerfileBuildStrategy implements IBuildStrategy {
       throw new BuildValidationError(error);
     }
 
-    // Create runtime and build
     const runtime = new DockerRuntime();
 
     // NOTE: Build artifact caching requires a database client.
@@ -158,9 +151,10 @@ export class DockerfileBuildStrategy implements IBuildStrategy {
         image: result.imageId,
         logs: `Built image ${result.imageId.slice(0, 12)}`,
         duration: Date.now() - startTime,
-        artifacts: result.warnings.length > 0
-          ? [{ name: "warnings", path: "build", size: result.warnings.length }]
-          : undefined,
+        artifacts:
+          result.warnings.length > 0
+            ? [{ name: "warnings", path: "build", size: result.warnings.length }]
+            : undefined,
       };
     } catch (err) {
       void onProgress?.({

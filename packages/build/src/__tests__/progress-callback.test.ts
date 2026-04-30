@@ -7,7 +7,6 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 
-// Mock DockerRuntime
 const mockDockerRuntime = {
   buildImage: vi.fn().mockResolvedValue({
     imageId: "sha256:test123",

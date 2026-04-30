@@ -1,7 +1,3 @@
-/**
- * Tests for script discovery utilities
- */
-
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

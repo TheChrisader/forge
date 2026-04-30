@@ -1,3 +1,4 @@
+/* global self, fetch */
 self.addEventListener("push", (event) => {
   let data = {
     title: "Forge Alert",
@@ -12,15 +13,6 @@ self.addEventListener("push", (event) => {
       data.body = event.data.text();
     }
   }
-
-  const levelColors = {
-    INFO: "#3b82f6",
-    SUCCESS: "#22c55e",
-    WARNING: "#f59e0b",
-    ERROR: "#ef4444",
-  };
-
-  const icon = data.level ? levelColors[data.level] || levelColors.INFO : levelColors.INFO;
 
   event.waitUntil(
     self.registration.showNotification(data.title, {
@@ -65,8 +57,8 @@ self.addEventListener("pushsubscriptionchange", (event) => {
           body: JSON.stringify(subscription.toJSON()),
         });
       })
-      .catch((err) => {
-        console.error("Failed to resubscribe to push notifications:", err);
+      .catch(() => {
+        // TODO: log error when resubscription fails
       })
   );
 });

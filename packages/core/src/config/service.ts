@@ -16,13 +16,13 @@ export class ConfigService extends EventEmitter {
     return this.config;
   }
 
-  get<T = any>(path: string): T {
+  get<T = unknown>(path: string): T {
     const keys = path.split(".");
-    let value: any = this.config;
+    let value: unknown = this.config;
 
     for (const key of keys) {
       if (value && typeof value === "object" && key in value) {
-        value = value[key];
+        value = (value as Record<string, unknown>)[key];
       } else {
         throw new Error(`Config path not found: ${path}`);
       }

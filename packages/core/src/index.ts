@@ -14,4 +14,5 @@ export * from "./services/build-log.service";
 export * from "./utils";
 export * from "./validation";
 
+// eslint-disable-next-line no-console
 console.log(`${PLATFORM_NAME} v${PLATFORM_VERSION} - Core package loaded`);

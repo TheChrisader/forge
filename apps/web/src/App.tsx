@@ -2,6 +2,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import { router } from "@/core/router";
+import { JSX } from "react/jsx-runtime";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,7 +13,7 @@ const queryClient = new QueryClient({
   },
 });
 
-export function App() {
+export function App(): JSX.Element {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

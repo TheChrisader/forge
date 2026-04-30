@@ -1,8 +1,3 @@
-/**
- * Build strategy registry
- * Manages registration and detection of build strategies
- */
-
 import type {
   IBuildStrategy,
   IBuildStrategyRegistry,
@@ -11,9 +6,6 @@ import type {
 } from "./interfaces/strategy.js";
 import { NoStrategyFoundError } from "./errors.js";
 
-/**
- * BuildStrategyRegistry manages build strategies
- */
 export class BuildStrategyRegistry implements IBuildStrategyRegistry {
   private strategies = new Map<string, IBuildStrategy>();
 

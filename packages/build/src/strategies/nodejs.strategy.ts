@@ -1,9 +1,3 @@
-/**
- * Node.js build strategy
- * Detects Node.js projects (Next.js, Vite, NestJS, Express, vanilla Node.js)
- * Uses script discovery to find actual build/start commands from package.json
- */
-
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type {
@@ -71,9 +65,6 @@ export class NodeJsBuildStrategy implements IBuildStrategy {
     }
   }
 
-  /**
-   * Detect the specific Node.js framework from dependencies
-   */
   private detectFramework(
     deps: Record<string, string>
   ): { name: string; version: string; confidence: number; defaults: Partial<BuildConfig> } | null {
@@ -188,9 +179,6 @@ export class NodeJsBuildStrategy implements IBuildStrategy {
     return null;
   }
 
-  /**
-   * Build a DetectionResult with resolved commands
-   */
   private buildDetectionResult(
     framework: string,
     version: string,
@@ -262,11 +250,11 @@ export class NodeJsBuildStrategy implements IBuildStrategy {
       progress: 100,
     });
 
-    return {
+    return Promise.resolve({
       success: true,
       logs: `Node.js build stub for ${context.projectId}`,
       duration: Date.now() - startTime,
-    };
+    });
   }
 
   getDefaultConfig(): BuildConfig {
@@ -282,8 +270,6 @@ export class NodeJsBuildStrategy implements IBuildStrategy {
   validateConfig(config: BuildConfig): { valid: boolean; errors?: string[] } {
     const errors: string[] = [];
 
-    // With auto-discovery and fallbacks, we only require explicit commands
-    // if auto-discovery is disabled
     if (config.autoDiscoverScripts === false) {
       if (!config.installCommand) {
         errors.push("installCommand is required when autoDiscoverScripts is false");

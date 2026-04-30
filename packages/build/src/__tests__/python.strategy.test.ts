@@ -1,7 +1,3 @@
-/**
- * Python build strategy tests
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PythonBuildStrategy } from "../strategies/python.strategy.js";
 import type { BuildContext } from "../interfaces/strategy.js";
@@ -9,7 +5,6 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { PathLike } from "node:fs";
 
-// Mock fs
 vi.mock("node:fs/promises");
 vi.mock("node:path");
 

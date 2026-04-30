@@ -1,7 +1,3 @@
-/**
- * Build strategy registry tests
- */
-
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   BuildStrategyRegistry,
@@ -16,7 +12,6 @@ import type {
 } from "../interfaces/strategy.js";
 import type { IBuildStrategy } from "../interfaces/strategy.js";
 
-// Mock strategy for testing
 class MockStrategy implements IBuildStrategy {
   readonly name = "mock";
   async detect(_context: BuildContext): Promise<DetectionResult> {
@@ -67,9 +62,7 @@ describe("BuildStrategyRegistry", () => {
 
       registry.register(strategy);
 
-      expect(() => registry.register(strategy)).toThrow(
-        'Strategy "mock" is already registered'
-      );
+      expect(() => registry.register(strategy)).toThrow('Strategy "mock" is already registered');
     });
   });
 

@@ -19,7 +19,6 @@ coverage/
 .env*.local
 
 # IDEs
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -50,15 +49,7 @@ data/crl/
 !packages/build/
 
 # Temporarily disable from Git
-task-old.md
-task.md
-task2.md
-task3.md
-task4.md
-task5.md
-task6.md
 cicd.md
 CORE.md
 system/
-schema/
 test.yml

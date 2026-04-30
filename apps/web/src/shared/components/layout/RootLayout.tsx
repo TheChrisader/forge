@@ -1,8 +1,9 @@
 import { Outlet } from "@tanstack/react-router";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { JSX } from "react";
 
-export function RootLayout() {
+export function RootLayout(): JSX.Element {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />

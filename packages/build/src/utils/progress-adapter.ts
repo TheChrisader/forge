@@ -84,7 +84,7 @@ export class ProgressAdapter {
     });
   }
 
-  /** Call this to start a build stage */
+  /** Call this on the start of a build stage */
   emitStart(stage: string): void {
     this.currentStage = stage;
     void this.onProgress?.({

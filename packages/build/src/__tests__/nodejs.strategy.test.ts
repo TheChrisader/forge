@@ -1,14 +1,9 @@
-/**
- * Node.js build strategy tests
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NodeJsBuildStrategy } from "../strategies/nodejs.strategy.js";
 import type { BuildContext } from "../interfaces/strategy.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-// Mock fs
 vi.mock("node:fs/promises");
 vi.mock("node:path");
 
@@ -224,7 +219,9 @@ describe("NodeJsBuildStrategy", () => {
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain("installCommand is required when autoDiscoverScripts is false");
+      expect(result.errors).toContain(
+        "installCommand is required when autoDiscoverScripts is false"
+      );
     });
 
     it("should return errors for missing startCommand when autoDiscoverScripts is false", () => {

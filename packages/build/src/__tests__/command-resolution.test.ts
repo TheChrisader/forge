@@ -1,7 +1,3 @@
-/**
- * Tests for command resolution utilities
- */
-
 import { describe, it, expect } from "vitest";
 import {
   resolveBuildCommand,

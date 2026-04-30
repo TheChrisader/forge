@@ -1,9 +1,3 @@
-/**
- * Python build strategy
- * Detects Python projects (FastAPI, Django, Flask, vanilla Python)
- * Uses script discovery to find actual commands from manifest files
- */
-
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type {
@@ -80,9 +74,6 @@ export class PythonBuildStrategy implements IBuildStrategy {
     }
   }
 
-  /**
-   * Detect the specific Python framework from manifest files
-   */
   private async detectFramework(
     sourceDir: string,
     hasRequirements: boolean,
@@ -130,7 +121,6 @@ export class PythonBuildStrategy implements IBuildStrategy {
       }
     }
 
-    // Check pyproject.toml for framework info
     if (hasPyproject) {
       const content = await fs.readFile(path.join(sourceDir, "pyproject.toml"), "utf-8");
       const lowerContent = content.toLowerCase();
@@ -163,9 +153,6 @@ export class PythonBuildStrategy implements IBuildStrategy {
     return null;
   }
 
-  /**
-   * Build a DetectionResult with resolved commands
-   */
   private buildDetectionResult(
     framework: string,
     version: string,
@@ -235,11 +222,11 @@ export class PythonBuildStrategy implements IBuildStrategy {
       progress: 100,
     });
 
-    return {
+    return Promise.resolve({
       success: true,
       logs: `Python build stub for ${context.projectId}`,
       duration: Date.now() - startTime,
-    };
+    });
   }
 
   getDefaultConfig(): BuildConfig {

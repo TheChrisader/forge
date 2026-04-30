@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ConfigLoader } from "./loader";
 import { ConfigValidator } from "./validator";
 import { ConfigService } from "./service";
+import type { Config } from "./schema";
 
 describe("ConfigLoader", () => {
   let loader: ConfigLoader;
@@ -53,7 +54,7 @@ describe("ConfigLoader", () => {
 
 describe("ConfigValidator", () => {
   it("should validate valid configuration", () => {
-    const config: any = {
+    const config = {
       nodeEnv: "development",
       server: {
         port: 3000,
@@ -122,14 +123,14 @@ describe("ConfigValidator", () => {
       },
     };
 
-    const result = ConfigValidator.validate(config);
+    const result = ConfigValidator.validate(config as Config);
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
   it("should detect missing required fields", () => {
-    const config: any = {
+    const config = {
       nodeEnv: "production",
       server: { port: 3000, host: "localhost", cors: {}, rateLimit: {} },
       database: { url: "", pool: {}, ssl: false, logging: false },
@@ -157,14 +158,14 @@ describe("ConfigValidator", () => {
       paths: {},
     };
 
-    const result = ConfigValidator.validate(config);
+    const result = ConfigValidator.validate(config as Config);
 
     expect(result.valid).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
   it("should warn about insecure production settings", () => {
-    const config: any = {
+    const config = {
       nodeEnv: "production",
       server: {
         port: 3000,
@@ -233,7 +234,7 @@ describe("ConfigValidator", () => {
       },
     };
 
-    const result = ConfigValidator.validate(config);
+    const result = ConfigValidator.validate(config as Config);
 
     expect(result.warnings.length).toBeGreaterThan(0);
     expect(result.warnings.some((w) => w.includes("CORS"))).toBe(true);
@@ -241,7 +242,7 @@ describe("ConfigValidator", () => {
   });
 
   it("should throw when validateOrThrow fails", () => {
-    const config: any = {
+    const config = {
       nodeEnv: "production",
       server: { port: 3000, host: "localhost", cors: {}, rateLimit: {} },
       database: { url: "", pool: {}, ssl: false, logging: false },
@@ -269,7 +270,7 @@ describe("ConfigValidator", () => {
       paths: {},
     };
 
-    expect(() => ConfigValidator.validateOrThrow(config)).toThrow();
+    expect(() => ConfigValidator.validateOrThrow(config as Config)).toThrow();
   });
 });
 
