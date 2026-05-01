@@ -1,10 +1,10 @@
 import { SERVICE_KEY_STRINGS, type ServiceContainer, type ServiceModule } from "@forge/core";
 import { DockerRuntime } from "@forge/docker";
 import type { PrismaClient } from "@forge/database";
-import { ContainerService } from "../services/container.service";
-import { NetworkManager } from "../services/network-manager";
-import { VolumeManager } from "../services/volume-manager";
-import { SSEManagerService } from "../services/sse-manager.service";
+import { ContainerService } from "../services/container.service.js";
+import { NetworkManager } from "../services/network-manager.js";
+import { VolumeManager } from "../services/volume-manager.js";
+import { SSEManagerService } from "../services/sse-manager.service.js";
 
 /**
  * ContainerModule - Registers the ContainerService and dependencies

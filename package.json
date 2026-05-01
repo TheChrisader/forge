@@ -12,6 +12,7 @@
   "scripts": {
     "build": "turbo run build postbuild",
     "dev": "turbo run dev",
+    "start": "turbo run start",
     "test": "turbo run test",
     "test:run": "vitest run",
     "test:watch": "vitest",
@@ -80,6 +81,7 @@
   },
   "dependencies": {
     "@forge/certificate": "workspace:*",
+    "@prisma/client-runtime-utils": "^7.8.0",
     "@types/web-push": "^3.6.4",
     "web-push": "^3.6.7"
   }

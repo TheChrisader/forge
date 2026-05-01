@@ -19,6 +19,9 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 4001,
+  },
   build: {
     outDir: "dist",
     sourcemap: true,

@@ -1,7 +1,7 @@
 import { SERVICE_KEY_STRINGS, ServiceContainer, ServiceModule } from "@forge/core";
 import { PrismaClient } from "@forge/database";
 import { QueueService } from "@forge/queue";
-import { DeploymentService } from "../services/deployment.service";
+import { DeploymentService } from "../services/deployment.service.js";
 
 export class DeploymentModule implements ServiceModule {
   register(container: ServiceContainer): void {

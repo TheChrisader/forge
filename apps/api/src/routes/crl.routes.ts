@@ -21,16 +21,22 @@ function resolveProjectPath(relativePath: string): string {
 }
 
 export function registerCrlRoutes(server: FastifyInstance, config: Config): void {
-  server.get("/.well-known/crl/ca.crl", {
-    schema: { tags: ["system"] },
-  }, async (_request, reply) => {
-    const crlPath = join(resolveProjectPath(config.paths.data), "crl", "ca.crl");
+  server.get(
+    "/.well-known/crl/ca.crl",
+    {
+      schema: { tags: ["system"] },
+    },
+    async (_request, reply) => {
+      const crlPath = join(resolveProjectPath(config.paths.data), "crl", "ca.crl");
 
-    if (!existsSync(crlPath)) {
-      return reply.status(404).send({ error: "CRL not found. Run pnpm setup:certs to generate." });
+      if (!existsSync(crlPath)) {
+        return reply
+          .status(404)
+          .send({ error: "CRL not found. Run pnpm setup:certs to generate." });
+      }
+
+      const crlData = readFileSync(crlPath);
+      return reply.header("Content-Type", "application/pkix-crl").send(crlData);
     }
-
-    const crlData = readFileSync(crlPath);
-    return reply.header("Content-Type", "application/pkix-crl").send(crlData);
-  });
+  );
 }

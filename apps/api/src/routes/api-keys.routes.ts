@@ -95,35 +95,39 @@ export function registerApiKeyRoutes(_server: FastifyInstance, _config: Config):
   );
 
   // Revoke API key
-  server.delete("/api/auth/api-keys/:id", {
-    schema: { tags: ["api-keys"] },
-  }, async (request) => {
-    const userId = requireAuth(request.userId);
-    const { id } = request.params as { id: string };
+  server.delete(
+    "/api/auth/api-keys/:id",
+    {
+      schema: { tags: ["api-keys"] },
+    },
+    async (request) => {
+      const userId = requireAuth(request.userId);
+      const { id } = request.params as { id: string };
 
-    const apiKey = await db.apiKey.findUnique({
-      where: { id },
-    });
+      const apiKey = await db.apiKey.findUnique({
+        where: { id },
+      });
 
-    if (!apiKey) {
-      throw new NotFoundError("API key not found");
+      if (!apiKey) {
+        throw new NotFoundError("API key not found");
+      }
+
+      if (apiKey.userId !== userId) {
+        throw new NotFoundError("API key not found");
+      }
+
+      if (apiKey.revokedAt) {
+        throw new BadRequestError("API key has already been revoked");
+      }
+
+      await db.apiKey.update({
+        where: { id: apiKey.id },
+        data: { revokedAt: new Date() },
+      });
+
+      return { success: true };
     }
-
-    if (apiKey.userId !== userId) {
-      throw new NotFoundError("API key not found");
-    }
-
-    if (apiKey.revokedAt) {
-      throw new BadRequestError("API key has already been revoked");
-    }
-
-    await db.apiKey.update({
-      where: { id: apiKey.id },
-      data: { revokedAt: new Date() },
-    });
-
-    return { success: true };
-  });
+  );
 }
 
 function hashKey(key: string): string {

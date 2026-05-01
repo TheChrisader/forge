@@ -13,8 +13,7 @@
     "clean": "shx rm -rf dist",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "typecheck": "tsc --noEmit",
-    "start": "node dist/index.js"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@forge/core": "workspace:*",

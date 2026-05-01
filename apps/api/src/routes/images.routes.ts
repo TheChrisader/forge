@@ -127,14 +127,18 @@ export function registerImageRoutes(_server: FastifyInstance, _config: Config): 
    * POST /api/images/prune
    * Prunes dangling images
    */
-  server.post("/api/images/prune", {
-    schema: { tags: ["images"] },
-  }, async (request, reply) => {
-    requireAuth((request as { userId?: string }).userId);
-    await requirePermission(request, { resource: "images", action: "delete" });
-    const result = await runtime.pruneDanglingImages();
-    return reply.send({ data: result });
-  });
+  server.post(
+    "/api/images/prune",
+    {
+      schema: { tags: ["images"] },
+    },
+    async (request, reply) => {
+      requireAuth((request as { userId?: string }).userId);
+      await requirePermission(request, { resource: "images", action: "delete" });
+      const result = await runtime.pruneDanglingImages();
+      return reply.send({ data: result });
+    }
+  );
 
   /**
    * POST /api/projects/:id/images/prune

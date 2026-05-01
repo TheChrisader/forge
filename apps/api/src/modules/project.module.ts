@@ -1,6 +1,6 @@
 import { SERVICE_KEY_STRINGS, ServiceContainer, ServiceModule } from "@forge/core";
 import { PrismaClient } from "@forge/database";
-import { ProjectService } from "../services/project.service";
+import { ProjectService } from "../services/project.service.js";
 
 export class ProjectModule implements ServiceModule {
   register(container: ServiceContainer): void {

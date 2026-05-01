@@ -11,6 +11,9 @@ importers:
       '@forge/certificate':
         specifier: workspace:*
         version: link:packages/certificate
+      '@prisma/client-runtime-utils':
+        specifier: ^7.8.0
+        version: 7.8.0
       '@types/web-push':
         specifier: ^3.6.4
         version: 3.6.4
@@ -646,7 +649,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.1.5
-        version: 4.1.5(@types/node@25.2.0)(@vitest/coverage-v8@4.0.18(vitest@4.0.18))(@vitest/ui@4.0.18)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@7.3.1(@types/node@25.2.0)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
+        version: 4.1.5(@types/node@25.2.0)(@vitest/coverage-v8@4.0.18(vitest@4.0.18))(@vitest/ui@4.0.18(vitest@4.0.18))(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@7.3.1(@types/node@25.2.0)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
 
   packages/docker:
     dependencies:
@@ -1784,6 +1787,9 @@ packages:
 
   '@prisma/client-runtime-utils@7.3.0':
     resolution: {integrity: sha512-dG/ceD9c+tnXATPk8G+USxxYM9E6UdMTnQeQ+1SZUDxTz7SgQcfxEqafqIQHcjdlcNK/pvmmLfSwAs3s2gYwUw==}
+
+  '@prisma/client-runtime-utils@7.8.0':
+    resolution: {integrity: sha512-5NQZztQ0oY/ADFkmd9gPuweH5A1/CCY8YQPorLLO0Mu6a87mY5gsnDkzmFmIHs9NFaLnZojzgddFVN4RpKYrdw==}
 
   '@prisma/client@7.3.0':
     resolution: {integrity: sha512-FXBIxirqQfdC6b6HnNgxGmU7ydCPEPk7maHMOduJJfnTP+MuOGa15X4omjR/zpPUUpm8ef/mEFQjJudOGkXFcQ==}
@@ -7111,6 +7117,8 @@ snapshots:
 
   '@prisma/client-runtime-utils@7.3.0': {}
 
+  '@prisma/client-runtime-utils@7.8.0': {}
+
   '@prisma/client@7.3.0(prisma@7.3.0(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)':
     dependencies:
       '@prisma/client-runtime-utils': 7.3.0
@@ -11819,7 +11827,7 @@ snapshots:
       - tsx
       - yaml
 
-  vitest@4.1.5(@types/node@25.2.0)(@vitest/coverage-v8@4.0.18(vitest@4.0.18))(@vitest/ui@4.0.18)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@7.3.1(@types/node@25.2.0)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)):
+  vitest@4.1.5(@types/node@25.2.0)(@vitest/coverage-v8@4.0.18(vitest@4.0.18))(@vitest/ui@4.0.18(vitest@4.0.18))(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@7.3.1(@types/node@25.2.0)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)):
     dependencies:
       '@vitest/expect': 4.1.5
       '@vitest/mocker': 4.1.5(vite@7.3.1(@types/node@25.2.0)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
