@@ -56,7 +56,7 @@
     "@forge/queue": "workspace:*",
     "@forge/storage": "workspace:*",
     "@forge/test-utils": "workspace:*",
-    "@testcontainers/postgresql": "^11.11.0",
+    "@testcontainers/postgresql": "^11.14.0",
     "@testcontainers/redis": "^11.11.0",
     "@types/node": "^25.2.0",
     "@types/supertest": "^6.0.3",
