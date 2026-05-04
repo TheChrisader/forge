@@ -2,6 +2,8 @@
 
 A local-first application deployment platform. Build, deploy, and manage containerized applications on your own infrastructure.
 
+**[Watch the demo](https://www.loom.com/share/7bed62dbc26945d5aa122e9b5f04cc0f)**
+
 ## Overview
 
 Forge provides a complete deployment pipeline, from source code to running containers, with a web dashboard, REST API, and CLI. It manages builds, deployments, health monitoring, and observability for your applications, all running on local infrastructure with Docker.
