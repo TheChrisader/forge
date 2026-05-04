@@ -17,7 +17,7 @@
     "clean": "shx rm -rf dist"
   },
   "dependencies": {
-    "@base-ui/react": "^1.1.0",
+    "@base-ui/react": "^1.4.1",
     "@fontsource/delius-swash-caps": "^5.1.1",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/source-code-pro": "^5.1.1",
