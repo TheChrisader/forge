@@ -16,7 +16,7 @@
     "@forge/database": "workspace:*",
     "@forge/docker": "workspace:*",
     "@forge/types": "workspace:*",
-    "@prisma/adapter-pg": "^7.3.0",
+    "@prisma/adapter-pg": "^7.8.0",
     "@testcontainers/postgresql": "^11.11.0",
     "@testcontainers/redis": "^11.11.0",
     "ioredis": "^5.4.2",
