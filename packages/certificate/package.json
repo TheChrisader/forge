@@ -15,7 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "asn1js": "^3.0.7",
+    "asn1js": "^3.0.10",
     "node-forge": "^1.4.0",
     "pkijs": "^3.4.0"
   },
