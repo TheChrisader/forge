@@ -24,8 +24,8 @@
     "test:connection": "tsx src/test-connection.ts"
   },
   "devDependencies": {
-    "prisma": "^7.3.0",
-    "tsx": "^4.21.0",
+    "prisma": "^7.8.0",
+    "tsx": "^4.22.2",
     "typescript": "^5.9.3"
   },
   "dependencies": {
